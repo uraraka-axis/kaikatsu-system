@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>メニュー画面</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', 'Noto Sans JP', sans-serif;
+      background-color: #f8fafc;
+      color: #1e293b;
+      min-height: 100vh;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .header {
+      background-color: #1e293b;
+      color: #fff;
+      padding: 0 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 64px;
+    }
+    .header h1 { font-size: 20px; font-weight: 700; letter-spacing: 0.5px; }
+    .header-right { display: flex; align-items: center; gap: 20px; }
+    .header-user { font-size: 14px; color: #cbd5e1; }
+    .btn-logout {
+      background: transparent; color: #fff; border: 1px solid #64748b;
+      padding: 6px 16px; border-radius: 6px; cursor: pointer;
+      font-family: inherit; font-size: 13px; transition: all 0.2s;
+    }
+    .btn-logout:hover { background-color: #334155; border-color: #94a3b8; }
+
+    .main {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 40px 32px;
+    }
+
+    .welcome {
+      margin-bottom: 36px;
+    }
+    .welcome h2 {
+      font-size: 24px;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 8px;
+    }
+    .welcome p {
+      font-size: 14px;
+      color: #64748b;
+    }
+
+    .menu-section {
+      margin-bottom: 36px;
+    }
+    .menu-section-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 16px;
+    }
+
+    .menu-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 16px;
+    }
+
+    .menu-card {
+      background-color: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 24px;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-decoration: none;
+      color: inherit;
+      display: block;
+    }
+    .menu-card:hover {
+      border-color: #3b82f6;
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);
+      transform: translateY(-2px);
+    }
+
+    .menu-card-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 16px;
+    }
+    .menu-card-icon svg { width: 22px; height: 22px; }
+    .menu-card-icon.blue { background-color: #eff6ff; color: #3b82f6; }
+    .menu-card-icon.green { background-color: #f0fdf4; color: #22c55e; }
+    .menu-card-icon.orange { background-color: #fff7ed; color: #f97316; }
+    .menu-card-icon.purple { background-color: #faf5ff; color: #a855f7; }
+    .menu-card-icon.slate { background-color: #f1f5f9; color: #64748b; }
+    .menu-card-icon.red { background-color: #fef2f2; color: #ef4444; }
+
+    .menu-card-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: #1e293b;
+      margin-bottom: 6px;
+    }
+    .menu-card-desc {
+      font-size: 12px;
+      color: #94a3b8;
+      line-height: 1.5;
+    }
+
+    @media (max-width: 768px) {
+      .header { padding: 0 16px; }
+      .header h1 { font-size: 17px; }
+      .main { padding: 24px 16px; }
+      .menu-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
+      .menu-card { padding: 20px 16px; }
+    }
+    @media (max-width: 480px) {
+      .menu-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <h1>発注管理・予算管理システム</h1>
+    <div class="header-right">
+      <span class="header-user">新宿東口店：田中太郎様</span>
+      <button class="btn-logout" onclick="location.href='login.html'">ログアウト</button>
+    </div>
+  </header>
+
+  <main class="main">
+    <div class="welcome">
+      <h2>メニュー</h2>
+      <p>操作するメニューを選択してください</p>
+    </div>
+
+    <!-- 発注メニュー -->
+    <div class="menu-section">
+      <div class="menu-section-title">発注</div>
+      <div class="menu-grid">
+        <a href="repair-order.html" class="menu-card">
+          <div class="menu-card-icon red">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>
+          </div>
+          <div class="menu-card-title">修理発注</div>
+          <div class="menu-card-desc">設備の修理依頼を登録します</div>
+        </a>
+
+        <a href="equipment-order.html" class="menu-card">
+          <div class="menu-card-icon blue">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg>
+          </div>
+          <div class="menu-card-title">備品発注</div>
+          <div class="menu-card-desc">消耗品・備品を発注します</div>
+        </a>
+
+        <a href="parts-order.html" class="menu-card">
+          <div class="menu-card-icon green">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+          </div>
+          <div class="menu-card-title">部品発注</div>
+          <div class="menu-card-desc">修理用の部品を発注します</div>
+        </a>
+      </div>
+    </div>
+
+    <!-- 管理メニュー -->
+    <div class="menu-section">
+      <div class="menu-section-title">管理</div>
+      <div class="menu-grid">
+        <a href="order-list.html" class="menu-card">
+          <div class="menu-card-icon orange">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+          </div>
+          <div class="menu-card-title">発注一覧</div>
+          <div class="menu-card-desc">発注データを一覧で確認・管理します</div>
+        </a>
+
+        <a href="budget-management.html" class="menu-card">
+          <div class="menu-card-icon purple">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+          </div>
+          <div class="menu-card-title">予算管理</div>
+          <div class="menu-card-desc">予算状況の確認と自店調達申請</div>
+        </a>
+
+        <a href="procurement-history.html" class="menu-card">
+          <div class="menu-card-icon slate">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+          </div>
+          <div class="menu-card-title">自店調達実績管理</div>
+          <div class="menu-card-desc">自店調達の申請・実績を管理します</div>
+        </a>
+      </div>
+    </div>
+
+    <!-- 管理者メニュー -->
+    <div class="menu-section" id="adminSection">
+      <div class="menu-section-title">管理者メニュー</div>
+      <div class="menu-grid">
+        <a href="admin-menu.html" class="menu-card">
+          <div class="menu-card-icon slate">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+          </div>
+          <div class="menu-card-title">管理メニュー</div>
+          <div class="menu-card-desc">マスタデータの管理・システム設定</div>
+        </a>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

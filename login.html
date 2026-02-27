@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ログイン - 発注管理・予算管理システム</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', 'Noto Sans JP', sans-serif;
+      background-color: #1e293b;
+      color: #1e293b;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .login-container {
+      width: 100%;
+      max-width: 420px;
+      padding: 20px;
+    }
+
+    .login-card {
+      background-color: #fff;
+      border-radius: 16px;
+      padding: 48px 40px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    }
+
+    .login-header {
+      text-align: center;
+      margin-bottom: 36px;
+    }
+
+    .login-logo {
+      width: 56px;
+      height: 56px;
+      background-color: #3b82f6;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 20px;
+    }
+
+    .login-logo svg {
+      width: 28px;
+      height: 28px;
+      color: #fff;
+    }
+
+    .login-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 6px;
+    }
+
+    .login-subtitle {
+      font-size: 13px;
+      color: #64748b;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 14px;
+      font-weight: 600;
+      color: #334155;
+      margin-bottom: 8px;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 14px;
+      color: #1e293b;
+      background-color: #fff;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .form-input:focus {
+      outline: none;
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    .form-input::placeholder {
+      color: #94a3b8;
+    }
+
+    .btn-login {
+      width: 100%;
+      padding: 14px;
+      background-color: #3b82f6;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-top: 8px;
+    }
+
+    .btn-login:hover:not(:disabled) {
+      background-color: #2563eb;
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    }
+
+    .btn-login:disabled {
+      background-color: #94a3b8;
+      cursor: not-allowed;
+    }
+
+    .error-message {
+      background-color: #fef2f2;
+      border: 1px solid #fecaca;
+      color: #dc2626;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      margin-bottom: 20px;
+      display: none;
+    }
+
+    .error-message.visible {
+      display: block;
+    }
+
+    .login-footer {
+      text-align: center;
+      margin-top: 24px;
+      font-size: 12px;
+      color: #94a3b8;
+    }
+
+    @media (max-width: 480px) {
+      .login-card {
+        padding: 36px 24px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="login-container">
+    <div class="login-card">
+      <div class="login-header">
+        <div class="login-logo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" y1="12" x2="3" y2="12"></line></svg>
+        </div>
+        <h1 class="login-title">発注管理・予算管理システム</h1>
+        <p class="login-subtitle">フィットネス / ゴルフ</p>
+      </div>
+
+      <div class="error-message" id="errorMessage"></div>
+
+      <form id="loginForm" onsubmit="return handleLogin(event)">
+        <div class="form-group">
+          <label class="form-label" for="userId">ユーザーID</label>
+          <input type="text" id="userId" class="form-input" placeholder="ユーザーIDを入力" oninput="clearError()">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="password">パスワード</label>
+          <input type="password" id="password" class="form-input" placeholder="パスワードを入力" oninput="clearError()">
+        </div>
+
+        <button type="submit" class="btn-login" id="loginBtn">ログイン</button>
+      </form>
+
+      <div class="login-footer">
+        &copy; 2026 快活フロンティア
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function handleLogin(e) {
+      e.preventDefault();
+      var userId = document.getElementById('userId').value.trim();
+      var password = document.getElementById('password').value.trim();
+      var errorEl = document.getElementById('errorMessage');
+
+      if (!userId) {
+        showError('ユーザーIDを入力してください');
+        return false;
+      }
+      if (!password) {
+        showError('パスワードを入力してください');
+        return false;
+      }
+
+      // モックアップ：ログイン成功時はメニュー画面に遷移
+      alert('ログイン成功（モックアップ）\n\nユーザーID: ' + userId + '\n権限: システム管理者');
+      window.location.href = 'menu.html';
+      return false;
+    }
+
+    function showError(msg) {
+      var el = document.getElementById('errorMessage');
+      el.textContent = msg;
+      el.classList.add('visible');
+    }
+
+    function clearError() {
+      document.getElementById('errorMessage').classList.remove('visible');
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>管理メニュー画面</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', 'Noto Sans JP', sans-serif;
+      background-color: #f8fafc; color: #1e293b;
+      min-height: 100vh; font-size: 14px; line-height: 1.6;
+    }
+    .header {
+      background-color: #1e293b; color: #fff; padding: 0 32px;
+      display: flex; align-items: center; justify-content: space-between; height: 64px;
+    }
+    .header h1 { font-size: 20px; font-weight: 700; letter-spacing: 0.5px; }
+    .header-right { display: flex; align-items: center; gap: 20px; }
+    .header-user { font-size: 14px; color: #cbd5e1; }
+    .btn-logout {
+      background: transparent; color: #fff; border: 1px solid #64748b;
+      padding: 6px 16px; border-radius: 6px; cursor: pointer;
+      font-family: inherit; font-size: 13px; transition: all 0.2s;
+    }
+    .btn-logout:hover { background-color: #334155; border-color: #94a3b8; }
+    .nav {
+      background-color: #e2e8f0; padding: 0 32px;
+      display: flex; align-items: center; gap: 4px;
+      height: 48px; border-bottom: 1px solid #cbd5e1;
+    }
+    .nav-btn {
+      font-family: inherit; font-size: 13px; font-weight: 500;
+      padding: 8px 20px; border-radius: 6px; border: 1px solid transparent;
+      cursor: pointer; transition: all 0.2s; background: transparent; color: #475569;
+    }
+    .nav-btn:hover { background-color: #cbd5e1; }
+    .nav-btn.active { background-color: #1e293b; color: #fff; border-color: #1e293b; }
+    .main { max-width: 1200px; margin: 0 auto; padding: 32px; }
+
+    .page-title { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+    .page-desc { font-size: 14px; color: #64748b; margin-bottom: 32px; }
+
+    .section { margin-bottom: 36px; }
+    .section-title {
+      font-size: 13px; font-weight: 600; color: #94a3b8;
+      text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px;
+    }
+
+    .master-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px;
+    }
+    .master-card {
+      background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
+      padding: 24px; transition: all 0.2s;
+    }
+    .master-card:hover { border-color: #cbd5e1; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+    .master-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
+    .master-card-info { display: flex; align-items: center; gap: 12px; }
+    .master-icon {
+      width: 40px; height: 40px; border-radius: 10px; display: flex;
+      align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .master-icon svg { width: 20px; height: 20px; }
+    .master-icon.blue { background: #eff6ff; color: #3b82f6; }
+    .master-icon.green { background: #f0fdf4; color: #22c55e; }
+    .master-icon.orange { background: #fff7ed; color: #f97316; }
+    .master-icon.purple { background: #faf5ff; color: #a855f7; }
+    .master-icon.slate { background: #f1f5f9; color: #64748b; }
+    .master-icon.red { background: #fef2f2; color: #ef4444; }
+
+    .master-card-title { font-size: 15px; font-weight: 600; color: #1e293b; }
+    .master-card-desc { font-size: 12px; color: #94a3b8; margin-top: 2px; }
+
+    .upload-status {
+      font-size: 11px; padding: 3px 8px; border-radius: 4px; font-weight: 500;
+    }
+    .upload-status.success { background: #dcfce7; color: #16a34a; }
+    .upload-status.pending { background: #fef3c7; color: #d97706; }
+    .upload-status.none { background: #f1f5f9; color: #94a3b8; }
+
+    .upload-area {
+      border: 2px dashed #e2e8f0; border-radius: 8px; padding: 16px;
+      text-align: center; cursor: pointer; transition: all 0.2s;
+      background: #fafbfc;
+    }
+    .upload-area:hover { border-color: #3b82f6; background: #f0f7ff; }
+    .upload-area-text { font-size: 13px; color: #64748b; }
+    .upload-area-hint { font-size: 11px; color: #94a3b8; margin-top: 4px; }
+
+    .master-card-footer {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-top: 16px; padding-top: 12px; border-top: 1px solid #f1f5f9;
+    }
+    .last-updated { font-size: 11px; color: #94a3b8; }
+
+    .btn-action {
+      padding: 6px 14px; border-radius: 6px; font-family: inherit;
+      font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.2s;
+      border: 1px solid #d1d5db; background: #fff; color: #475569;
+      display: flex; align-items: center; gap: 4px;
+    }
+    .btn-action:hover { background-color: #f1f5f9; border-color: #3b82f6; color: #3b82f6; }
+    .btn-action svg { width: 14px; height: 14px; }
+
+    /* Settings Link */
+    .settings-link {
+      display: flex; align-items: center; gap: 12px;
+      background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
+      padding: 20px 24px; text-decoration: none; color: inherit;
+      transition: all 0.2s; cursor: pointer;
+    }
+    .settings-link:hover { border-color: #3b82f6; box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1); }
+    .settings-link-icon {
+      width: 44px; height: 44px; background: #f1f5f9; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center; color: #64748b;
+    }
+    .settings-link-icon svg { width: 22px; height: 22px; }
+    .settings-link-text { font-size: 15px; font-weight: 600; }
+    .settings-link-desc { font-size: 12px; color: #94a3b8; }
+
+    @media (max-width: 768px) {
+      .header { padding: 0 16px; } .header h1 { font-size: 17px; }
+      .nav { padding: 0 16px; gap: 2px; overflow-x: auto; }
+      .nav-btn { padding: 8px 14px; font-size: 12px; white-space: nowrap; }
+      .main { padding: 20px 16px; }
+      .master-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <h1>管理メニュー</h1>
+    <div class="header-right">
+      <span class="header-user">本部：管理者様</span>
+      <button class="btn-logout" onclick="location.href='login.html'">ログアウト</button>
+    </div>
+  </header>
+  <nav class="nav">
+    <button class="nav-btn" onclick="location.href='repair-order.html'">修理発注</button>
+    <button class="nav-btn" onclick="location.href='equipment-order.html'">備品発注</button>
+    <button class="nav-btn" onclick="location.href='parts-order.html'">部品発注</button>
+    <button class="nav-btn" onclick="location.href='order-list.html'">発注一覧</button>
+    <button class="nav-btn active">管理メニュー</button>
+  </nav>
+  <main class="main">
+    <h2 class="page-title">管理メニュー</h2>
+    <p class="page-desc">マスタデータの更新とシステム設定を行います。ExcelファイルをアップロードしてマスタをBatch更新できます。</p>
+
+    <!-- Master Data Section -->
+    <div class="section">
+      <div class="section-title">マスタデータ管理</div>
+      <div class="master-grid">
+        <!-- Zone Master -->
+        <div class="master-card">
+          <div class="master-card-header">
+            <div class="master-card-info">
+              <div class="master-icon blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg></div>
+              <div><div class="master-card-title">ゾーンマスタ</div><div class="master-card-desc">ゾーン情報の管理</div></div>
+            </div>
+            <span class="upload-status success">更新済</span>
+          </div>
+          <div class="upload-area" onclick="uploadFile('zone')">
+            <div class="upload-area-text">Excelファイルをドロップ or クリック</div>
+            <div class="upload-area-hint">.xlsx形式</div>
+          </div>
+          <div class="master-card-footer">
+            <span class="last-updated">最終更新: 2026/02/20</span>
+            <button class="btn-action"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>DL</button>
+          </div>
+        </div>
+
+        <!-- Area Master -->
+        <div class="master-card">
+          <div class="master-card-header">
+            <div class="master-card-info">
+              <div class="master-icon green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg></div>
+              <div><div class="master-card-title">エリアマスタ</div><div class="master-card-desc">エリア情報の管理</div></div>
+            </div>
+            <span class="upload-status success">更新済</span>
+          </div>
+          <div class="upload-area" onclick="uploadFile('area')">
+            <div class="upload-area-text">Excelファイルをドロップ or クリック</div>
+            <div class="upload-area-hint">.xlsx形式</div>
+          </div>
+          <div class="master-card-footer">
+            <span class="last-updated">最終更新: 2026/02/20</span>
+            <button class="btn-action"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>DL</button>
+          </div>
+        </div>
+
+        <!-- Shop Master -->
+        <div class="master-card">
+          <div class="master-card-header">
+            <div class="master-card-info">
+              <div class="master-icon orange"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg></div>
+              <div><div class="master-card-title">店舗マスタ</div><div class="master-card-desc">店舗情報の管理</div></div>
+            </div>
+            <span class="upload-status success">更新済</span>
+          </div>
+          <div class="upload-area" onclick="uploadFile('shop')">
+            <div class="upload-area-text">Excelファイルをドロップ or クリック</div>
+            <div class="upload-area-hint">.xlsx形式</div>
+          </div>
+          <div class="master-card-footer">
+            <span class="last-updated">最終更新: 2026/02/18</span>
+            <button class="btn-action"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>DL</button>
+          </div>
+        </div>
+
+        <!-- User Master -->
+        <div class="master-card">
+          <div class="master-card-header">
+            <div class="master-card-info">
+              <div class="master-icon purple"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg></div>
+              <div><div class="master-card-title">ユーザーマスタ</div><div class="master-card-desc">ユーザー・権限の管理</div></div>
+            </div>
+            <span class="upload-status pending">処理待ち</span>
+          </div>
+          <div class="upload-area" onclick="uploadFile('user')">
+            <div class="upload-area-text">Excelファイルをドロップ or クリック</div>
+            <div class="upload-area-hint">.xlsx形式</div>
+          </div>
+          <div class="master-card-footer">
+            <span class="last-updated">最終更新: 2026/02/15</span>
+            <button class="btn-action"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>DL</button>
+          </div>
+        </div>
+
+        <!-- Supplier Master -->
+        <div class="master-card">
+          <div class="master-card-header">
+            <div class="master-card-info">
+              <div class="master-icon red"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg></div>
+              <div><div class="master-card-title">仕入先マスタ</div><div class="master-card-desc">仕入先情報の管理</div></div>
+            </div>
+            <span class="upload-status none">未登録</span>
+          </div>
+          <div class="upload-area" onclick="uploadFile('supplier')">
+            <div class="upload-area-text">Excelファイルをドロップ or クリック</div>
+            <div class="upload-area-hint">.xlsx形式</div>
+          </div>
+          <div class="master-card-footer">
+            <span class="last-updated">—</span>
+            <button class="btn-action"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>DL</button>
+          </div>
+        </div>
+
+        <!-- Product Master -->
+        <div class="master-card">
+          <div class="master-card-header">
+            <div class="master-card-info">
+              <div class="master-icon slate"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg></div>
+              <div><div class="master-card-title">商品マスタ</div><div class="master-card-desc">商品・画像の管理</div></div>
+            </div>
+            <span class="upload-status success">更新済</span>
+          </div>
+          <div class="upload-area" onclick="uploadFile('product')">
+            <div class="upload-area-text">Excelファイルをドロップ or クリック</div>
+            <div class="upload-area-hint">.xlsx形式（画像ファイル名列含む）</div>
+          </div>
+          <div class="master-card-footer">
+            <span class="last-updated">最終更新: 2026/02/25</span>
+            <button class="btn-action"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>DL</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- System Settings -->
+    <div class="section">
+      <div class="section-title">システム設定</div>
+      <a href="system-settings.html" class="settings-link">
+        <div class="settings-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg></div>
+        <div><div class="settings-link-text">システム設定</div><div class="settings-link-desc">期の開始月、締め日、発注締め曜日などを設定</div></div>
+      </a>
+    </div>
+  </main>
+
+  <script>
+    function uploadFile(type) {
+      alert('マスタアップロード（モックアップ）\n\n「' + type + '」のExcelファイルをアップロードします。\n予約→バッチ処理→反映の安全な仕組みで更新されます。');
+    }
+  </script>
+</body>
+</html>

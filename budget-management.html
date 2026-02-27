@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>予算管理画面</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', 'Noto Sans JP', sans-serif;
+      background-color: #f8fafc; color: #1e293b;
+      min-height: 100vh; font-size: 14px; line-height: 1.6;
+    }
+    .header {
+      background-color: #1e293b; color: #fff; padding: 0 32px;
+      display: flex; align-items: center; justify-content: space-between; height: 64px;
+    }
+    .header h1 { font-size: 20px; font-weight: 700; letter-spacing: 0.5px; }
+    .header-right { display: flex; align-items: center; gap: 20px; }
+    .header-user { font-size: 14px; color: #cbd5e1; }
+    .btn-logout {
+      background: transparent; color: #fff; border: 1px solid #64748b;
+      padding: 6px 16px; border-radius: 6px; cursor: pointer;
+      font-family: inherit; font-size: 13px; transition: all 0.2s;
+    }
+    .btn-logout:hover { background-color: #334155; border-color: #94a3b8; }
+    .nav {
+      background-color: #e2e8f0; padding: 0 32px;
+      display: flex; align-items: center; gap: 4px;
+      height: 48px; border-bottom: 1px solid #cbd5e1;
+    }
+    .nav-btn {
+      font-family: inherit; font-size: 13px; font-weight: 500;
+      padding: 8px 20px; border-radius: 6px; border: 1px solid transparent;
+      cursor: pointer; transition: all 0.2s; background: transparent; color: #475569;
+    }
+    .nav-btn:hover { background-color: #cbd5e1; }
+    .nav-btn.active { background-color: #1e293b; color: #fff; border-color: #1e293b; }
+    .main { max-width: 1200px; margin: 0 auto; padding: 32px; }
+
+    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+    .page-title { font-size: 22px; font-weight: 700; }
+
+    /* Month Selector */
+    .month-selector {
+      display: flex; align-items: center; gap: 8px;
+    }
+    .month-btn {
+      width: 36px; height: 36px; border-radius: 8px; border: 1px solid #d1d5db;
+      background: #fff; cursor: pointer; display: flex; align-items: center;
+      justify-content: center; color: #475569; transition: all 0.2s;
+    }
+    .month-btn:hover { background: #f1f5f9; border-color: #3b82f6; color: #3b82f6; }
+    .month-btn svg { width: 16px; height: 16px; }
+    .month-label { font-size: 16px; font-weight: 700; min-width: 120px; text-align: center; }
+
+    /* Summary Cards */
+    .summary-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px; margin-bottom: 28px;
+    }
+    .summary-card {
+      background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px;
+    }
+    .summary-card-label { font-size: 12px; color: #94a3b8; font-weight: 600; margin-bottom: 8px; }
+    .summary-card-value { font-size: 24px; font-weight: 700; }
+    .summary-card-value.positive { color: #22c55e; }
+    .summary-card-value.negative { color: #ef4444; }
+    .summary-card-sub { font-size: 12px; color: #94a3b8; margin-top: 4px; }
+
+    /* Category Tabs */
+    .cat-tabs {
+      display: flex; gap: 8px; margin-bottom: 24px;
+    }
+    .cat-tab {
+      padding: 8px 20px; border-radius: 8px; border: 1px solid #d1d5db;
+      background: #fff; cursor: pointer; font-family: inherit; font-size: 13px;
+      font-weight: 500; color: #475569; transition: all 0.2s;
+    }
+    .cat-tab:hover { border-color: #3b82f6; color: #3b82f6; }
+    .cat-tab.active { background: #1e293b; color: #fff; border-color: #1e293b; }
+
+    /* Budget Table */
+    .table-container {
+      background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
+      overflow: hidden; margin-bottom: 24px;
+    }
+    .budget-table { width: 100%; border-collapse: collapse; }
+    .budget-table th {
+      text-align: left; padding: 12px 16px; font-size: 12px;
+      font-weight: 600; color: #64748b; background: #f1f5f9;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .budget-table th.right, .budget-table td.right { text-align: right; }
+    .budget-table td {
+      padding: 14px 16px; font-size: 13px; border-bottom: 1px solid #f1f5f9;
+    }
+    .budget-table tr:last-child td { border-bottom: none; }
+    .budget-table .total-row { background: #f8fafc; font-weight: 700; }
+    .amount-positive { color: #22c55e; }
+    .amount-negative { color: #ef4444; }
+
+    /* Progress Bar */
+    .progress-bar {
+      width: 100%; height: 8px; background: #e2e8f0; border-radius: 4px;
+      overflow: hidden; margin-top: 4px;
+    }
+    .progress-fill { height: 100%; border-radius: 4px; transition: width 0.3s; }
+    .progress-fill.green { background: #22c55e; }
+    .progress-fill.yellow { background: #f59e0b; }
+    .progress-fill.red { background: #ef4444; }
+
+    /* Procurement Section */
+    .procurement-section {
+      background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
+      padding: 24px;
+    }
+    .procurement-title { font-size: 16px; font-weight: 700; margin-bottom: 16px; }
+    .procurement-form { display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap; }
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .form-label { font-size: 12px; font-weight: 600; color: #64748b; }
+    .form-input, .form-select {
+      padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 8px;
+      font-family: inherit; font-size: 14px; color: #1e293b; background: #fff;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .form-select {
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 14px center; padding-right: 40px;
+    }
+    .form-input:focus, .form-select:focus {
+      outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+    .form-textarea {
+      width: 100%; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 8px;
+      font-family: inherit; font-size: 14px; min-height: 80px; resize: vertical;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .form-textarea:focus {
+      outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+    .btn-submit {
+      padding: 10px 24px; background-color: #3b82f6; color: #fff;
+      border: none; border-radius: 8px; font-family: inherit;
+      font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .btn-submit:hover { background-color: #2563eb; }
+
+    @media (max-width: 768px) {
+      .header { padding: 0 16px; } .header h1 { font-size: 17px; }
+      .nav { padding: 0 16px; gap: 2px; overflow-x: auto; }
+      .nav-btn { padding: 8px 14px; font-size: 12px; white-space: nowrap; }
+      .main { padding: 20px 16px; }
+      .summary-grid { grid-template-columns: 1fr 1fr; }
+      .table-container { overflow-x: auto; }
+      .procurement-form { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <h1>予算管理画面</h1>
+    <div class="header-right">
+      <span class="header-user">新宿東口店：田中太郎様</span>
+      <button class="btn-logout" onclick="location.href='login.html'">ログアウト</button>
+    </div>
+  </header>
+  <nav class="nav">
+    <button class="nav-btn" onclick="location.href='repair-order.html'">修理発注</button>
+    <button class="nav-btn" onclick="location.href='equipment-order.html'">備品発注</button>
+    <button class="nav-btn" onclick="location.href='parts-order.html'">部品発注</button>
+    <button class="nav-btn" onclick="location.href='order-list.html'">発注一覧</button>
+    <button class="nav-btn" onclick="location.href='admin-menu.html'">管理メニュー</button>
+  </nav>
+  <main class="main">
+    <div class="page-header">
+      <h2 class="page-title">予算管理</h2>
+      <div class="month-selector">
+        <button class="month-btn" onclick="changeMonth(-1)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg></button>
+        <span class="month-label" id="monthLabel">2026年2月</span>
+        <button class="month-btn" onclick="changeMonth(1)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg></button>
+      </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="summary-grid">
+      <div class="summary-card">
+        <div class="summary-card-label">月間予算額</div>
+        <div class="summary-card-value">¥500,000</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-card-label">増減額</div>
+        <div class="summary-card-value positive">+¥30,000</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-card-label">自店調達額</div>
+        <div class="summary-card-value">¥15,000</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-card-label">実績額</div>
+        <div class="summary-card-value">¥342,500</div>
+        <div class="progress-bar"><div class="progress-fill yellow" style="width:63%"></div></div>
+        <div class="summary-card-sub">予算消化率 63%</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-card-label">残予算</div>
+        <div class="summary-card-value positive">¥202,500</div>
+      </div>
+    </div>
+
+    <!-- Category Tabs -->
+    <div class="cat-tabs">
+      <button class="cat-tab active" onclick="switchCategory(this, 'all')">全体</button>
+      <button class="cat-tab" onclick="switchCategory(this, 'fitness')">フィットネス</button>
+      <button class="cat-tab" onclick="switchCategory(this, 'golf')">ゴルフ</button>
+    </div>
+
+    <!-- Budget Table -->
+    <div class="table-container">
+      <table class="budget-table">
+        <thead>
+          <tr>
+            <th>カテゴリ</th>
+            <th class="right">予算額</th>
+            <th class="right">増減額</th>
+            <th class="right">自店調達額</th>
+            <th class="right">実績額</th>
+            <th class="right">残額</th>
+            <th>消化率</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>フィットネス</td>
+            <td class="right">¥300,000</td>
+            <td class="right amount-positive">+¥20,000</td>
+            <td class="right">¥10,000</td>
+            <td class="right">¥215,000</td>
+            <td class="right amount-positive">¥115,000</td>
+            <td>
+              <div style="display:flex;align-items:center;gap:8px">
+                <div class="progress-bar" style="width:80px"><div class="progress-fill yellow" style="width:65%"></div></div>
+                <span style="font-size:12px;color:#64748b">65%</span>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td>ゴルフ</td>
+            <td class="right">¥200,000</td>
+            <td class="right amount-positive">+¥10,000</td>
+            <td class="right">¥5,000</td>
+            <td class="right">¥127,500</td>
+            <td class="right amount-positive">¥87,500</td>
+            <td>
+              <div style="display:flex;align-items:center;gap:8px">
+                <div class="progress-bar" style="width:80px"><div class="progress-fill green" style="width:59%"></div></div>
+                <span style="font-size:12px;color:#64748b">59%</span>
+              </div>
+            </td>
+          </tr>
+          <tr class="total-row">
+            <td>合計</td>
+            <td class="right">¥500,000</td>
+            <td class="right amount-positive">+¥30,000</td>
+            <td class="right">¥15,000</td>
+            <td class="right">¥342,500</td>
+            <td class="right amount-positive">¥202,500</td>
+            <td>
+              <div style="display:flex;align-items:center;gap:8px">
+                <div class="progress-bar" style="width:80px"><div class="progress-fill yellow" style="width:63%"></div></div>
+                <span style="font-size:12px;color:#64748b">63%</span>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Procurement Application -->
+    <div class="procurement-section">
+      <div class="procurement-title">自店調達申請</div>
+      <div class="procurement-form">
+        <div class="form-group">
+          <label class="form-label">カテゴリ</label>
+          <select class="form-select" id="procCategory">
+            <option value="fitness">フィットネス</option>
+            <option value="golf">ゴルフ</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">金額</label>
+          <input type="number" class="form-input" id="procAmount" placeholder="10000" style="width:150px">
+        </div>
+        <div class="form-group" style="flex:2;min-width:200px">
+          <label class="form-label">理由</label>
+          <input type="text" class="form-input" id="procReason" placeholder="緊急で備品が必要なため" style="width:100%">
+        </div>
+        <button class="btn-submit" onclick="submitProcurement()">申請する</button>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    var currentYear = 2026;
+    var currentMonth = 2;
+
+    function changeMonth(delta) {
+      currentMonth += delta;
+      if (currentMonth > 12) { currentMonth = 1; currentYear++; }
+      if (currentMonth < 1) { currentMonth = 12; currentYear--; }
+      document.getElementById('monthLabel').textContent = currentYear + '年' + currentMonth + '月';
+    }
+
+    function switchCategory(btn, cat) {
+      document.querySelectorAll('.cat-tab').forEach(function(b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      // In real app, filter the table data by category
+    }
+
+    function submitProcurement() {
+      var data = {
+        category: document.getElementById('procCategory').value,
+        amount: document.getElementById('procAmount').value,
+        reason: document.getElementById('procReason').value
+      };
+      if (!data.amount || !data.reason) { alert('金額と理由を入力してください'); return; }
+      alert('自店調達を申請しました（モックアップ）\n\n' + JSON.stringify(data, null, 2));
+    }
+  </script>
+</body>
+</html>

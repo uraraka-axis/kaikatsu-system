@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>システム設定画面</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', 'Noto Sans JP', sans-serif;
+      background-color: #f8fafc; color: #1e293b;
+      min-height: 100vh; font-size: 14px; line-height: 1.6;
+    }
+    .header {
+      background-color: #1e293b; color: #fff; padding: 0 32px;
+      display: flex; align-items: center; justify-content: space-between; height: 64px;
+    }
+    .header h1 { font-size: 20px; font-weight: 700; letter-spacing: 0.5px; }
+    .header-right { display: flex; align-items: center; gap: 20px; }
+    .header-user { font-size: 14px; color: #cbd5e1; }
+    .btn-logout {
+      background: transparent; color: #fff; border: 1px solid #64748b;
+      padding: 6px 16px; border-radius: 6px; cursor: pointer;
+      font-family: inherit; font-size: 13px; transition: all 0.2s;
+    }
+    .btn-logout:hover { background-color: #334155; border-color: #94a3b8; }
+    .nav {
+      background-color: #e2e8f0; padding: 0 32px;
+      display: flex; align-items: center; gap: 4px;
+      height: 48px; border-bottom: 1px solid #cbd5e1;
+    }
+    .nav-btn {
+      font-family: inherit; font-size: 13px; font-weight: 500;
+      padding: 8px 20px; border-radius: 6px; border: 1px solid transparent;
+      cursor: pointer; transition: all 0.2s; background: transparent; color: #475569;
+    }
+    .nav-btn:hover { background-color: #cbd5e1; }
+    .nav-btn.active { background-color: #1e293b; color: #fff; border-color: #1e293b; }
+    .main { max-width: 800px; margin: 0 auto; padding: 32px; }
+
+    .page-title { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+    .page-desc { font-size: 14px; color: #64748b; margin-bottom: 32px; }
+    .back-link {
+      display: inline-flex; align-items: center; gap: 6px;
+      color: #3b82f6; font-size: 13px; text-decoration: none; margin-bottom: 20px;
+    }
+    .back-link:hover { text-decoration: underline; }
+    .back-link svg { width: 16px; height: 16px; }
+
+    .settings-card {
+      background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
+      padding: 32px; margin-bottom: 24px;
+    }
+    .settings-card-title {
+      font-size: 16px; font-weight: 700; margin-bottom: 4px;
+    }
+    .settings-card-desc {
+      font-size: 12px; color: #94a3b8; margin-bottom: 24px;
+    }
+
+    .form-group { margin-bottom: 24px; }
+    .form-label {
+      display: block; font-size: 14px; font-weight: 600;
+      color: #334155; margin-bottom: 8px;
+    }
+    .form-label-hint { font-size: 12px; color: #94a3b8; font-weight: 400; margin-left: 8px; }
+    .form-select, .form-input {
+      width: 100%; max-width: 300px; padding: 10px 14px; border: 1px solid #d1d5db;
+      border-radius: 8px; font-family: inherit; font-size: 14px;
+      color: #1e293b; background-color: #fff;
+      transition: border-color 0.2s, box-shadow 0.2s; appearance: none;
+    }
+    .form-select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 14px center; padding-right: 40px;
+    }
+    .form-input:focus, .form-select:focus {
+      outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+    .form-row { display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap; }
+    .form-row .form-group { flex: 1; min-width: 140px; }
+
+    /* Category Management */
+    .category-list { margin-bottom: 16px; }
+    .category-item {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 14px; background: #f8fafc; border: 1px solid #e2e8f0;
+      border-radius: 8px; margin-bottom: 8px;
+    }
+    .category-item-name { font-size: 14px; font-weight: 500; }
+    .category-item-code { font-size: 12px; color: #94a3b8; margin-left: 12px; }
+    .btn-icon {
+      background: none; border: none; cursor: pointer; color: #94a3b8;
+      padding: 4px; border-radius: 4px; transition: all 0.2s;
+    }
+    .btn-icon:hover { color: #ef4444; background: #fef2f2; }
+    .btn-icon svg { width: 16px; height: 16px; }
+
+    .btn-add-category {
+      display: flex; align-items: center; gap: 6px; padding: 8px 16px;
+      border: 1px dashed #d1d5db; border-radius: 8px; background: transparent;
+      color: #3b82f6; cursor: pointer; font-family: inherit; font-size: 13px;
+      font-weight: 500; transition: all 0.2s;
+    }
+    .btn-add-category:hover { border-color: #3b82f6; background: #f0f7ff; }
+    .btn-add-category svg { width: 16px; height: 16px; }
+
+    /* Upload Status Table */
+    .status-table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+    .status-table th {
+      text-align: left; padding: 8px 12px; font-size: 12px;
+      font-weight: 600; color: #64748b; background: #f1f5f9;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .status-table td {
+      padding: 10px 12px; font-size: 13px; border-bottom: 1px solid #f1f5f9;
+    }
+    .status-badge {
+      display: inline-block; padding: 2px 8px; border-radius: 4px;
+      font-size: 11px; font-weight: 600;
+    }
+    .status-badge.ok { background: #dcfce7; color: #16a34a; }
+    .status-badge.error { background: #fef2f2; color: #dc2626; }
+    .status-badge.waiting { background: #fef3c7; color: #d97706; }
+
+    .submit-section { display: flex; justify-content: flex-end; margin-top: 8px; }
+    .btn-submit {
+      padding: 12px 32px; background-color: #3b82f6; color: #fff;
+      border: none; border-radius: 8px; font-family: inherit;
+      font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.2s;
+    }
+    .btn-submit:hover { background-color: #2563eb; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); }
+
+    @media (max-width: 768px) {
+      .header { padding: 0 16px; } .header h1 { font-size: 17px; }
+      .nav { padding: 0 16px; gap: 2px; overflow-x: auto; }
+      .nav-btn { padding: 8px 14px; font-size: 12px; white-space: nowrap; }
+      .main { padding: 20px 16px; }
+      .form-select, .form-input { max-width: 100%; }
+      .form-row { flex-direction: column; gap: 0; }
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <h1>システム設定</h1>
+    <div class="header-right">
+      <span class="header-user">本部：管理者様</span>
+      <button class="btn-logout" onclick="location.href='login.html'">ログアウト</button>
+    </div>
+  </header>
+  <nav class="nav">
+    <button class="nav-btn" onclick="location.href='repair-order.html'">修理発注</button>
+    <button class="nav-btn" onclick="location.href='equipment-order.html'">備品発注</button>
+    <button class="nav-btn" onclick="location.href='parts-order.html'">部品発注</button>
+    <button class="nav-btn" onclick="location.href='order-list.html'">発注一覧</button>
+    <button class="nav-btn active" onclick="location.href='admin-menu.html'">管理メニュー</button>
+  </nav>
+  <main class="main">
+    <a href="admin-menu.html" class="back-link">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+      管理メニューに戻る
+    </a>
+    <h2 class="page-title">システム設定</h2>
+    <p class="page-desc">システム全体のパラメータを設定します</p>
+
+    <!-- Period Settings -->
+    <div class="settings-card">
+      <div class="settings-card-title">期間設定</div>
+      <div class="settings-card-desc">予算集計期間と発注締め切りの設定</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">期の開始月</label>
+          <select class="form-select" id="fiscalStartMonth">
+            <option value="1">1月</option> <option value="2">2月</option>
+            <option value="3">3月</option> <option value="4" selected>4月</option>
+            <option value="5">5月</option> <option value="6">6月</option>
+            <option value="7">7月</option> <option value="8">8月</option>
+            <option value="9">9月</option> <option value="10">10月</option>
+            <option value="11">11月</option> <option value="12">12月</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">予算締め日</label>
+          <select class="form-select" id="budgetClosingDay">
+            <option value="25" selected>25日</option>
+            <option value="末">月末</option>
+            <option value="20">20日</option>
+            <option value="15">15日</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">備品発注の締め曜日</label>
+          <select class="form-select" id="orderClosingDay">
+            <option value="monday">月曜日</option>
+            <option value="tuesday">火曜日</option>
+            <option value="wednesday" selected>水曜日</option>
+            <option value="thursday">木曜日</option>
+            <option value="friday">金曜日</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Category Management -->
+    <div class="settings-card">
+      <div class="settings-card-title">カテゴリ管理</div>
+      <div class="settings-card-desc">発注・予算のカテゴリ（部門）を管理します。将来の拡張に対応。</div>
+      <div class="category-list" id="categoryList">
+        <div class="category-item">
+          <div><span class="category-item-name">フィットネス</span><span class="category-item-code">fitness</span></div>
+          <button class="btn-icon" onclick="removeCategory(this)" title="削除"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+        </div>
+        <div class="category-item">
+          <div><span class="category-item-name">ゴルフ</span><span class="category-item-code">golf</span></div>
+          <button class="btn-icon" onclick="removeCategory(this)" title="削除"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+        </div>
+      </div>
+      <button class="btn-add-category" onclick="addCategory()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        カテゴリを追加
+      </button>
+    </div>
+
+    <!-- Upload Status -->
+    <div class="settings-card">
+      <div class="settings-card-title">マスタ更新状況</div>
+      <div class="settings-card-desc">各マスタのアップロード処理結果</div>
+      <table class="status-table">
+        <thead>
+          <tr><th>マスタ名</th><th>最終更新</th><th>ステータス</th><th>備考</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>ゾーンマスタ</td><td>2026/02/20 14:30</td><td><span class="status-badge ok">正常</span></td><td>12件更新</td></tr>
+          <tr><td>エリアマスタ</td><td>2026/02/20 14:30</td><td><span class="status-badge ok">正常</span></td><td>24件更新</td></tr>
+          <tr><td>店舗マスタ</td><td>2026/02/18 10:15</td><td><span class="status-badge ok">正常</span></td><td>156件更新</td></tr>
+          <tr><td>ユーザーマスタ</td><td>2026/02/15 09:00</td><td><span class="status-badge waiting">処理待ち</span></td><td>バッチ処理待ち</td></tr>
+          <tr><td>仕入先マスタ</td><td>—</td><td><span class="status-badge error">未登録</span></td><td>—</td></tr>
+          <tr><td>商品マスタ</td><td>2026/02/25 16:45</td><td><span class="status-badge ok">正常</span></td><td>340件更新</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="submit-section">
+      <button class="btn-submit" onclick="saveSettings()">設定を保存</button>
+    </div>
+  </main>
+
+  <script>
+    function addCategory() {
+      var name = prompt('カテゴリ名を入力してください：');
+      if (!name) return;
+      var code = prompt('カテゴリコード（英数字）を入力してください：');
+      if (!code) return;
+      var list = document.getElementById('categoryList');
+      var div = document.createElement('div');
+      div.className = 'category-item';
+      div.innerHTML = '<div><span class="category-item-name">' + name + '</span><span class="category-item-code">' + code + '</span></div>' +
+        '<button class="btn-icon" onclick="removeCategory(this)" title="削除"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>';
+      list.appendChild(div);
+    }
+
+    function removeCategory(btn) {
+      if (confirm('このカテゴリを削除しますか？')) {
+        btn.parentElement.remove();
+      }
+    }
+
+    function saveSettings() {
+      alert('設定を保存しました（モックアップ）\n\n' + JSON.stringify({
+        fiscalStartMonth: document.getElementById('fiscalStartMonth').value,
+        budgetClosingDay: document.getElementById('budgetClosingDay').value,
+        orderClosingDay: document.getElementById('orderClosingDay').value
+      }, null, 2));
+    }
+  </script>
+</body>
+</html>

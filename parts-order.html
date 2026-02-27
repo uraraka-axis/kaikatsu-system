@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>部品発注画面</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', 'Noto Sans JP', sans-serif;
+      background-color: #f8fafc; color: #1e293b;
+      min-height: 100vh; font-size: 14px; line-height: 1.6;
+    }
+    .header {
+      background-color: #1e293b; color: #fff; padding: 0 32px;
+      display: flex; align-items: center; justify-content: space-between; height: 64px;
+    }
+    .header h1 { font-size: 20px; font-weight: 700; letter-spacing: 0.5px; }
+    .header-right { display: flex; align-items: center; gap: 20px; }
+    .header-user { font-size: 14px; color: #cbd5e1; }
+    .btn-logout {
+      background: transparent; color: #fff; border: 1px solid #64748b;
+      padding: 6px 16px; border-radius: 6px; cursor: pointer;
+      font-family: inherit; font-size: 13px; transition: all 0.2s;
+    }
+    .btn-logout:hover { background-color: #334155; border-color: #94a3b8; }
+    .nav {
+      background-color: #e2e8f0; padding: 0 32px;
+      display: flex; align-items: center; gap: 4px;
+      height: 48px; border-bottom: 1px solid #cbd5e1;
+    }
+    .nav-btn {
+      font-family: inherit; font-size: 13px; font-weight: 500;
+      padding: 8px 20px; border-radius: 6px; border: 1px solid transparent;
+      cursor: pointer; transition: all 0.2s; background: transparent; color: #475569;
+    }
+    .nav-btn:hover { background-color: #cbd5e1; }
+    .nav-btn.active { background-color: #1e293b; color: #fff; border-color: #1e293b; }
+    .main { max-width: 1200px; margin: 0 auto; padding: 32px; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
+    .form-group { margin-bottom: 24px; }
+    .form-label { display: block; font-size: 14px; font-weight: 600; color: #334155; margin-bottom: 8px; }
+    .form-label .required { color: #dc2626; margin-left: 4px; }
+    .form-select, .form-input {
+      width: 100%; padding: 10px 14px; border: 1px solid #d1d5db;
+      border-radius: 8px; font-family: inherit; font-size: 14px;
+      color: #1e293b; background-color: #fff;
+      transition: border-color 0.2s, box-shadow 0.2s; appearance: none;
+    }
+    .form-select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 14px center; padding-right: 40px;
+    }
+    .form-input:focus, .form-select:focus, .form-textarea:focus {
+      outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+    .form-textarea {
+      width: 100%; padding: 10px 14px; border: 1px solid #d1d5db;
+      border-radius: 8px; font-family: inherit; font-size: 14px;
+      color: #1e293b; background-color: #fff; resize: vertical;
+      min-height: 160px; transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .photo-upload-area {
+      border: 2px dashed #d1d5db; border-radius: 12px;
+      padding: 40px 20px; text-align: center; cursor: pointer;
+      transition: all 0.2s; background-color: #fff;
+    }
+    .photo-upload-area:hover { border-color: #3b82f6; background-color: #f0f7ff; }
+    .upload-icon { color: #94a3b8; margin-bottom: 12px; }
+    .upload-icon svg { width: 40px; height: 40px; }
+    .upload-text { font-size: 14px; font-weight: 500; color: #64748b; }
+    .upload-hint { font-size: 12px; color: #94a3b8; margin-top: 16px; }
+    .photo-previews { display: flex; gap: 12px; margin-top: 12px; flex-wrap: wrap; }
+    .photo-preview {
+      position: relative; width: 100px; height: 100px;
+      border-radius: 8px; overflow: hidden; border: 1px solid #e2e8f0;
+    }
+    .photo-preview img { width: 100%; height: 100%; object-fit: cover; }
+    .photo-remove {
+      position: absolute; top: 4px; right: 4px;
+      background-color: rgba(0,0,0,0.6); color: #fff; border: none;
+      border-radius: 50%; width: 24px; height: 24px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; font-size: 14px; transition: background-color 0.2s;
+    }
+    .photo-remove:hover { background-color: rgba(239, 68, 68, 0.8); }
+    .photo-remove svg { width: 14px; height: 14px; }
+    .submit-section { margin-top: 32px; display: flex; justify-content: flex-end; }
+    .btn-submit {
+      padding: 14px 40px; background-color: #3b82f6; color: #fff;
+      border: none; border-radius: 8px; font-family: inherit;
+      font-size: 15px; font-weight: 600; cursor: pointer;
+      transition: all 0.2s; letter-spacing: 0.3px;
+    }
+    .btn-submit:hover:not(:disabled) { background-color: #2563eb; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); }
+    .btn-submit:disabled { background-color: #94a3b8; cursor: not-allowed; }
+    @media (max-width: 768px) {
+      .header { padding: 0 16px; } .header h1 { font-size: 17px; }
+      .nav { padding: 0 16px; gap: 2px; overflow-x: auto; }
+      .nav-btn { padding: 8px 14px; font-size: 12px; white-space: nowrap; }
+      .main { padding: 20px 16px; }
+      .form-grid { grid-template-columns: 1fr; gap: 0; }
+      .submit-section { justify-content: center; } .btn-submit { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <h1>部品発注画面</h1>
+    <div class="header-right">
+      <span class="header-user">新宿東口店：田中太郎様</span>
+      <button class="btn-logout" onclick="location.href='login.html'">ログアウト</button>
+    </div>
+  </header>
+  <nav class="nav">
+    <button class="nav-btn" onclick="location.href='repair-order.html'">修理発注</button>
+    <button class="nav-btn" onclick="location.href='equipment-order.html'">備品発注</button>
+    <button class="nav-btn active">部品発注</button>
+    <button class="nav-btn" onclick="location.href='order-list.html'">発注一覧</button>
+    <button class="nav-btn" onclick="location.href='admin-menu.html'">管理メニュー</button>
+  </nav>
+  <main class="main">
+    <form id="partsForm" onsubmit="return false;">
+      <div class="form-grid">
+        <div class="form-left">
+          <div class="form-group">
+            <label class="form-label">カテゴリ（部門）<span class="required">*</span></label>
+            <select id="category" class="form-select" onchange="updateSubmitState()">
+              <option value="">選択してください</option>
+              <option value="golf">ゴルフ</option>
+              <option value="fitness">フィットネス</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">部品名・品番<span class="required">*</span></label>
+            <input type="text" id="partsName" class="form-input" placeholder="ベルト・RB-4520" oninput="updateSubmitState()">
+          </div>
+          <div class="form-group">
+            <label class="form-label">対象機材名</label>
+            <input type="text" id="targetEquipment" class="form-input" placeholder="ランニングマシン・TR-800">
+          </div>
+          <div class="form-group">
+            <label class="form-label">数量<span class="required">*</span></label>
+            <input type="number" id="quantity" class="form-input" placeholder="1" min="1" value="1" oninput="updateSubmitState()">
+          </div>
+        </div>
+        <div class="form-right">
+          <div class="form-group">
+            <label class="form-label">発注理由・備考<span class="required">*</span></label>
+            <textarea id="orderReason" class="form-textarea" placeholder="摩耗により交換が必要" oninput="updateSubmitState()"></textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label">写真（最大3枚）</label>
+            <div class="photo-upload-area" id="uploadArea" onclick="triggerFileInput()">
+              <div class="upload-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+              </div>
+              <div class="upload-text">写真を選択</div>
+            </div>
+            <input type="file" id="fileInput" accept="image/*" multiple style="display:none;" onchange="handlePhotoUpload(event)">
+            <div class="photo-previews" id="photoPreviews"></div>
+            <p class="upload-hint">※ iPadのカメラロールから写真を選択してアップロードしてください</p>
+          </div>
+        </div>
+      </div>
+      <div class="submit-section">
+        <button type="submit" class="btn-submit" id="submitBtn" disabled onclick="submitForm()">部品を発注する</button>
+      </div>
+    </form>
+  </main>
+  <script>
+    let photos = [];
+    function updateSubmitState() {
+      var cat = document.getElementById('category').value;
+      var name = document.getElementById('partsName').value.trim();
+      var qty = document.getElementById('quantity').value;
+      var reason = document.getElementById('orderReason').value.trim();
+      document.getElementById('submitBtn').disabled = !(cat && name && qty > 0 && reason);
+    }
+    function triggerFileInput() {
+      if (photos.length >= 3) return;
+      document.getElementById('fileInput').click();
+    }
+    function handlePhotoUpload(e) {
+      var files = e.target.files; if (!files) return;
+      var remaining = 3 - photos.length;
+      for (var i = 0; i < Math.min(files.length, remaining); i++) {
+        photos.push({ id: Date.now() + '-' + i, url: URL.createObjectURL(files[i]), file: files[i] });
+      }
+      renderPhotos(); e.target.value = '';
+    }
+    function removePhoto(id) {
+      photos = photos.filter(function(p) { if (p.id === id) { URL.revokeObjectURL(p.url); return false; } return true; });
+      renderPhotos();
+    }
+    function renderPhotos() {
+      var container = document.getElementById('photoPreviews');
+      document.getElementById('uploadArea').style.display = photos.length >= 3 ? 'none' : '';
+      if (!photos.length) { container.innerHTML = ''; return; }
+      container.innerHTML = photos.map(function(p) {
+        return '<div class="photo-preview"><img src="' + p.url + '" alt="部品写真"><button type="button" class="photo-remove" onclick="removePhoto(\'' + p.id + '\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button></div>';
+      }).join('');
+    }
+    function submitForm() {
+      alert('部品発注を送信しました。\n\n' + JSON.stringify({
+        category: document.getElementById('category').value,
+        partsName: document.getElementById('partsName').value,
+        targetEquipment: document.getElementById('targetEquipment').value,
+        quantity: document.getElementById('quantity').value,
+        orderReason: document.getElementById('orderReason').value,
+        photoCount: photos.length
+      }, null, 2));
+    }
+  </script>
+</body>
+</html>

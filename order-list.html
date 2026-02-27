@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>発注一覧画面</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', 'Noto Sans JP', sans-serif;
+      background-color: #f8fafc; color: #1e293b;
+      min-height: 100vh; font-size: 14px; line-height: 1.6;
+    }
+    .header {
+      background-color: #1e293b; color: #fff; padding: 0 32px;
+      display: flex; align-items: center; justify-content: space-between; height: 64px;
+    }
+    .header h1 { font-size: 20px; font-weight: 700; letter-spacing: 0.5px; }
+    .header-right { display: flex; align-items: center; gap: 20px; }
+    .header-user { font-size: 14px; color: #cbd5e1; }
+    .btn-logout {
+      background: transparent; color: #fff; border: 1px solid #64748b;
+      padding: 6px 16px; border-radius: 6px; cursor: pointer;
+      font-family: inherit; font-size: 13px; transition: all 0.2s;
+    }
+    .btn-logout:hover { background-color: #334155; border-color: #94a3b8; }
+    .nav {
+      background-color: #e2e8f0; padding: 0 32px;
+      display: flex; align-items: center; gap: 4px;
+      height: 48px; border-bottom: 1px solid #cbd5e1;
+    }
+    .nav-btn {
+      font-family: inherit; font-size: 13px; font-weight: 500;
+      padding: 8px 20px; border-radius: 6px; border: 1px solid transparent;
+      cursor: pointer; transition: all 0.2s; background: transparent; color: #475569;
+    }
+    .nav-btn:hover { background-color: #cbd5e1; }
+    .nav-btn.active { background-color: #1e293b; color: #fff; border-color: #1e293b; }
+    .main { max-width: 1200px; margin: 0 auto; padding: 32px; }
+
+    /* Toolbar */
+    .toolbar {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 24px; flex-wrap: wrap; gap: 12px;
+    }
+    .toolbar-left { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    .toolbar-right { display: flex; gap: 12px; }
+    .form-select {
+      padding: 8px 14px; border: 1px solid #d1d5db; border-radius: 8px;
+      font-family: inherit; font-size: 13px; color: #1e293b; background-color: #fff;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 12px center; padding-right: 36px;
+    }
+    .btn-action {
+      padding: 8px 20px; border-radius: 8px; font-family: inherit;
+      font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s;
+      border: none; display: flex; align-items: center; gap: 6px;
+    }
+    .btn-action svg { width: 16px; height: 16px; }
+    .btn-primary { background-color: #3b82f6; color: #fff; }
+    .btn-primary:hover { background-color: #2563eb; }
+    .btn-secondary { background-color: #fff; color: #475569; border: 1px solid #d1d5db; }
+    .btn-secondary:hover { background-color: #f1f5f9; }
+    .btn-success { background-color: #22c55e; color: #fff; }
+    .btn-success:hover { background-color: #16a34a; }
+
+    /* Order Table */
+    .order-table { width: 100%; border-collapse: collapse; }
+    .order-table th {
+      text-align: left; padding: 12px 16px; font-size: 12px;
+      font-weight: 600; color: #64748b; background-color: #f1f5f9;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .order-row { cursor: pointer; transition: background-color 0.15s; }
+    .order-row:hover { background-color: #f8fafc; }
+    .order-row td {
+      padding: 14px 16px; border-bottom: 1px solid #f1f5f9;
+      font-size: 13px; vertical-align: middle;
+    }
+    .order-row.repair { border-left: 4px solid #ef4444; }
+    .order-row.equipment { border-left: 4px solid #3b82f6; }
+    .order-row.parts { border-left: 4px solid #22c55e; }
+
+    /* Status Badge */
+    .status-badge {
+      display: inline-block; padding: 3px 10px; border-radius: 12px;
+      font-size: 11px; font-weight: 600;
+    }
+    .status-draft { background-color: #f1f5f9; color: #64748b; }
+    .status-confirmed { background-color: #dbeafe; color: #2563eb; }
+    .status-finalized { background-color: #dcfce7; color: #16a34a; }
+    .status-completed { background-color: #f3e8ff; color: #9333ea; }
+
+    .type-badge {
+      display: inline-block; padding: 2px 8px; border-radius: 4px;
+      font-size: 11px; font-weight: 600;
+    }
+    .type-repair { background-color: #fef2f2; color: #dc2626; }
+    .type-equipment { background-color: #eff6ff; color: #2563eb; }
+    .type-parts { background-color: #f0fdf4; color: #16a34a; }
+
+    /* Detail Panel */
+    .detail-panel {
+      display: none; background-color: #fafbfc; border-bottom: 1px solid #e2e8f0;
+    }
+    .detail-panel.open { display: table-row; }
+    .detail-content {
+      padding: 20px 24px; font-size: 13px;
+    }
+    .detail-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;
+    }
+    .detail-item { }
+    .detail-label { font-size: 11px; color: #94a3b8; font-weight: 600; margin-bottom: 4px; }
+    .detail-value { font-size: 13px; color: #1e293b; }
+
+    .detail-actions {
+      display: flex; gap: 8px; padding-top: 16px; border-top: 1px solid #e2e8f0;
+    }
+    .btn-sm {
+      padding: 6px 14px; border-radius: 6px; font-family: inherit;
+      font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.2s;
+      border: 1px solid #d1d5db; background: #fff; color: #475569;
+    }
+    .btn-sm:hover { background-color: #f1f5f9; }
+    .btn-sm.danger { color: #dc2626; border-color: #fecaca; }
+    .btn-sm.danger:hover { background-color: #fef2f2; }
+    .btn-sm.complete { color: #fff; background-color: #8b5cf6; border-color: #8b5cf6; }
+    .btn-sm.complete:hover { background-color: #7c3aed; }
+
+    /* Repair Detail Fields */
+    .repair-fields { margin-top: 16px; padding-top: 16px; border-top: 1px solid #e2e8f0; }
+    .repair-fields-title { font-size: 12px; font-weight: 600; color: #ef4444; margin-bottom: 12px; }
+    .repair-field-row { display: flex; gap: 16px; margin-bottom: 12px; align-items: center; flex-wrap: wrap; }
+    .repair-field-label { font-size: 12px; color: #64748b; min-width: 100px; }
+    .repair-field-input {
+      padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px;
+      font-family: inherit; font-size: 13px;
+    }
+    .repair-field-input:focus { outline: none; border-color: #3b82f6; }
+    .repair-field-select {
+      padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px;
+      font-family: inherit; font-size: 13px; appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 8px center; padding-right: 28px;
+    }
+
+    .table-container { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; }
+
+    @media (max-width: 768px) {
+      .header { padding: 0 16px; } .header h1 { font-size: 17px; }
+      .nav { padding: 0 16px; gap: 2px; overflow-x: auto; }
+      .nav-btn { padding: 8px 14px; font-size: 12px; white-space: nowrap; }
+      .main { padding: 20px 16px; }
+      .toolbar { flex-direction: column; align-items: stretch; }
+      .toolbar-left, .toolbar-right { flex-wrap: wrap; }
+      .table-container { overflow-x: auto; }
+      .detail-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <h1>発注一覧画面</h1>
+    <div class="header-right">
+      <span class="header-user">新宿東口店：田中太郎様</span>
+      <button class="btn-logout" onclick="location.href='login.html'">ログアウト</button>
+    </div>
+  </header>
+  <nav class="nav">
+    <button class="nav-btn" onclick="location.href='repair-order.html'">修理発注</button>
+    <button class="nav-btn" onclick="location.href='equipment-order.html'">備品発注</button>
+    <button class="nav-btn" onclick="location.href='parts-order.html'">部品発注</button>
+    <button class="nav-btn active">発注一覧</button>
+    <button class="nav-btn" onclick="location.href='admin-menu.html'">管理メニュー</button>
+  </nav>
+  <main class="main">
+    <!-- Toolbar -->
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <select class="form-select" id="filterCategory" onchange="renderOrders()">
+          <option value="">すべてのカテゴリ</option>
+          <option value="fitness">フィットネス</option>
+          <option value="golf">ゴルフ</option>
+        </select>
+        <select class="form-select" id="filterType" onchange="renderOrders()">
+          <option value="">すべての種別</option>
+          <option value="repair">修理発注</option>
+          <option value="equipment">備品発注</option>
+          <option value="parts">部品発注</option>
+        </select>
+        <select class="form-select" id="filterStatus" onchange="renderOrders()">
+          <option value="">すべてのステータス</option>
+          <option value="0">仮登録</option>
+          <option value="1">本登録</option>
+          <option value="2">確定済</option>
+          <option value="3">完了</option>
+        </select>
+      </div>
+      <div class="toolbar-right">
+        <button class="btn-action btn-success" onclick="confirmSelected()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+          正式発注
+        </button>
+        <button class="btn-action btn-secondary" onclick="exportExcel()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          Excel出力
+        </button>
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div class="table-container">
+      <table class="order-table">
+        <thead>
+          <tr>
+            <th style="width:40px"><input type="checkbox" id="selectAll" onchange="toggleAll(this)"></th>
+            <th>発注番号</th>
+            <th>種別</th>
+            <th>カテゴリ</th>
+            <th>内容</th>
+            <th>金額</th>
+            <th>ステータス</th>
+            <th>発注日</th>
+            <th style="width:60px">詳細</th>
+          </tr>
+        </thead>
+        <tbody id="orderTableBody"></tbody>
+      </table>
+    </div>
+  </main>
+
+  <script>
+    var orders = [
+      { id: 'ORD-2026-001', type: 'repair', category: 'fitness', title: 'ランニングマシン ベルト異常', amount: null, status: 0, date: '2026-02-25', equipment: 'ランニングマシン TR-800', issue: 'ベルトが滑る。異音が発生。', repairCost: '', repairDate: '', repairStatus: '' },
+      { id: 'ORD-2026-002', type: 'equipment', category: 'fitness', title: 'トレーニングマット × 5', amount: 17500, status: 1, date: '2026-02-24', supplier: 'フィットネスジャパン', items: 'トレーニングマット × 5' },
+      { id: 'ORD-2026-003', type: 'parts', category: 'golf', title: 'スイング診断機 センサー交換部品', amount: 12000, status: 0, date: '2026-02-23', partsName: 'センサーユニット SU-100', targetEquip: 'スイング診断機 GST-7', reason: 'センサー応答が遅くなっている' },
+      { id: 'ORD-2026-004', type: 'equipment', category: 'golf', title: 'ゴルフボール 1ダース × 10', amount: 42000, status: 2, date: '2026-02-22', supplier: 'ゴルフサプライ', items: 'ゴルフボール 1ダース × 10' },
+      { id: 'ORD-2026-005', type: 'repair', category: 'fitness', title: 'エアロバイク 表示パネル故障', amount: null, status: 1, date: '2026-02-21', equipment: 'エアロバイク AB-200', issue: '液晶パネルが表示されない', repairCost: '35000', repairDate: '2026-03-10', repairStatus: '見積もり済' },
+      { id: 'ORD-2026-006', type: 'repair', category: 'golf', title: 'パッティングマシン モーター異常', amount: null, status: 3, date: '2026-02-18', equipment: 'パッティングマシン PM-300', issue: 'モーターが回転しない', repairCost: '48000', repairDate: '2026-02-28', repairStatus: '修理完了' },
+    ];
+
+    var expandedId = null;
+
+    function renderOrders() {
+      var catFilter = document.getElementById('filterCategory').value;
+      var typeFilter = document.getElementById('filterType').value;
+      var statusFilter = document.getElementById('filterStatus').value;
+
+      var filtered = orders.filter(function(o) {
+        if (catFilter && o.category !== catFilter) return false;
+        if (typeFilter && o.type !== typeFilter) return false;
+        if (statusFilter !== '' && o.status !== parseInt(statusFilter)) return false;
+        return true;
+      });
+
+      var tbody = document.getElementById('orderTableBody');
+      var html = '';
+      filtered.forEach(function(o) {
+        var typeClass = 'type-' + o.type;
+        var typeLabel = o.type === 'repair' ? '修理' : o.type === 'equipment' ? '備品' : '部品';
+        var statusClass = o.status === 0 ? 'status-draft' : o.status === 1 ? 'status-confirmed' : o.status === 2 ? 'status-finalized' : 'status-completed';
+        var statusLabel = o.status === 0 ? '仮登録' : o.status === 1 ? '本登録' : o.status === 2 ? '確定済' : '完了';
+        var catLabel = o.category === 'fitness' ? 'フィットネス' : 'ゴルフ';
+        var amountStr = o.amount ? '¥' + o.amount.toLocaleString() : (o.repairCost ? '¥' + parseInt(o.repairCost).toLocaleString() : '—');
+        var isOpen = expandedId === o.id;
+
+        html += '<tr class="order-row ' + o.type + '">' +
+          '<td><input type="checkbox" class="order-check" data-id="' + o.id + '"></td>' +
+          '<td><strong>' + o.id + '</strong></td>' +
+          '<td><span class="type-badge ' + typeClass + '">' + typeLabel + '</span></td>' +
+          '<td>' + catLabel + '</td>' +
+          '<td>' + o.title + '</td>' +
+          '<td>' + amountStr + '</td>' +
+          '<td><span class="status-badge ' + statusClass + '">' + statusLabel + '</span></td>' +
+          '<td>' + o.date + '</td>' +
+          '<td><button class="btn-sm" onclick="toggleDetail(\'' + o.id + '\')">' + (isOpen ? '閉じる' : '詳細') + '</button></td>' +
+        '</tr>';
+
+        // Detail row
+        html += '<tr class="detail-panel' + (isOpen ? ' open' : '') + '" id="detail-' + o.id + '"><td colspan="9"><div class="detail-content">';
+        if (o.type === 'repair') {
+          html += '<div class="detail-grid">' +
+            '<div class="detail-item"><div class="detail-label">故障機材</div><div class="detail-value">' + (o.equipment || '') + '</div></div>' +
+            '<div class="detail-item"><div class="detail-label">不具合内容</div><div class="detail-value">' + (o.issue || '') + '</div></div>' +
+          '</div>' +
+          '<div class="repair-fields"><div class="repair-fields-title">修理情報（編集可能）</div>' +
+            '<div class="repair-field-row">' +
+              '<span class="repair-field-label">修理金額</span>' +
+              '<input type="number" class="repair-field-input" value="' + (o.repairCost || '') + '" placeholder="金額を入力" style="width:150px">' +
+            '</div>' +
+            '<div class="repair-field-row">' +
+              '<span class="repair-field-label">修理完了予定日</span>' +
+              '<input type="date" class="repair-field-input" value="' + (o.repairDate || '') + '">' +
+            '</div>' +
+            '<div class="repair-field-row">' +
+              '<span class="repair-field-label">修理状況</span>' +
+              '<select class="repair-field-select"><option value="">選択</option><option' + (o.repairStatus === '見積もり済' ? ' selected' : '') + '>見積もり済</option><option' + (o.repairStatus === '修理中' ? ' selected' : '') + '>修理中</option><option' + (o.repairStatus === '修理完了' ? ' selected' : '') + '>修理完了</option></select>' +
+            '</div>' +
+          '</div>';
+        } else if (o.type === 'equipment') {
+          html += '<div class="detail-grid">' +
+            '<div class="detail-item"><div class="detail-label">発注内容</div><div class="detail-value">' + (o.items || '') + '</div></div>' +
+            '<div class="detail-item"><div class="detail-label">仕入先</div><div class="detail-value">' + (o.supplier || '') + '</div></div>' +
+          '</div>';
+        } else {
+          html += '<div class="detail-grid">' +
+            '<div class="detail-item"><div class="detail-label">部品名</div><div class="detail-value">' + (o.partsName || '') + '</div></div>' +
+            '<div class="detail-item"><div class="detail-label">対象機材</div><div class="detail-value">' + (o.targetEquip || '') + '</div></div>' +
+            '<div class="detail-item"><div class="detail-label">発注理由</div><div class="detail-value">' + (o.reason || '') + '</div></div>' +
+          '</div>';
+        }
+        html += '<div class="detail-actions">';
+        if (o.type === 'repair') {
+          html += '<button class="btn-sm" onclick="saveRepairDetail(\'' + o.id + '\')">変更を保存</button>';
+          if (o.status !== 3) {
+            html += '<button class="btn-sm complete" onclick="completeRepair(\'' + o.id + '\')">修理完了</button>';
+          }
+        }
+        html += '<button class="btn-sm danger" onclick="deleteOrder(\'' + o.id + '\')">削除</button>';
+        html += '</div></div></td></tr>';
+      });
+      tbody.innerHTML = html;
+    }
+
+    function toggleDetail(id) {
+      expandedId = expandedId === id ? null : id;
+      renderOrders();
+    }
+
+    function toggleAll(checkbox) {
+      document.querySelectorAll('.order-check').forEach(function(cb) { cb.checked = checkbox.checked; });
+    }
+
+    function confirmSelected() {
+      var selected = [];
+      document.querySelectorAll('.order-check:checked').forEach(function(cb) { selected.push(cb.getAttribute('data-id')); });
+      if (!selected.length) { alert('発注を選択してください'); return; }
+      alert('正式発注に変更しました：' + selected.join(', '));
+      selected.forEach(function(id) {
+        var order = orders.find(function(o) { return o.id === id; });
+        if (order && order.status === 0) order.status = 1;
+      });
+      renderOrders();
+    }
+
+    function exportExcel() { alert('Excel出力（モックアップ）\n\n選択された発注をExcelファイルとしてダウンロードします。\nダウンロード時にステータスが「確定済」に変更されます。'); }
+    function saveRepairDetail(id) { alert('修理情報を保存しました（モックアップ）'); }
+    function completeRepair(id) {
+      var order = orders.find(function(o) { return o.id === id; });
+      if (order) { order.status = 3; order.repairStatus = '修理完了'; }
+      renderOrders();
+      alert('修理完了に変更しました');
+    }
+    function deleteOrder(id) {
+      if (confirm('この発注を削除しますか？')) {
+        orders = orders.filter(function(o) { return o.id !== id; });
+        expandedId = null;
+        renderOrders();
+      }
+    }
+
+    renderOrders();
+  </script>
+</body>
+</html>
