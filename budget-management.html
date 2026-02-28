@@ -14,7 +14,7 @@
   <header class="header">
     <h1>予算管理画面</h1>
     <div class="header-right">
-      <span class="header-user">新宿東口店：田中太郎様</span>
+      <span class="header-user">本部：管理者様</span>
       <button class="btn-logout" onclick="location.href='login.html'">ログアウト</button>
     </div>
   </header>
@@ -28,46 +28,44 @@
     <button class="nav-btn" onclick="location.href='admin-menu.html'">管理メニュー</button>
   </nav>
   <main class="main">
-    <div class="page-header">
-      <h2 class="page-title">予算管理</h2>
-      <div class="month-selector">
-        <button class="month-btn" onclick="changeMonth(-1)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg></button>
-        <span class="month-label" id="monthLabel">2026年2月</span>
-        <button class="month-btn" onclick="changeMonth(1)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg></button>
+    <h2 class="page-title">予算管理</h2>
+    <p class="page-desc">店舗別の予算・実績・消化状況を管理します。行をクリックすると月別明細を表示します。</p>
+
+    <!-- Filters -->
+    <div class="toolbar">
+      <div class="toolbar-filters">
+        <select class="form-select" id="filterZone" onchange="filterBudget()">
+          <option value="">ゾーン</option>
+          <option value="100" selected>100:東日本</option>
+          <option value="200">200:西日本</option>
+        </select>
+        <select class="form-select" id="filterArea" onchange="filterBudget()">
+          <option value="">エリア</option>
+          <option value="101">101:北海道</option>
+          <option value="102">102:東北</option>
+        </select>
+        <select class="form-select" id="filterShop" onchange="filterBudget()">
+          <option value="">店舗</option>
+        </select>
+        <select class="form-select" id="filterDept" onchange="filterBudget()">
+          <option value="">すべての部門</option>
+          <option value="fitness">フィットネス</option>
+          <option value="golf" selected>ゴルフ</option>
+        </select>
+        <select class="form-select" id="filterYear" onchange="filterBudget()">
+          <option value="2025" selected>2025年度</option>
+          <option value="2024">2024年度</option>
+        </select>
+        <button class="btn-search" onclick="filterBudget()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          検索
+        </button>
       </div>
     </div>
 
     <!-- Summary Cards -->
-    <div class="summary-grid">
-      <div class="summary-card">
-        <div class="summary-card-label">月間予算額</div>
-        <div class="summary-card-value">¥500,000</div>
-      </div>
-      <div class="summary-card">
-        <div class="summary-card-label">増減額</div>
-        <div class="summary-card-value positive">+¥30,000</div>
-      </div>
-      <div class="summary-card">
-        <div class="summary-card-label">自店調達額</div>
-        <div class="summary-card-value">¥15,000</div>
-      </div>
-      <div class="summary-card">
-        <div class="summary-card-label">実績額</div>
-        <div class="summary-card-value">¥342,500</div>
-        <div class="progress-bar"><div class="progress-fill yellow" style="width:63%"></div></div>
-        <div class="summary-card-sub">予算消化率 63%</div>
-      </div>
-      <div class="summary-card">
-        <div class="summary-card-label">残予算</div>
-        <div class="summary-card-value positive">¥202,500</div>
-      </div>
-    </div>
-
-    <!-- Category Tabs -->
-    <div class="cat-tabs">
-      <button class="cat-tab active" onclick="switchCategory(this, 'all')">全体</button>
-      <button class="cat-tab" onclick="switchCategory(this, 'fitness')">フィットネス</button>
-      <button class="cat-tab" onclick="switchCategory(this, 'golf')">ゴルフ</button>
+    <div class="summary-grid" id="summaryCards">
+      <!-- JS renders -->
     </div>
 
     <!-- Budget Table -->
@@ -75,83 +73,21 @@
       <table class="budget-table">
         <thead>
           <tr>
-            <th>カテゴリ</th>
-            <th class="right">予算額</th>
-            <th class="right">増減額</th>
-            <th class="right">自店調達額</th>
-            <th class="right">実績額</th>
-            <th class="right">残額</th>
-            <th>消化率</th>
+            <th rowspan="2" class="col-shop sticky-col">店舗</th>
+            <th colspan="4" class="group-header group-period">当期</th>
+            <th colspan="4" class="group-header group-midterm">期中</th>
+            <th colspan="4" class="group-header group-monthly">当月</th>
+          </tr>
+          <tr>
+            <th class="num">予算</th><th class="num">実績</th><th class="num">残高</th><th class="num">消化率</th>
+            <th class="num">予算</th><th class="num">実績</th><th class="num">残高</th><th class="num">消化率</th>
+            <th class="num">予算</th><th class="num">実績</th><th class="num">残高</th><th class="num">消化率</th>
           </tr>
         </thead>
-        <tbody>
-          <tr>
-            <td>フィットネス</td>
-            <td class="right">¥300,000</td>
-            <td class="right amount-positive">+¥20,000</td>
-            <td class="right">¥10,000</td>
-            <td class="right">¥215,000</td>
-            <td class="right amount-positive">¥115,000</td>
-            <td>
-              <div style="display:flex;align-items:center;gap:8px">
-                <div class="progress-bar" style="width:80px"><div class="progress-fill yellow" style="width:65%"></div></div>
-                <span style="font-size:12px;color:#64748b">65%</span>
-              </div>
-            </td>
-          </tr>
-          <tr>
-            <td>ゴルフ</td>
-            <td class="right">¥200,000</td>
-            <td class="right amount-positive">+¥10,000</td>
-            <td class="right">¥5,000</td>
-            <td class="right">¥127,500</td>
-            <td class="right amount-positive">¥87,500</td>
-            <td>
-              <div style="display:flex;align-items:center;gap:8px">
-                <div class="progress-bar" style="width:80px"><div class="progress-fill green" style="width:59%"></div></div>
-                <span style="font-size:12px;color:#64748b">59%</span>
-              </div>
-            </td>
-          </tr>
-          <tr class="total-row">
-            <td>合計</td>
-            <td class="right">¥500,000</td>
-            <td class="right amount-positive">+¥30,000</td>
-            <td class="right">¥15,000</td>
-            <td class="right">¥342,500</td>
-            <td class="right amount-positive">¥202,500</td>
-            <td>
-              <div style="display:flex;align-items:center;gap:8px">
-                <div class="progress-bar" style="width:80px"><div class="progress-fill yellow" style="width:63%"></div></div>
-                <span style="font-size:12px;color:#64748b">63%</span>
-              </div>
-            </td>
-          </tr>
+        <tbody id="budgetTableBody">
+          <!-- JS renders -->
         </tbody>
       </table>
-    </div>
-
-    <!-- Procurement Application -->
-    <div class="procurement-section">
-      <div class="procurement-title">自店調達申請</div>
-      <div class="procurement-form">
-        <div class="form-group">
-          <label class="form-label">カテゴリ</label>
-          <select class="form-select" id="procCategory">
-            <option value="fitness">フィットネス</option>
-            <option value="golf">ゴルフ</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label class="form-label">金額</label>
-          <input type="number" class="form-input" id="procAmount" placeholder="10000" style="width:150px">
-        </div>
-        <div class="form-group" style="flex:2;min-width:200px">
-          <label class="form-label">理由</label>
-          <input type="text" class="form-input" id="procReason" placeholder="緊急で備品が必要なため" style="width:100%">
-        </div>
-        <button class="btn-submit" onclick="submitProcurement()">申請する</button>
-      </div>
     </div>
   </main>
 
