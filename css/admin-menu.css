@@ -106,6 +106,43 @@
 .btn-action:hover { background-color: #f1f5f9; border-color: #3b82f6; color: #3b82f6; }
 .btn-action svg { width: 14px; height: 14px; }
 
+/* ===== Export Filters (発注データ出力) ===== */
+.export-filters {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 16px;
+}
+.export-filter-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+.export-filter-group {
+  flex: 1;
+  min-width: 120px;
+}
+.export-filter-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+  margin-bottom: 4px;
+}
+.export-filters .form-select {
+  padding: 8px 12px;
+  font-size: 13px;
+  padding-right: 32px;
+  background-position: right 10px center;
+}
+.export-btn {
+  background: #3b82f6;
+  color: #fff;
+  border-color: #3b82f6;
+}
+.export-btn:hover { background: #2563eb; border-color: #2563eb; color: #fff; }
+
 /* ===== Settings Link ===== */
 .settings-link {
   display: flex;
