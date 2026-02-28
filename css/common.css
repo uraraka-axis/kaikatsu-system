@@ -217,13 +217,30 @@ body {
 .photo-remove:hover { background-color: rgba(239, 68, 68, 0.8); }
 .photo-remove svg { width: 14px; height: 14px; }
 
-/* ===== Responsive (共通) ===== */
-@media (max-width: 768px) {
-  .header { padding: 0 16px; }
-  .header h1 { font-size: 17px; }
-  .nav { padding: 0 16px; gap: 2px; overflow-x: auto; }
+/* ===== Responsive: iPad / Tablet (601px–1024px) ===== */
+@media (min-width: 601px) and (max-width: 1024px) {
+  .header { padding: 0 20px; }
+  .header h1 { font-size: 18px; }
+  .nav { padding: 0 12px; gap: 2px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
   .nav-btn { padding: 8px 14px; font-size: 12px; white-space: nowrap; }
-  .main { padding: 20px 16px; }
+  .main { padding: 24px 20px; max-width: 100%; }
+  .table-container { overflow-x: auto; }
+  .form-group { margin-bottom: 20px; }
+}
+
+/* ===== Responsive: Phone (600px以下) ===== */
+@media (max-width: 600px) {
+  .header { padding: 0 12px; height: 56px; }
+  .header h1 { font-size: 16px; }
+  .header-right { gap: 12px; }
+  .header-user { font-size: 12px; }
+  .btn-logout { padding: 4px 12px; font-size: 12px; }
+  .nav { padding: 0 8px; gap: 2px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .nav-btn { padding: 6px 12px; font-size: 11px; white-space: nowrap; }
+  .main { padding: 16px 12px; }
+  .page-title { font-size: 18px; }
+  .form-label { font-size: 13px; }
+  .form-select, .form-input { font-size: 16px; /* prevent iOS zoom */ }
   .table-container { overflow-x: auto; }
   .submit-section { justify-content: center; }
   .btn-submit { width: 100%; }

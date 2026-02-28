@@ -150,7 +150,13 @@
 }
 
 /* ===== Responsive ===== */
-@media (max-width: 768px) {
+@media (min-width: 601px) and (max-width: 1024px) {
+  .toolbar { flex-direction: row; }
+  .detail-grid { grid-template-columns: 1fr 1fr; }
+  .order-table { font-size: 12px; }
+  .order-row td { padding: 10px 12px; }
+}
+@media (max-width: 600px) {
   .toolbar { flex-direction: column; align-items: stretch; }
   .toolbar-left, .toolbar-right { flex-wrap: wrap; }
   .detail-grid { grid-template-columns: 1fr; }

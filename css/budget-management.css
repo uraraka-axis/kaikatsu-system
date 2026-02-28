@@ -134,7 +134,11 @@
 }
 
 /* ===== Responsive ===== */
-@media (max-width: 768px) {
+@media (min-width: 601px) and (max-width: 1024px) {
+  .summary-grid { grid-template-columns: repeat(3, 1fr); }
+  .procurement-form { flex-direction: row; flex-wrap: wrap; }
+}
+@media (max-width: 600px) {
   .summary-grid { grid-template-columns: 1fr 1fr; }
   .procurement-form { flex-direction: column; }
 }

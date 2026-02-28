@@ -159,7 +159,10 @@
 .day-btn.selected { background-color: #3b82f6; color: #fff; border-color: #3b82f6; }
 
 /* ===== Responsive ===== */
-@media (max-width: 768px) {
+@media (min-width: 601px) and (max-width: 1024px) {
+  .form-grid { grid-template-columns: 1fr 1fr; gap: 20px; }
+}
+@media (max-width: 600px) {
   .form-grid { grid-template-columns: 1fr; gap: 0; }
   .radio-group { flex-direction: column; gap: 10px; }
   .days-grid { gap: 6px; }

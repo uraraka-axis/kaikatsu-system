@@ -86,6 +86,9 @@ body {
 }
 
 /* ===== Responsive ===== */
-@media (max-width: 480px) {
+@media (min-width: 601px) and (max-width: 1024px) {
+  .login-card { max-width: 380px; padding: 36px; }
+}
+@media (max-width: 600px) {
   .login-card { padding: 36px 24px; }
 }

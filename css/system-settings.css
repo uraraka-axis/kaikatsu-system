@@ -102,7 +102,12 @@
 .settings-card ~ .submit-section .btn-submit { padding: 12px 32px; }
 
 /* ===== Responsive ===== */
-@media (max-width: 768px) {
+@media (min-width: 601px) and (max-width: 1024px) {
+  .main { max-width: 700px; }
+  .settings-card .form-select,
+  .settings-card .form-input { max-width: 280px; }
+}
+@media (max-width: 600px) {
   .settings-card .form-select,
   .settings-card .form-input { max-width: 100%; }
   .form-row { flex-direction: column; gap: 0; }
