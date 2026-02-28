@@ -290,7 +290,9 @@
         html += '<div class="detail-actions">';
         if (o.type === 'repair') {
           html += '<button class="btn-sm" onclick="saveRepairDetail(\'' + o.id + '\')">変更を保存</button>';
-          if (o.status !== 3) {
+          if (o.status === 3) {
+            html += '<button class="btn-sm undo" onclick="undoCompleteRepair(\'' + o.id + '\')">完了取り消し</button>';
+          } else {
             html += '<button class="btn-sm complete" onclick="completeRepair(\'' + o.id + '\')">修理完了</button>';
           }
         }
@@ -329,6 +331,7 @@
     function exportExcel() { alert('Excel出力（モックアップ）\n\n選択された発注をExcelファイルとしてダウンロードします。\nダウンロード時にステータスが「確定済」に変更されます。'); }
     function saveRepairDetail() { alert('修理情報を保存しました（モックアップ）'); }
     function completeRepair(id) {
+      if (!confirm('この修理を完了にしますか？')) return;
       var orders = viewMode === 'admin' ? adminOrders : storeOrders;
       var order = orders.find(function(o) { return o.id === id; });
       if (order) {
@@ -338,6 +341,17 @@
       }
       renderOrders();
       alert('修理完了に変更しました（完了日: ' + order.completedDate + '）');
+    }
+    function undoCompleteRepair(id) {
+      if (!confirm('修理完了を取り消しますか？\nステータスが「正式発注」に戻ります。')) return;
+      var orders = viewMode === 'admin' ? adminOrders : storeOrders;
+      var order = orders.find(function(o) { return o.id === id; });
+      if (order) {
+        order.status = 1;
+        order.completedDate = '';
+      }
+      renderOrders();
+      alert('修理完了を取り消しました');
     }
     function deleteOrder(id) {
       if (confirm('この発注を削除しますか？')) {

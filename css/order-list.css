@@ -191,6 +191,8 @@
 .btn-sm.danger:hover { background-color: #fef2f2; }
 .btn-sm.complete { color: #fff; background-color: #8b5cf6; border-color: #8b5cf6; }
 .btn-sm.complete:hover { background-color: #7c3aed; }
+.btn-sm.undo { color: #ea580c; border-color: #fed7aa; }
+.btn-sm.undo:hover { background-color: #fff7ed; }
 
 /* ===== Repair Detail Fields ===== */
 .repair-fields { margin-top: 16px; padding-top: 16px; border-top: 1px solid #e2e8f0; }
