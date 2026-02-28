@@ -34,7 +34,7 @@
 .schedule-header svg { color: #94a3b8; }
 .schedule-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 10px;
 }
 .schedule-card {
@@ -115,8 +115,17 @@
   gap: 14px;
 }
 .menu-card:hover {
-  border-color: #cbd5e1;
-  background: #f8fafc;
+  border-color: #3b82f6;
+  background: #eff6ff;
+}
+.menu-card:hover .menu-card-icon {
+  background: #dbeafe;
+  color: #2563eb;
+}
+.menu-card:hover .menu-card-title { color: #1d4ed8; }
+.menu-card:active {
+  border-color: #2563eb;
+  background: #dbeafe;
 }
 
 /* ===== Card Icon (Monochrome) ===== */
