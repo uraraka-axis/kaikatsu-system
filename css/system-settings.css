@@ -1,0 +1,109 @@
+/* ===== Main Override (narrower) ===== */
+.main { max-width: 800px; }
+
+/* ===== Back Link ===== */
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #3b82f6;
+  font-size: 13px;
+  text-decoration: none;
+  margin-bottom: 20px;
+}
+.back-link:hover { text-decoration: underline; }
+.back-link svg { width: 16px; height: 16px; }
+
+/* ===== Settings Card ===== */
+.settings-card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 32px;
+  margin-bottom: 24px;
+}
+.settings-card-title { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+.settings-card-desc { font-size: 12px; color: #94a3b8; margin-bottom: 24px; }
+
+/* ===== Form Overrides ===== */
+.settings-card .form-select,
+.settings-card .form-input { max-width: 300px; }
+
+.form-label-hint { font-size: 12px; color: #94a3b8; font-weight: 400; margin-left: 8px; }
+.form-row { display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap; }
+.form-row .form-group { flex: 1; min-width: 140px; }
+
+/* ===== Category List ===== */
+.category-list { margin-bottom: 16px; }
+.category-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+.category-item-name { font-size: 14px; font-weight: 500; }
+.category-item-code { font-size: 12px; color: #94a3b8; margin-left: 12px; }
+
+.btn-icon {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #94a3b8;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+.btn-icon:hover { color: #ef4444; background: #fef2f2; }
+.btn-icon svg { width: 16px; height: 16px; }
+
+.btn-add-category {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: 1px dashed #d1d5db;
+  border-radius: 8px;
+  background: transparent;
+  color: #3b82f6;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+.btn-add-category:hover { border-color: #3b82f6; background: #f0f7ff; }
+.btn-add-category svg { width: 16px; height: 16px; }
+
+/* ===== Status Table ===== */
+.status-table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+.status-table th {
+  text-align: left;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  background: #f1f5f9;
+  border-bottom: 1px solid #e2e8f0;
+}
+.status-table td {
+  padding: 10px 12px;
+  font-size: 13px;
+  border-bottom: 1px solid #f1f5f9;
+}
+.status-badge.ok { background: #dcfce7; color: #16a34a; }
+.status-badge.error { background: #fef2f2; color: #dc2626; }
+.status-badge.waiting { background: #fef3c7; color: #d97706; }
+
+/* ===== Submit Override ===== */
+.settings-card ~ .submit-section .btn-submit { padding: 12px 32px; }
+
+/* ===== Responsive ===== */
+@media (max-width: 768px) {
+  .settings-card .form-select,
+  .settings-card .form-input { max-width: 100%; }
+  .form-row { flex-direction: column; gap: 0; }
+}

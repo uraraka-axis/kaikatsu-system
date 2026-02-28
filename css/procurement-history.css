@@ -1,0 +1,74 @@
+/* ===== Filter Bar ===== */
+.filter-bar {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.filter-bar .form-select {
+  padding: 8px 14px;
+  font-size: 13px;
+  padding-right: 36px;
+  background-position: right 12px center;
+}
+
+/* ===== Summary Bar ===== */
+.summary-bar { display: flex; gap: 24px; margin-bottom: 24px; flex-wrap: wrap; }
+.summary-item {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 16px 24px;
+  flex: 1;
+  min-width: 150px;
+}
+.summary-label { font-size: 12px; color: #94a3b8; font-weight: 600; margin-bottom: 4px; }
+.summary-value { font-size: 20px; font-weight: 700; }
+.summary-count { font-size: 12px; color: #94a3b8; margin-top: 2px; }
+
+/* ===== Procurement Table ===== */
+.proc-table { width: 100%; border-collapse: collapse; }
+.proc-table th {
+  text-align: left;
+  padding: 12px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  background: #f1f5f9;
+  border-bottom: 1px solid #e2e8f0;
+}
+.proc-table th.right, .proc-table td.right { text-align: right; }
+.proc-table td {
+  padding: 14px 16px;
+  font-size: 13px;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+}
+.proc-table tr:last-child td { border-bottom: none; }
+
+/* ===== Status Badges ===== */
+.status-pending { background: #fef3c7; color: #d97706; }
+.status-approved { background: #dcfce7; color: #16a34a; }
+.status-rejected { background: #fef2f2; color: #dc2626; }
+
+/* ===== Cancel Button ===== */
+.btn-cancel {
+  padding: 5px 12px;
+  border-radius: 6px;
+  border: 1px solid #fecaca;
+  background: #fff;
+  color: #dc2626;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+.btn-cancel:hover { background: #fef2f2; }
+.btn-cancel:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ===== Responsive ===== */
+@media (max-width: 768px) {
+  .summary-bar { flex-direction: column; }
+}

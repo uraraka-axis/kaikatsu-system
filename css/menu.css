@@ -1,0 +1,81 @@
+/* ===== Menu Page ===== */
+.main { padding: 40px 32px; }
+
+.welcome { margin-bottom: 36px; }
+.welcome h2 {
+  font-size: 24px;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 8px;
+}
+.welcome p { font-size: 14px; color: #64748b; }
+
+/* ===== Menu Sections ===== */
+.menu-section { margin-bottom: 36px; }
+.menu-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 16px;
+}
+
+/* ===== Menu Grid ===== */
+.menu-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+}
+.menu-card {
+  background-color: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 24px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-decoration: none;
+  color: inherit;
+  display: block;
+}
+.menu-card:hover {
+  border-color: #3b82f6;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);
+  transform: translateY(-2px);
+}
+
+/* ===== Card Icon ===== */
+.menu-card-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+.menu-card-icon svg { width: 22px; height: 22px; }
+.menu-card-icon.blue { background-color: #eff6ff; color: #3b82f6; }
+.menu-card-icon.green { background-color: #f0fdf4; color: #22c55e; }
+.menu-card-icon.orange { background-color: #fff7ed; color: #f97316; }
+.menu-card-icon.purple { background-color: #faf5ff; color: #a855f7; }
+.menu-card-icon.slate { background-color: #f1f5f9; color: #64748b; }
+.menu-card-icon.red { background-color: #fef2f2; color: #ef4444; }
+
+.menu-card-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 6px;
+}
+.menu-card-desc { font-size: 12px; color: #94a3b8; line-height: 1.5; }
+
+/* ===== Responsive ===== */
+@media (max-width: 768px) {
+  .main { padding: 24px 16px; }
+  .menu-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
+  .menu-card { padding: 20px 16px; }
+}
+@media (max-width: 480px) {
+  .menu-grid { grid-template-columns: 1fr; }
+}

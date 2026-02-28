@@ -7,129 +7,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <style>
-    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: 'Inter', 'Noto Sans JP', sans-serif;
-      background-color: #f8fafc; color: #1e293b;
-      min-height: 100vh; font-size: 14px; line-height: 1.6;
-    }
-    .header {
-      background-color: #1e293b; color: #fff; padding: 0 32px;
-      display: flex; align-items: center; justify-content: space-between; height: 64px;
-    }
-    .header h1 { font-size: 20px; font-weight: 700; letter-spacing: 0.5px; }
-    .header-right { display: flex; align-items: center; gap: 20px; }
-    .header-user { font-size: 14px; color: #cbd5e1; }
-    .btn-logout {
-      background: transparent; color: #fff; border: 1px solid #64748b;
-      padding: 6px 16px; border-radius: 6px; cursor: pointer;
-      font-family: inherit; font-size: 13px; transition: all 0.2s;
-    }
-    .btn-logout:hover { background-color: #334155; border-color: #94a3b8; }
-    .nav {
-      background-color: #e2e8f0; padding: 0 32px;
-      display: flex; align-items: center; gap: 4px;
-      height: 48px; border-bottom: 1px solid #cbd5e1;
-    }
-    .nav-btn {
-      font-family: inherit; font-size: 13px; font-weight: 500;
-      padding: 8px 20px; border-radius: 6px; border: 1px solid transparent;
-      cursor: pointer; transition: all 0.2s; background: transparent; color: #475569;
-    }
-    .nav-btn:hover { background-color: #cbd5e1; }
-    .nav-btn.active { background-color: #1e293b; color: #fff; border-color: #1e293b; }
-    .main { max-width: 1200px; margin: 0 auto; padding: 32px; }
-
-    .page-title { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
-    .page-desc { font-size: 14px; color: #64748b; margin-bottom: 32px; }
-
-    .section { margin-bottom: 36px; }
-    .section-title {
-      font-size: 13px; font-weight: 600; color: #94a3b8;
-      text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px;
-    }
-
-    .master-grid {
-      display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px;
-    }
-    .master-card {
-      background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
-      padding: 24px; transition: all 0.2s;
-    }
-    .master-card:hover { border-color: #cbd5e1; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
-    .master-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
-    .master-card-info { display: flex; align-items: center; gap: 12px; }
-    .master-icon {
-      width: 40px; height: 40px; border-radius: 10px; display: flex;
-      align-items: center; justify-content: center; flex-shrink: 0;
-    }
-    .master-icon svg { width: 20px; height: 20px; }
-    .master-icon.blue { background: #eff6ff; color: #3b82f6; }
-    .master-icon.green { background: #f0fdf4; color: #22c55e; }
-    .master-icon.orange { background: #fff7ed; color: #f97316; }
-    .master-icon.purple { background: #faf5ff; color: #a855f7; }
-    .master-icon.slate { background: #f1f5f9; color: #64748b; }
-    .master-icon.red { background: #fef2f2; color: #ef4444; }
-
-    .master-card-title { font-size: 15px; font-weight: 600; color: #1e293b; }
-    .master-card-desc { font-size: 12px; color: #94a3b8; margin-top: 2px; }
-
-    .upload-status {
-      font-size: 11px; padding: 3px 8px; border-radius: 4px; font-weight: 500;
-    }
-    .upload-status.success { background: #dcfce7; color: #16a34a; }
-    .upload-status.pending { background: #fef3c7; color: #d97706; }
-    .upload-status.none { background: #f1f5f9; color: #94a3b8; }
-
-    .upload-area {
-      border: 2px dashed #e2e8f0; border-radius: 8px; padding: 16px;
-      text-align: center; cursor: pointer; transition: all 0.2s;
-      background: #fafbfc;
-    }
-    .upload-area:hover { border-color: #3b82f6; background: #f0f7ff; }
-    .upload-area-text { font-size: 13px; color: #64748b; }
-    .upload-area-hint { font-size: 11px; color: #94a3b8; margin-top: 4px; }
-
-    .master-card-footer {
-      display: flex; justify-content: space-between; align-items: center;
-      margin-top: 16px; padding-top: 12px; border-top: 1px solid #f1f5f9;
-    }
-    .last-updated { font-size: 11px; color: #94a3b8; }
-
-    .btn-action {
-      padding: 6px 14px; border-radius: 6px; font-family: inherit;
-      font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.2s;
-      border: 1px solid #d1d5db; background: #fff; color: #475569;
-      display: flex; align-items: center; gap: 4px;
-    }
-    .btn-action:hover { background-color: #f1f5f9; border-color: #3b82f6; color: #3b82f6; }
-    .btn-action svg { width: 14px; height: 14px; }
-
-    /* Settings Link */
-    .settings-link {
-      display: flex; align-items: center; gap: 12px;
-      background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
-      padding: 20px 24px; text-decoration: none; color: inherit;
-      transition: all 0.2s; cursor: pointer;
-    }
-    .settings-link:hover { border-color: #3b82f6; box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1); }
-    .settings-link-icon {
-      width: 44px; height: 44px; background: #f1f5f9; border-radius: 10px;
-      display: flex; align-items: center; justify-content: center; color: #64748b;
-    }
-    .settings-link-icon svg { width: 22px; height: 22px; }
-    .settings-link-text { font-size: 15px; font-weight: 600; }
-    .settings-link-desc { font-size: 12px; color: #94a3b8; }
-
-    @media (max-width: 768px) {
-      .header { padding: 0 16px; } .header h1 { font-size: 17px; }
-      .nav { padding: 0 16px; gap: 2px; overflow-x: auto; }
-      .nav-btn { padding: 8px 14px; font-size: 12px; white-space: nowrap; }
-      .main { padding: 20px 16px; }
-      .master-grid { grid-template-columns: 1fr; }
-    }
-  </style>
+  <link rel="stylesheet" href="css/common.css">
+  <link rel="stylesheet" href="css/admin-menu.css">
 </head>
 <body>
   <header class="header">
@@ -280,10 +159,6 @@
     </div>
   </main>
 
-  <script>
-    function uploadFile(type) {
-      alert('マスタアップロード（モックアップ）\n\n「' + type + '」のExcelファイルをアップロードします。\n予約→バッチ処理→反映の安全な仕組みで更新されます。');
-    }
-  </script>
+  <script src="js/admin-menu.js"></script>
 </body>
 </html>
