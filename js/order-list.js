@@ -29,7 +29,7 @@
     // ===== Store-view orders (current store only) =====
     var storeOrders = [
       { id: 'ORD-2026-001', type: 'repair', category: 'fitness', title: 'ランニングマシン ベルト異常', amount: null, status: 0, date: '2026-02-25', shop: '10301', equipment: 'ランニングマシン TR-800', issue: 'ベルトが滑る。異音が発生。', unavailDates: ['2026-03-05（終日）', '2026-03-12（午前）'], unavailDays: ['火曜日', '木曜日'], photos: 2, repairCost: '', repairDate: '', repairMemo: '', completedDate: '' },
-      { id: 'ORD-2026-002', type: 'equipment', category: 'fitness', title: 'トレーニングマット × 5', amount: 17500, status: 1, date: '2026-02-24', shop: '10301', supplier: 'フィットネスジャパン', items: 'トレーニングマット × 5', equipDetails: [{ name: 'トレーニングマット', code: 'MAT-001', price: 3500, qty: 5 }] },
+      { id: 'ORD-2026-002', type: 'equipment', category: 'fitness', title: 'トレーニングマット 他1商品', amount: 22900, status: 1, date: '2026-02-24', shop: '10301', supplier: 'フィットネスジャパン', equipDetails: [{ name: 'トレーニングマット', code: 'MAT-001', price: 3500, qty: 5 }, { name: 'バランスボール 65cm', code: 'BB-065', price: 1800, qty: 3 }] },
       { id: 'ORD-2026-003', type: 'parts', category: 'golf', title: 'スイング診断機 センサー交換部品', amount: 12000, status: 0, date: '2026-02-23', shop: '10301', partsName: 'センサーユニット SU-100', targetEquip: 'スイング診断機 GST-7', reason: 'センサー応答が遅くなっている', quantity: 1, partsPhotos: 2 },
       { id: 'ORD-2026-004', type: 'equipment', category: 'golf', title: 'ゴルフボール 1ダース × 10', amount: 42000, status: 2, date: '2026-02-22', shop: '10301', supplier: 'ゴルフサプライ', items: 'ゴルフボール 1ダース × 10', equipDetails: [{ name: 'ゴルフボール 1ダース', code: 'GB-012', price: 4200, qty: 10 }] },
       { id: 'ORD-2026-005', type: 'repair', category: 'fitness', title: 'エアロバイク 表示パネル故障', amount: null, status: 1, date: '2026-02-21', shop: '10301', equipment: 'エアロバイク AB-200', issue: '液晶パネルが表示されない', unavailDates: ['2026-03-03（午前）'], unavailDays: [], photos: 1, repairCost: '35000', repairDate: '2026-03-10', repairMemo: '2026/02/22 業者へ見積もり依頼済。\n2026/02/24 見積もり回答あり。35,000円。修理日は3/10で調整中。', completedDate: '' },
@@ -39,7 +39,7 @@
     // ===== Admin-view orders (all stores) =====
     var adminOrders = [
       { id: 'ORD-2026-001', type: 'repair', category: 'fitness', title: 'ランニングマシン ベルト異常', amount: null, status: 0, date: '2026-02-25', shop: '10301', equipment: 'ランニングマシン TR-800', issue: 'ベルトが滑る。異音が発生。', unavailDates: ['2026-03-05（終日）', '2026-03-12（午前）'], unavailDays: ['火曜日', '木曜日'], photos: 2, repairCost: '', repairDate: '', repairMemo: '', completedDate: '' },
-      { id: 'ORD-2026-002', type: 'equipment', category: 'fitness', title: 'トレーニングマット × 5', amount: 17500, status: 1, date: '2026-02-24', shop: '10301', supplier: 'フィットネスジャパン', items: 'トレーニングマット × 5', equipDetails: [{ name: 'トレーニングマット', code: 'MAT-001', price: 3500, qty: 5 }] },
+      { id: 'ORD-2026-002', type: 'equipment', category: 'fitness', title: 'トレーニングマット 他1商品', amount: 22900, status: 1, date: '2026-02-24', shop: '10301', supplier: 'フィットネスジャパン', equipDetails: [{ name: 'トレーニングマット', code: 'MAT-001', price: 3500, qty: 5 }, { name: 'バランスボール 65cm', code: 'BB-065', price: 1800, qty: 3 }] },
       { id: 'ORD-2026-003', type: 'parts', category: 'golf', title: 'スイング診断機 センサー交換部品', amount: 12000, status: 0, date: '2026-02-23', shop: '10301', partsName: 'センサーユニット SU-100', targetEquip: 'スイング診断機 GST-7', reason: 'センサー応答が遅くなっている', quantity: 1, partsPhotos: 2 },
       { id: 'ORD-2026-004', type: 'equipment', category: 'golf', title: 'ゴルフボール 1ダース × 10', amount: 42000, status: 2, date: '2026-02-22', shop: '10301', supplier: 'ゴルフサプライ', items: 'ゴルフボール 1ダース × 10', equipDetails: [{ name: 'ゴルフボール 1ダース', code: 'GB-012', price: 4200, qty: 10 }] },
       { id: 'ORD-2026-005', type: 'repair', category: 'fitness', title: 'エアロバイク 表示パネル故障', amount: null, status: 1, date: '2026-02-21', shop: '10301', equipment: 'エアロバイク AB-200', issue: '液晶パネルが表示されない', unavailDates: ['2026-03-03（午前）'], unavailDays: [], photos: 1, repairCost: '35000', repairDate: '2026-03-10', repairMemo: '2026/02/22 業者へ見積もり依頼済。\n2026/02/24 見積もり回答あり。35,000円。修理日は3/10で調整中。', completedDate: '' },
@@ -50,7 +50,7 @@
       // 函館店
       { id: 'ORD-2026-009', type: 'parts', category: 'fitness', title: 'エアロバイク ペダル交換部品', amount: 8500, status: 2, date: '2026-02-22', shop: '10102', partsName: 'ペダルユニット PD-200', targetEquip: 'エアロバイク AB-150', reason: 'ペダル軸の摩耗', quantity: 2, partsPhotos: 1 },
       // 池袋西口店
-      { id: 'ORD-2026-010', type: 'equipment', category: 'golf', title: 'ゴルフグローブ L × 20', amount: 30000, status: 1, date: '2026-02-25', shop: '10302', supplier: 'ゴルフサプライ', items: 'ゴルフグローブ L × 20', equipDetails: [{ name: 'グローブ Lサイズ', code: 'GL-L01', price: 1500, qty: 20 }] },
+      { id: 'ORD-2026-010', type: 'equipment', category: 'golf', title: 'グローブ Lサイズ 他1商品', amount: 38000, status: 1, date: '2026-02-25', shop: '10302', supplier: 'ゴルフサプライ', equipDetails: [{ name: 'グローブ Lサイズ', code: 'GL-L01', price: 1500, qty: 20 }, { name: 'ゴルフティー 100本入り', code: 'GT-100', price: 800, qty: 10 }] },
       { id: 'ORD-2026-011', type: 'repair', category: 'golf', title: 'シミュレーター プロジェクター不具合', amount: null, status: 0, date: '2026-02-24', shop: '10302', equipment: 'ゴルフシミュレーター GS-Pro', issue: 'プロジェクターの映像がちらつく', unavailDates: ['2026-03-10（午後）'], unavailDays: ['月曜日'], photos: 1, repairCost: '', repairDate: '', repairMemo: '', completedDate: '' },
       // 横浜店
       { id: 'ORD-2026-012', type: 'equipment', category: 'fitness', title: 'タオル（大）10枚セット × 3', amount: 16800, status: 2, date: '2026-02-20', shop: '10303', supplier: 'リネンサービス', items: 'タオル（大）10枚セット × 3', equipDetails: [{ name: 'タオル（大）10枚セット', code: 'TW-L10', price: 5600, qty: 3 }] },
@@ -95,6 +95,7 @@
           '<th>店舗</th>' +
           '<th>カテゴリ</th>' +
           '<th>内容</th>' +
+          '<th>発注数</th>' +
           '<th>金額</th>' +
           '<th>ステータス</th>' +
           '<th>発注日</th>' +
@@ -107,6 +108,7 @@
           '<th>発注番号</th>' +
           '<th>カテゴリ</th>' +
           '<th>内容</th>' +
+          '<th>発注数</th>' +
           '<th>金額</th>' +
           '<th>ステータス</th>' +
           '<th>発注日</th>' +
@@ -192,7 +194,7 @@
         });
       }
 
-      var colSpan = viewMode === 'admin' ? 10 : 9;
+      var colSpan = viewMode === 'admin' ? 11 : 10;
       var tbody = document.getElementById('orderTableBody');
       var html = '';
 
@@ -205,6 +207,18 @@
         var amountStr = o.amount ? '¥' + o.amount.toLocaleString() : (o.repairCost ? '¥' + parseInt(o.repairCost).toLocaleString() : '—');
         var isOpen = expandedId === o.id;
 
+        // 発注数と内容表示
+        var orderCount = 1;
+        var contentLabel = o.title;
+        if (o.type === 'equipment' && o.equipDetails) {
+          orderCount = o.equipDetails.length;
+          if (orderCount === 1) {
+            contentLabel = o.equipDetails[0].name + ' × ' + o.equipDetails[0].qty;
+          } else {
+            contentLabel = o.equipDetails[0].name + ' 他' + (orderCount - 1) + '商品';
+          }
+        }
+
         html += '<tr class="order-row ' + o.type + '">' +
           '<td><input type="checkbox" class="order-check" data-id="' + o.id + '"></td>' +
           '<td><span class="type-badge ' + typeClass + '">' + typeLabel + '</span></td>' +
@@ -215,7 +229,8 @@
         }
 
         html += '<td>' + catLabel + '</td>' +
-          '<td>' + o.title + '</td>' +
+          '<td>' + contentLabel + '</td>' +
+          '<td>' + orderCount + '</td>' +
           '<td>' + amountStr + '</td>' +
           '<td><span class="status-badge ' + statusClass + '">' + statusLabel + '</span></td>' +
           '<td>' + o.date + '</td>' +
