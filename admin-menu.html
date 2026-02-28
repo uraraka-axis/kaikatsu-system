@@ -41,7 +41,6 @@
               <div class="master-icon blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg></div>
               <div><div class="master-card-title">ゾーンマスタ</div><div class="master-card-desc">ゾーン情報の管理</div></div>
             </div>
-            <span class="upload-status success">更新済</span>
           </div>
           <div class="upload-area" onclick="uploadFile('zone')">
             <div class="upload-area-text">Excelファイルをドロップ or クリック</div>
@@ -60,7 +59,6 @@
               <div class="master-icon green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg></div>
               <div><div class="master-card-title">エリアマスタ</div><div class="master-card-desc">エリア情報の管理</div></div>
             </div>
-            <span class="upload-status success">更新済</span>
           </div>
           <div class="upload-area" onclick="uploadFile('area')">
             <div class="upload-area-text">Excelファイルをドロップ or クリック</div>
@@ -79,7 +77,6 @@
               <div class="master-icon orange"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg></div>
               <div><div class="master-card-title">店舗マスタ</div><div class="master-card-desc">店舗情報の管理</div></div>
             </div>
-            <span class="upload-status success">更新済</span>
           </div>
           <div class="upload-area" onclick="uploadFile('shop')">
             <div class="upload-area-text">Excelファイルをドロップ or クリック</div>
@@ -98,14 +95,16 @@
               <div class="master-icon purple"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg></div>
               <div><div class="master-card-title">ユーザーマスタ</div><div class="master-card-desc">ユーザー・権限の管理</div></div>
             </div>
-            <span class="upload-status pending">処理待ち</span>
           </div>
           <div class="upload-area" onclick="uploadFile('user')">
             <div class="upload-area-text">Excelファイルをドロップ or クリック</div>
             <div class="upload-area-hint">.xlsx形式</div>
           </div>
           <div class="master-card-footer">
-            <span class="last-updated">最終更新: 2026/02/15</span>
+            <div class="footer-dates">
+              <span class="last-updated">最終更新: 2026/02/15</span>
+              <span class="scheduled-update">予約更新: 2026/02/28</span>
+            </div>
             <button class="btn-action"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>DL</button>
           </div>
         </div>
@@ -117,7 +116,6 @@
               <div class="master-icon red"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg></div>
               <div><div class="master-card-title">仕入先マスタ</div><div class="master-card-desc">仕入先情報の管理</div></div>
             </div>
-            <span class="upload-status none">未登録</span>
           </div>
           <div class="upload-area" onclick="uploadFile('supplier')">
             <div class="upload-area-text">Excelファイルをドロップ or クリック</div>
@@ -136,7 +134,6 @@
               <div class="master-icon slate"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg></div>
               <div><div class="master-card-title">商品マスタ</div><div class="master-card-desc">商品・画像の管理</div></div>
             </div>
-            <span class="upload-status success">更新済</span>
           </div>
           <div class="upload-area" onclick="uploadFile('product')">
             <div class="upload-area-text">Excelファイルをドロップ or クリック</div>
@@ -155,7 +152,6 @@
               <div class="master-icon green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg></div>
               <div><div class="master-card-title">予算マスタ</div><div class="master-card-desc">店舗別・月別・部門別の予算管理</div></div>
             </div>
-            <span class="upload-status success">更新済</span>
           </div>
           <div class="upload-area" onclick="uploadFile('budget')">
             <div class="upload-area-text">Excelファイルをドロップ or クリック</div>

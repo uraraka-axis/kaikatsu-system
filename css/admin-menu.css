@@ -52,17 +52,6 @@
 .master-card-title { font-size: 15px; font-weight: 600; color: #1e293b; }
 .master-card-desc { font-size: 12px; color: #94a3b8; margin-top: 2px; }
 
-/* ===== Upload Status ===== */
-.upload-status {
-  font-size: 11px;
-  padding: 3px 8px;
-  border-radius: 4px;
-  font-weight: 500;
-}
-.upload-status.success { background: #dcfce7; color: #16a34a; }
-.upload-status.pending { background: #fef3c7; color: #d97706; }
-.upload-status.none { background: #f1f5f9; color: #94a3b8; }
-
 /* ===== Upload Area ===== */
 .upload-area {
   border: 2px dashed #e2e8f0;
@@ -86,7 +75,9 @@
   padding-top: 12px;
   border-top: 1px solid #f1f5f9;
 }
+.footer-dates { display: flex; flex-direction: column; gap: 2px; }
 .last-updated { font-size: 11px; color: #94a3b8; }
+.scheduled-update { font-size: 11px; color: #d97706; font-weight: 500; }
 
 .btn-action {
   padding: 6px 14px;
