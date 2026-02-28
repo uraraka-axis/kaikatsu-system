@@ -78,26 +78,6 @@
 .btn-add-category:hover { border-color: #3b82f6; background: #f0f7ff; }
 .btn-add-category svg { width: 16px; height: 16px; }
 
-/* ===== Status Table ===== */
-.status-table { width: 100%; border-collapse: collapse; margin-top: 16px; }
-.status-table th {
-  text-align: left;
-  padding: 8px 12px;
-  font-size: 12px;
-  font-weight: 600;
-  color: #64748b;
-  background: #f1f5f9;
-  border-bottom: 1px solid #e2e8f0;
-}
-.status-table td {
-  padding: 10px 12px;
-  font-size: 13px;
-  border-bottom: 1px solid #f1f5f9;
-}
-.status-badge.ok { background: #dcfce7; color: #16a34a; }
-.status-badge.error { background: #fef2f2; color: #dc2626; }
-.status-badge.waiting { background: #fef3c7; color: #d97706; }
-
 /* ===== Submit Override ===== */
 .settings-card ~ .submit-section .btn-submit { padding: 12px 32px; }
 
