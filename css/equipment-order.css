@@ -272,7 +272,9 @@
   font-weight: 600;
   color: #1e293b;
   white-space: nowrap;
-  margin-left: 16px;
+  margin-left: auto;
+  min-width: 80px;
+  text-align: right;
 }
 .cart-item-remove {
   width: 28px;
