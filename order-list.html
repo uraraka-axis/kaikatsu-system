@@ -28,8 +28,75 @@
     <button class="nav-btn" onclick="location.href='admin-menu.html'">管理メニュー</button>
   </nav>
   <main class="main">
-    <!-- Toolbar -->
-    <div class="toolbar">
+    <!-- View Mode Toggle -->
+    <div class="view-toggle">
+      <button class="view-toggle-btn active" id="btnStoreView" onclick="switchView('store')">店舗ビュー</button>
+      <button class="view-toggle-btn" id="btnAdminView" onclick="switchView('admin')">管理者ビュー</button>
+    </div>
+
+    <!-- Admin Filter Bar -->
+    <div class="admin-filter-bar" id="adminFilterBar">
+      <div class="admin-filter-row">
+        <div class="filter-group">
+          <span class="filter-label">ゾーン</span>
+          <select class="form-select" id="filterZone" onchange="onZoneChange()">
+            <option value="">すべて</option>
+            <option value="100">100:東日本</option>
+            <option value="200">200:西日本</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <span class="filter-label">エリア</span>
+          <select class="form-select" id="filterArea" onchange="onAreaChange()">
+            <option value="">すべて</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <span class="filter-label">店舗</span>
+          <select class="form-select" id="filterShop" onchange="renderOrders()">
+            <option value="">すべて</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <span class="filter-label">発注日</span>
+          <div class="date-range">
+            <input type="date" class="form-input date-input" id="filterDateFrom" onchange="renderOrders()">
+            <span class="date-separator">〜</span>
+            <input type="date" class="form-input date-input" id="filterDateTo" onchange="renderOrders()">
+          </div>
+        </div>
+      </div>
+      <div class="admin-filter-row">
+        <div class="filter-group">
+          <span class="filter-label">種別</span>
+          <select class="form-select" id="adminFilterType" onchange="renderOrders()">
+            <option value="">すべて</option>
+            <option value="repair">修理発注</option>
+            <option value="equipment">備品発注</option>
+            <option value="parts">部品発注</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <span class="filter-label">ステータス</span>
+          <select class="form-select" id="adminFilterStatus" onchange="renderOrders()">
+            <option value="">すべて</option>
+            <option value="0">仮登録</option>
+            <option value="1">本登録</option>
+            <option value="2">確定済</option>
+            <option value="3">完了</option>
+          </select>
+        </div>
+        <div class="filter-group filter-actions">
+          <button class="btn-action btn-primary" onclick="renderOrders()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            検索
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Store Filter Bar -->
+    <div class="toolbar" id="storeFilterBar">
       <div class="toolbar-left">
         <select class="form-select" id="filterCategory" onchange="renderOrders()">
           <option value="">すべてのカテゴリ</option>
@@ -62,10 +129,22 @@
       </div>
     </div>
 
+    <!-- Action Bar (admin mode) -->
+    <div class="admin-action-bar" id="adminActionBar">
+      <button class="btn-action btn-success" onclick="confirmSelected()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+        正式発注
+      </button>
+      <button class="btn-action btn-secondary" onclick="exportExcel()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+        Excel出力
+      </button>
+    </div>
+
     <!-- Table -->
     <div class="table-container">
       <table class="order-table">
-        <thead>
+        <thead id="orderTableHead">
           <tr>
             <th style="width:40px"><input type="checkbox" id="selectAll" onchange="toggleAll(this)"></th>
             <th>発注番号</th>
