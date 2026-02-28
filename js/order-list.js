@@ -1,5 +1,6 @@
-    // ===== View Mode =====
-    var viewMode = 'store'; // 'store' or 'admin'
+    // ===== Role Detection (URL param ?role=admin) =====
+    var params = new URLSearchParams(window.location.search);
+    var viewMode = params.get('role') === 'admin' ? 'admin' : 'store';
 
     // ===== Zone / Area / Shop Master =====
     var zones = [
@@ -66,22 +67,17 @@
 
     var expandedId = null;
 
-    // ===== View Mode Switch =====
-    function switchView(mode) {
-      viewMode = mode;
-      expandedId = null;
-      document.getElementById('btnStoreView').classList.toggle('active', mode === 'store');
-      document.getElementById('btnAdminView').classList.toggle('active', mode === 'admin');
-      document.getElementById('storeFilterBar').style.display = mode === 'store' ? '' : 'none';
-      document.getElementById('adminFilterBar').style.display = mode === 'admin' ? 'block' : 'none';
-      document.getElementById('adminActionBar').style.display = mode === 'admin' ? 'flex' : 'none';
+    // ===== Init: apply role-based UI =====
+    function initView() {
+      // Show/hide filter bars based on role
+      document.getElementById('storeFilterBar').style.display = viewMode === 'store' ? '' : 'none';
+      document.getElementById('adminFilterBar').style.display = viewMode === 'admin' ? 'block' : 'none';
+      document.getElementById('adminActionBar').style.display = viewMode === 'admin' ? 'flex' : 'none';
 
-      // Update header
+      // Update header user info
       var header = document.querySelector('.header-user');
-      if (mode === 'admin') {
+      if (viewMode === 'admin') {
         header.textContent = '本部管理者：鈴木一郎様';
-      } else {
-        header.textContent = '新宿東口店：田中太郎様';
       }
 
       renderTableHeader();
@@ -94,9 +90,9 @@
       if (viewMode === 'admin') {
         thead.innerHTML = '<tr>' +
           '<th style="width:40px"><input type="checkbox" id="selectAll" onchange="toggleAll(this)"></th>' +
+          '<th>種別</th>' +
           '<th>発注番号</th>' +
           '<th>店舗</th>' +
-          '<th>種別</th>' +
           '<th>カテゴリ</th>' +
           '<th>内容</th>' +
           '<th>金額</th>' +
@@ -107,8 +103,8 @@
       } else {
         thead.innerHTML = '<tr>' +
           '<th style="width:40px"><input type="checkbox" id="selectAll" onchange="toggleAll(this)"></th>' +
-          '<th>発注番号</th>' +
           '<th>種別</th>' +
+          '<th>発注番号</th>' +
           '<th>カテゴリ</th>' +
           '<th>内容</th>' +
           '<th>金額</th>' +
@@ -166,7 +162,6 @@
         var dateTo = document.getElementById('filterDateTo').value;
 
         filtered = orders.filter(function(o) {
-          // Shop / Area / Zone cascading filter
           if (shopFilter && o.shop !== shopFilter) return false;
           if (!shopFilter && areaFilter) {
             var shop = shops.find(function(s) { return s.code === o.shop; });
@@ -212,14 +207,14 @@
 
         html += '<tr class="order-row ' + o.type + '">' +
           '<td><input type="checkbox" class="order-check" data-id="' + o.id + '"></td>' +
+          '<td><span class="type-badge ' + typeClass + '">' + typeLabel + '</span></td>' +
           '<td><strong>' + o.id + '</strong></td>';
 
         if (viewMode === 'admin') {
           html += '<td>' + getShopName(o.shop) + '</td>';
         }
 
-        html += '<td><span class="type-badge ' + typeClass + '">' + typeLabel + '</span></td>' +
-          '<td>' + catLabel + '</td>' +
+        html += '<td>' + catLabel + '</td>' +
           '<td>' + o.title + '</td>' +
           '<td>' + amountStr + '</td>' +
           '<td><span class="status-badge ' + statusClass + '">' + statusLabel + '</span></td>' +
@@ -304,7 +299,7 @@
     }
 
     function exportExcel() { alert('Excel出力（モックアップ）\n\n選択された発注をExcelファイルとしてダウンロードします。\nダウンロード時にステータスが「確定済」に変更されます。'); }
-    function saveRepairDetail(id) { alert('修理情報を保存しました（モックアップ）'); }
+    function saveRepairDetail() { alert('修理情報を保存しました（モックアップ）'); }
     function completeRepair(id) {
       var orders = viewMode === 'admin' ? adminOrders : storeOrders;
       var order = orders.find(function(o) { return o.id === id; });
@@ -325,4 +320,4 @@
     }
 
     // ===== Init =====
-    renderOrders();
+    initView();
