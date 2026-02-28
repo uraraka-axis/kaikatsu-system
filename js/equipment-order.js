@@ -14,11 +14,11 @@
 
     var cart = {};
     var monthlyBudget = 50000;
+    var cartExpanded = false;
 
     function filterProducts() {
       var cat = document.getElementById('category').value;
       var search = document.getElementById('searchInput').value.trim().toLowerCase();
-      // Normalize full-width to half-width
       search = search.replace(/[\uff01-\uff5e]/g, function(c) {
         return String.fromCharCode(c.charCodeAt(0) - 0xfee0);
       });
@@ -32,7 +32,6 @@
         return matchCat && matchSearch;
       });
 
-      // Sort: recommended first
       filtered.sort(function(a, b) { return (b.recommended ? 1 : 0) - (a.recommended ? 1 : 0); });
       renderProducts(filtered);
     }
@@ -77,29 +76,62 @@
       updateCart();
     }
 
+    function removeFromCart(id) {
+      delete cart[id];
+      filterProducts();
+      updateCart();
+    }
+
     function updateCart() {
       var keys = Object.keys(cart);
-      var summary = document.getElementById('cartSummary');
-      if (!keys.length) { summary.style.display = 'none'; return; }
-      summary.style.display = '';
+      var bar = document.getElementById('cartBar');
 
-      var totalItems = 0; var totalPrice = 0;
+      if (!keys.length) {
+        bar.classList.remove('visible', 'expanded');
+        cartExpanded = false;
+        return;
+      }
+      bar.classList.add('visible');
+
+      var totalItems = 0;
+      var totalPrice = 0;
       var itemsHtml = '';
+
       keys.forEach(function(id) {
         var p = products.find(function(x) { return x.id == id; });
         var qty = cart[id];
         var subtotal = p.price * qty;
-        totalItems += qty; totalPrice += subtotal;
-        itemsHtml += '<div class="cart-item"><span class="cart-item-name">' + p.name + ' × ' + qty + '</span><span class="cart-item-detail">¥' + subtotal.toLocaleString() + '</span></div>';
+        totalItems += qty;
+        totalPrice += subtotal;
+        itemsHtml += '<div class="cart-item">' +
+          '<div class="cart-item-info">' +
+            '<span class="cart-item-name">' + p.name + '</span>' +
+            '<span class="cart-item-qty">' + qty + '点 × ¥' + p.price.toLocaleString() + '</span>' +
+          '</div>' +
+          '<span class="cart-item-price">¥' + subtotal.toLocaleString() + '</span>' +
+          '<button class="cart-item-remove" onclick="removeFromCart(' + p.id + ')" title="削除">' +
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>' +
+          '</button>' +
+        '</div>';
       });
 
-      document.getElementById('cartCount').textContent = totalItems + ' 点';
+      document.getElementById('cartCount').textContent = totalItems;
       document.getElementById('cartItems').innerHTML = itemsHtml;
       document.getElementById('cartTotal').textContent = '¥' + totalPrice.toLocaleString();
 
       // Budget check
       var alert = document.getElementById('budgetAlert');
       if (totalPrice > monthlyBudget) { alert.classList.add('visible'); } else { alert.classList.remove('visible'); }
+    }
+
+    function toggleCart() {
+      var bar = document.getElementById('cartBar');
+      cartExpanded = !cartExpanded;
+      if (cartExpanded) {
+        bar.classList.add('expanded');
+      } else {
+        bar.classList.remove('expanded');
+      }
     }
 
     function submitOrder() {
