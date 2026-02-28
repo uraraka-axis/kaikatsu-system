@@ -1,3 +1,7 @@
+    // ===== Role Detection (URL param ?role=admin) =====
+    var params = new URLSearchParams(window.location.search);
+    var viewMode = params.get('role') === 'admin' ? 'admin' : 'store';
+
     // Fiscal year months (April to March)
     var fiscalMonths = [4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3];
 
@@ -8,8 +12,23 @@
       { key: 'ig',  label: 'インドアゴルフ' }
     ];
 
-    // Sample budget data per store
-    var budgetData = [
+    // ===== Store View: single store data =====
+    var storeBudgetData = [
+      {
+        shop: '新宿東口',
+        period: [260000, 45800, 214200, 17.6],
+        midterm: [170000, 45800, 124200, 26.9],
+        month: [20000, 12500, 7500, 62.5],
+        details: {
+          all: [[21600,0],[21700,0],[21800,3200],[21900,5400],[22000,8500],[22100,12000],[22200,7300],[22300,4800],[22400,2100],[22500,12500],[22600,0],[22700,0]],
+          fit: [[13000,0],[13000,0],[13000,2000],[13000,3400],[13000,5500],[13000,8000],[13000,4300],[13000,2800],[13000,1100],[13000,8500],[13000,0],[13000,0]],
+          ig:  [[8600,0],[8700,0],[8800,1200],[8900,2000],[9000,3000],[9100,4000],[9200,3000],[9300,2000],[9400,1000],[9500,4000],[9600,0],[9700,0]]
+        }
+      }
+    ];
+
+    // ===== Admin View: all stores data =====
+    var adminBudgetData = [
       {
         shop: '10101:札幌',
         period: [130000, 0, 130000, 0.0],
@@ -67,6 +86,10 @@
       }
     ];
 
+    function getCurrentData() {
+      return viewMode === 'admin' ? adminBudgetData : storeBudgetData;
+    }
+
     function fmt(n) { return n.toLocaleString(); }
 
     function getProgressColor(rate) {
@@ -75,11 +98,36 @@
       return 'green';
     }
 
+    // ===== Init: apply role-based UI =====
+    function initView() {
+      // Show/hide toolbars
+      document.getElementById('adminToolbar').style.display = viewMode === 'admin' ? '' : 'none';
+      document.getElementById('storeToolbar').style.display = viewMode === 'store' ? '' : 'none';
+
+      // Update header
+      var header = document.querySelector('.header-user');
+      if (viewMode === 'admin') {
+        header.textContent = '本部管理者：鈴木一郎様';
+      } else {
+        header.textContent = '新宿東口店：田中太郎様';
+      }
+
+      // Update page description
+      var desc = document.getElementById('pageDesc');
+      if (viewMode === 'store') {
+        desc.textContent = '自店の予算・実績・消化状況を確認できます。行をクリックすると月別明細を表示します。';
+      }
+
+      renderSummary();
+      renderTable();
+    }
+
     function renderSummary() {
+      var data = getCurrentData();
       var totPeriod = [0,0,0];
       var totMidterm = [0,0,0];
       var totMonth = [0,0,0];
-      budgetData.forEach(function(d) {
+      data.forEach(function(d) {
         totPeriod[0] += d.period[0]; totPeriod[1] += d.period[1]; totPeriod[2] += d.period[2];
         totMidterm[0] += d.midterm[0]; totMidterm[1] += d.midterm[1]; totMidterm[2] += d.midterm[2];
         totMonth[0] += d.month[0]; totMonth[1] += d.month[1]; totMonth[2] += d.month[2];
@@ -87,9 +135,11 @@
       var monthRate = totMonth[0] > 0 ? (totMonth[1] / totMonth[0] * 100) : 0;
       var color = getProgressColor(monthRate);
 
+      var budgetLabel = viewMode === 'admin' ? '当期予算（全店合計）' : '当期予算';
+
       document.getElementById('summaryCards').innerHTML =
         '<div class="summary-card">' +
-          '<div class="summary-card-label">当期予算（全店合計）</div>' +
+          '<div class="summary-card-label">' + budgetLabel + '</div>' +
           '<div class="summary-card-value">¥' + fmt(totPeriod[0]) + '</div>' +
         '</div>' +
         '<div class="summary-card">' +
@@ -113,10 +163,11 @@
     }
 
     function renderTable() {
+      var data = getCurrentData();
       var tbody = document.getElementById('budgetTableBody');
       var html = '';
 
-      budgetData.forEach(function(d, idx) {
+      data.forEach(function(d, idx) {
         // Main row
         html += '<tr class="budget-row" onclick="toggleDetail(' + idx + ')" id="row-' + idx + '">';
         html += '<td><div class="shop-cell"><svg class="expand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>' + d.shop + '</div></td>';
@@ -140,17 +191,19 @@
         html += '</div></td></tr>';
       });
 
-      // Total row
-      var totP = [0,0,0,0], totM = [0,0,0,0], totMo = [0,0,0,0];
-      budgetData.forEach(function(d) {
-        for (var i = 0; i < 3; i++) { totP[i] += d.period[i]; totM[i] += d.midterm[i]; totMo[i] += d.month[i]; }
-      });
-      totP[3] = totP[0] > 0 ? (totP[1] / totP[0] * 100) : 0;
-      totM[3] = totM[0] > 0 ? (totM[1] / totM[0] * 100) : 0;
-      totMo[3] = totMo[0] > 0 ? (totMo[1] / totMo[0] * 100) : 0;
-      html += '<tr class="total-row"><td>合計</td>';
-      html += numCells(totP) + numCells(totM) + numCells(totMo);
-      html += '</tr>';
+      // Total row (only for admin with multiple stores)
+      if (viewMode === 'admin') {
+        var totP = [0,0,0,0], totM = [0,0,0,0], totMo = [0,0,0,0];
+        data.forEach(function(d) {
+          for (var i = 0; i < 3; i++) { totP[i] += d.period[i]; totM[i] += d.midterm[i]; totMo[i] += d.month[i]; }
+        });
+        totP[3] = totP[0] > 0 ? (totP[1] / totP[0] * 100) : 0;
+        totM[3] = totM[0] > 0 ? (totM[1] / totM[0] * 100) : 0;
+        totMo[3] = totMo[0] > 0 ? (totMo[1] / totMo[0] * 100) : 0;
+        html += '<tr class="total-row"><td>合計</td>';
+        html += numCells(totP) + numCells(totM) + numCells(totMo);
+        html += '</tr>';
+      }
 
       tbody.innerHTML = html;
     }
@@ -172,8 +225,9 @@
       btn.classList.add('active');
 
       // Re-render monthly table with selected department data
+      var data = getCurrentData();
       var container = document.getElementById('dept-table-' + idx);
-      var detail = budgetData[idx].details[deptKey];
+      var detail = data[idx].details[deptKey];
       container.innerHTML = renderMonthlyTable(detail);
     }
 
@@ -243,13 +297,18 @@
     }
 
     function filterBudget() {
-      alert('検索条件で絞り込みます（モックアップ）\n\nゾーン: ' +
-        document.getElementById('filterZone').value + '\nエリア: ' +
-        document.getElementById('filterArea').value + '\n部門: ' +
-        document.getElementById('filterDept').value + '\n年度: ' +
-        document.getElementById('filterYear').value);
+      if (viewMode === 'admin') {
+        alert('検索条件で絞り込みます（モックアップ）\n\nゾーン: ' +
+          document.getElementById('filterZone').value + '\nエリア: ' +
+          document.getElementById('filterArea').value + '\n部門: ' +
+          document.getElementById('filterDept').value + '\n年度: ' +
+          document.getElementById('filterYear').value);
+      } else {
+        alert('検索条件で絞り込みます（モックアップ）\n\n部門: ' +
+          document.getElementById('storeDept').value + '\n年度: ' +
+          document.getElementById('storeYear').value);
+      }
     }
 
-    // Initial render
-    renderSummary();
-    renderTable();
+    // ===== Init =====
+    initView();

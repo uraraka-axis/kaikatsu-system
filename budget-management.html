@@ -28,11 +28,11 @@
     <button class="nav-btn" onclick="location.href='admin-menu.html'">管理メニュー</button>
   </nav>
   <main class="main">
-    <h2 class="page-title">予算管理</h2>
-    <p class="page-desc">店舗別の予算・実績・消化状況を管理します。行をクリックすると月別明細を表示します。</p>
+    <h2 class="page-title" id="pageTitle">予算管理</h2>
+    <p class="page-desc" id="pageDesc">店舗別の予算・実績・消化状況を管理します。行をクリックすると月別明細を表示します。</p>
 
-    <!-- Filters -->
-    <div class="toolbar">
+    <!-- Admin Filters -->
+    <div class="toolbar" id="adminToolbar">
       <div class="toolbar-filters">
         <select class="form-select" id="filterZone" onchange="filterBudget()">
           <option value="">ゾーン</option>
@@ -60,6 +60,21 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
           検索
         </button>
+      </div>
+    </div>
+
+    <!-- Store Filters -->
+    <div class="toolbar" id="storeToolbar" style="display:none">
+      <div class="toolbar-filters">
+        <select class="form-select" id="storeDept" onchange="filterBudget()">
+          <option value="">すべての部門</option>
+          <option value="fitness">フィットネス</option>
+          <option value="golf">ゴルフ</option>
+        </select>
+        <select class="form-select" id="storeYear" onchange="filterBudget()">
+          <option value="2025" selected>2025年度</option>
+          <option value="2024">2024年度</option>
+        </select>
       </div>
     </div>
 
