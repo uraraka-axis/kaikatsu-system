@@ -28,63 +28,19 @@
     <button class="nav-btn" onclick="location.href='admin-menu.html'">管理メニュー</button>
   </nav>
   <main class="main">
-    <h2 class="page-title">自店調達実績管理</h2>
-    <p class="page-desc">自店調達の申請履歴と実績を管理します</p>
+    <h2 class="page-title" id="pageTitle">自店調達実績管理</h2>
+    <p class="page-desc" id="pageDesc">自店調達の申請履歴と実績を管理します</p>
 
     <!-- Summary -->
-    <div class="summary-bar">
-      <div class="summary-item">
-        <div class="summary-label">総申請件数</div>
-        <div class="summary-value">5</div>
-        <div class="summary-count">今月の申請</div>
-      </div>
-      <div class="summary-item">
-        <div class="summary-label">承認済み</div>
-        <div class="summary-value" style="color:#22c55e">3</div>
-        <div class="summary-count">¥45,000</div>
-      </div>
-      <div class="summary-item">
-        <div class="summary-label">未承認</div>
-        <div class="summary-value" style="color:#d97706">1</div>
-        <div class="summary-count">¥12,000</div>
-      </div>
-      <div class="summary-item">
-        <div class="summary-label">否決</div>
-        <div class="summary-value" style="color:#dc2626">1</div>
-        <div class="summary-count">¥8,000</div>
-      </div>
-    </div>
+    <div class="summary-bar" id="summaryBar"></div>
 
     <!-- Filter -->
-    <div class="filter-bar">
-      <select class="form-select" id="filterStatus" onchange="renderTable()">
-        <option value="">すべてのステータス</option>
-        <option value="pending">未承認</option>
-        <option value="approved">承認</option>
-        <option value="rejected">否決</option>
-      </select>
-      <select class="form-select" id="filterCategory" onchange="renderTable()">
-        <option value="">すべてのカテゴリ</option>
-        <option value="fitness">フィットネス</option>
-        <option value="golf">ゴルフ</option>
-      </select>
-    </div>
+    <div class="filter-bar" id="filterBar"></div>
 
     <!-- Table -->
     <div class="table-container">
       <table class="proc-table">
-        <thead>
-          <tr>
-            <th>申請番号</th>
-            <th>カテゴリ</th>
-            <th class="right">金額</th>
-            <th>理由</th>
-            <th>申請日</th>
-            <th>ステータス</th>
-            <th>承認者</th>
-            <th>操作</th>
-          </tr>
-        </thead>
+        <thead id="tableHead"></thead>
         <tbody id="tableBody"></tbody>
       </table>
     </div>

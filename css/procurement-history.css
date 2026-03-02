@@ -47,26 +47,8 @@
 }
 .proc-table tr:last-child td { border-bottom: none; }
 
-/* ===== Status Badges ===== */
-.status-pending { background: #fef3c7; color: #d97706; }
+/* ===== Status Badge ===== */
 .status-approved { background: #dcfce7; color: #16a34a; }
-.status-rejected { background: #fef2f2; color: #dc2626; }
-
-/* ===== Cancel Button ===== */
-.btn-cancel {
-  padding: 5px 12px;
-  border-radius: 6px;
-  border: 1px solid #fecaca;
-  background: #fff;
-  color: #dc2626;
-  cursor: pointer;
-  font-family: inherit;
-  font-size: 12px;
-  font-weight: 500;
-  transition: all 0.2s;
-}
-.btn-cancel:hover { background: #fef2f2; }
-.btn-cancel:disabled { opacity: 0.4; cursor: not-allowed; }
 
 /* ===== Responsive ===== */
 @media (min-width: 601px) and (max-width: 1024px) {
