@@ -18,9 +18,5 @@
     }
 
     function saveSettings() {
-      alert('設定を保存しました（モックアップ）\n\n' + JSON.stringify({
-        fiscalStartMonth: document.getElementById('fiscalStartMonth').value,
-        budgetClosingDay: document.getElementById('budgetClosingDay').value,
-        orderClosingDay: document.getElementById('orderClosingDay').value
-      }, null, 2));
+      alert('設定を保存しました');
     }

@@ -235,13 +235,15 @@
 
     // ===== Submit =====
     function submitForm() {
-      var data = {
-        category: document.getElementById('category').value,
-        equipmentName: document.getElementById('equipmentName').value,
-        issueDescription: document.getElementById('issueDescription').value,
-        unavailableSlots: unavailableSlots,
-        unavailableDays: selectedDays,
-        photoCount: photos.length
-      };
-      alert('修理依頼を送信しました。\n\n' + JSON.stringify(data, null, 2));
+      alert('修理依頼を送信しました');
+      document.getElementById('category').value = '';
+      document.getElementById('equipmentName').value = '';
+      document.getElementById('issueDescription').value = '';
+      unavailableSlots = [];
+      selectedDays = [];
+      photos = [];
+      renderSlots();
+      renderDayButtons();
+      document.getElementById('photoPreviews').innerHTML = '';
+      updateSubmitState();
     }

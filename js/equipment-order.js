@@ -135,12 +135,11 @@
     }
 
     function submitOrder() {
-      var items = [];
-      Object.keys(cart).forEach(function(id) {
-        var p = products.find(function(x) { return x.id == id; });
-        items.push({ name: p.name, code: p.code, qty: cart[id], subtotal: p.price * cart[id] });
-      });
-      alert('備品発注を送信しました。\n\n' + JSON.stringify(items, null, 2));
+      var count = Object.keys(cart).length;
+      alert('備品発注を送信しました（' + count + '商品）');
+      cart = {};
+      filterProducts();
+      updateCart();
     }
 
     // Initial render

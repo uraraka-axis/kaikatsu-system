@@ -31,12 +31,13 @@
       }).join('');
     }
     function submitForm() {
-      alert('部品発注を送信しました。\n\n' + JSON.stringify({
-        category: document.getElementById('category').value,
-        partsName: document.getElementById('partsName').value,
-        targetEquipment: document.getElementById('targetEquipment').value,
-        quantity: document.getElementById('quantity').value,
-        orderReason: document.getElementById('orderReason').value,
-        photoCount: photos.length
-      }, null, 2));
+      alert('部品発注を送信しました');
+      document.getElementById('category').value = '';
+      document.getElementById('partsName').value = '';
+      document.getElementById('targetEquipment').value = '';
+      document.getElementById('quantity').value = '1';
+      document.getElementById('orderReason').value = '';
+      photos = [];
+      document.getElementById('photoPreviews').innerHTML = '';
+      updateSubmitState();
     }
