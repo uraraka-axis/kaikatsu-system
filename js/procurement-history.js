@@ -44,14 +44,14 @@
         shops.forEach(function(s) { filterHtml += '<option value="' + s + '">' + s + '</option>'; });
         filterHtml += '</select>';
       }
+      filterHtml += '<select class="form-select" id="filterYear" onchange="renderAll()">' +
+        '<option value="2025" selected>2025年度</option>' +
+        '<option value="2024">2024年度</option>' +
+        '</select>';
       filterHtml += '<select class="form-select" id="filterCategory" onchange="renderAll()">' +
         '<option value="">すべてのカテゴリ</option>' +
         '<option value="fitness">フィットネス</option>' +
         '<option value="golf">インドアゴルフ</option>' +
-        '</select>';
-      filterHtml += '<select class="form-select" id="filterYear" onchange="renderAll()">' +
-        '<option value="2025" selected>2025年度</option>' +
-        '<option value="2024">2024年度</option>' +
         '</select>';
       document.getElementById('filterBar').innerHTML = filterHtml;
 
