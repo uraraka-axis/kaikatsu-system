@@ -137,55 +137,43 @@
   margin-bottom: 10px;
 }
 .detail-title {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   color: #475569;
 }
 
-/* Department tabs */
-.dept-tabs {
-  display: flex;
-  gap: 4px;
-  background: #e2e8f0;
-  border-radius: 8px;
-  padding: 3px;
+/* Department section (stacked vertically) */
+.dept-section {
+  margin-bottom: 16px;
 }
-.dept-tab {
-  padding: 5px 14px;
-  font-size: 11px;
-  font-weight: 600;
-  font-family: inherit;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: #64748b;
-  cursor: pointer;
-  transition: all 0.15s;
-  white-space: nowrap;
-}
-.dept-tab:hover { color: #334155; background: rgba(255,255,255,0.5); }
-.dept-tab.active {
-  background: #fff;
+.dept-section:last-child { margin-bottom: 0; }
+.dept-section-title {
+  font-size: 13px;
+  font-weight: 700;
   color: #1e293b;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  padding: 6px 10px;
+  background: #e2e8f0;
+  border-radius: 6px;
+  margin-bottom: 6px;
+  display: inline-block;
 }
 
 /* Monthly sub-table */
 .monthly-table { width: 100%; border-collapse: collapse; }
 .monthly-table th {
-  padding: 6px 10px;
-  font-size: 11px;
+  padding: 8px 12px;
+  font-size: 13px;
   font-weight: 600;
   color: #64748b;
   background: #f1f5f9;
   border-bottom: 1px solid #e2e8f0;
   text-align: right;
 }
-.monthly-table th:first-child { text-align: left; min-width: 80px; }
+.monthly-table th:first-child { text-align: left; min-width: 90px; }
 .monthly-table th.col-total { background: #e8edf2; }
 .monthly-table td {
-  padding: 6px 10px;
-  font-size: 11px;
+  padding: 8px 12px;
+  font-size: 13px;
   text-align: right;
   border-bottom: 1px solid #f1f5f9;
   font-variant-numeric: tabular-nums;
@@ -201,16 +189,14 @@
   .toolbar-filters .form-select { min-width: 110px; }
   .detail-content { padding: 12px 12px 12px 24px; overflow-x: auto; }
   .detail-header { flex-direction: column; align-items: flex-start; }
-  .monthly-table { min-width: 700px; }
+  .monthly-table { min-width: 750px; }
 }
 @media (max-width: 600px) {
   .summary-grid { grid-template-columns: 1fr 1fr; }
   .toolbar-filters { gap: 6px; }
   .toolbar-filters .form-select { min-width: 100px; font-size: 13px; }
-  .btn-search { padding: 10px 16px; font-size: 13px; }
   .summary-card-value { font-size: 20px; }
   .detail-content { padding: 10px; overflow-x: auto; }
   .detail-header { flex-direction: column; align-items: flex-start; }
-  .monthly-table { min-width: 600px; }
-  .dept-tab { padding: 4px 10px; font-size: 10px; }
+  .monthly-table { min-width: 650px; }
 }

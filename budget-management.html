@@ -39,7 +39,7 @@
           <option value="100" selected>100:東日本</option>
           <option value="200">200:西日本</option>
         </select>
-        <select class="form-select" id="filterArea" onchange="filterBudget()">
+        <select class="form-select" id="filterArea" onchange="onAreaChange()">
           <option value="">エリア</option>
           <option value="101">101:北海道</option>
           <option value="102">102:東北</option>
@@ -47,30 +47,16 @@
         <select class="form-select" id="filterShop" onchange="filterBudget()">
           <option value="">店舗</option>
         </select>
-        <select class="form-select" id="filterDept" onchange="filterBudget()">
-          <option value="">すべての部門</option>
-          <option value="fitness">フィットネス</option>
-          <option value="golf" selected>ゴルフ</option>
-        </select>
         <select class="form-select" id="filterYear" onchange="filterBudget()">
           <option value="2025" selected>2025年度</option>
           <option value="2024">2024年度</option>
         </select>
-        <button class="btn-search" onclick="filterBudget()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-          検索
-        </button>
       </div>
     </div>
 
     <!-- Store Filters -->
     <div class="toolbar" id="storeToolbar" style="display:none">
       <div class="toolbar-filters">
-        <select class="form-select" id="storeDept" onchange="filterBudget()">
-          <option value="">すべての部門</option>
-          <option value="fitness">フィットネス</option>
-          <option value="golf">ゴルフ</option>
-        </select>
         <select class="form-select" id="storeYear" onchange="filterBudget()">
           <option value="2025" selected>2025年度</option>
           <option value="2024">2024年度</option>
