@@ -47,7 +47,7 @@
         var isSelected = qty > 0;
         return '<div class="product-card' + (isSelected ? ' selected' : '') + '" id="card-' + p.id + '">' +
           '<div class="product-img"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg></div>' +
-          (p.recommended ? '<span class="product-badge">推奨品</span>' : '') +
+          (p.recommended ? '<span class="product-badge">よく発注される商品</span>' : '') +
           '<div class="product-name">' + p.name + '</div>' +
           '<div class="product-code">' + p.code + '</div>' +
           '<div class="product-price">¥' + p.price.toLocaleString() + '</div>' +
