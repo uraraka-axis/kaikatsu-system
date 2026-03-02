@@ -50,6 +50,43 @@
 /* ===== Status Badge ===== */
 .status-approved { background: #dcfce7; color: #16a34a; }
 
+/* ===== Procurement Form ===== */
+.procurement-section {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 20px 24px;
+  margin-bottom: 24px;
+}
+.procurement-title { font-size: 15px; font-weight: 700; margin-bottom: 14px; }
+.procurement-form {
+  display: flex;
+  gap: 16px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+.procurement-form .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 0;
+}
+.procurement-form .form-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  margin-bottom: 0;
+}
+.procurement-form input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+.procurement-form input[type="number"]::-webkit-inner-spin-button,
+.procurement-form input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
 /* ===== Responsive ===== */
 @media (min-width: 601px) and (max-width: 1024px) {
   .summary-bar { flex-direction: row; }
@@ -58,4 +95,5 @@
 }
 @media (max-width: 600px) {
   .summary-bar { flex-direction: column; }
+  .procurement-form { flex-direction: column; }
 }

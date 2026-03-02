@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>自店調達実績管理画面</title>
+  <title>自店調達申請管理画面</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -12,7 +12,7 @@
 </head>
 <body>
   <header class="header">
-    <h1>自店調達実績管理</h1>
+    <h1>自店調達申請管理</h1>
     <div class="header-right">
       <span class="header-user">新宿東口店：田中太郎様</span>
       <button class="btn-logout" onclick="location.href='login.html'">ログアウト</button>
@@ -25,11 +25,35 @@
     <button class="nav-btn" onclick="location.href='parts-order.html'">部品発注</button>
     <button class="nav-btn" onclick="location.href='order-list.html'">発注一覧</button>
     <button class="nav-btn" onclick="location.href='budget-management.html'">予算管理</button>
+    <button class="nav-btn active">自店調達</button>
     <button class="nav-btn" onclick="location.href='admin-menu.html'">管理メニュー</button>
   </nav>
   <main class="main">
-    <h2 class="page-title" id="pageTitle">自店調達実績管理</h2>
-    <p class="page-desc" id="pageDesc">自店調達の申請履歴と実績を管理します</p>
+    <h2 class="page-title" id="pageTitle">自店調達申請管理</h2>
+    <p class="page-desc" id="pageDesc">自店調達の申請と実績を管理します</p>
+
+    <!-- Procurement Form (store only) -->
+    <div class="procurement-section" id="procurementSection" style="display:none">
+      <div class="procurement-title">自店調達申請</div>
+      <div class="procurement-form">
+        <div class="form-group">
+          <label class="form-label">カテゴリ</label>
+          <select class="form-select" id="procCategory">
+            <option value="fit">フィットネス</option>
+            <option value="ig">インドアゴルフ</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">金額</label>
+          <input type="number" class="form-input" id="procAmount" placeholder="10000" style="width:150px">
+        </div>
+        <div class="form-group" style="flex:2;min-width:200px">
+          <label class="form-label">理由</label>
+          <input type="text" class="form-input" id="procReason" placeholder="緊急で備品が必要なため" style="width:100%">
+        </div>
+        <button class="btn-submit" onclick="submitProcurement()">申請する</button>
+      </div>
+    </div>
 
     <!-- Summary -->
     <div class="summary-bar" id="summaryBar"></div>

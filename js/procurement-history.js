@@ -31,8 +31,10 @@
       var header = document.querySelector('.header-user');
       if (viewMode === 'admin') {
         header.textContent = '本部管理者：鈴木一郎様';
-        document.getElementById('pageDesc').textContent = '全店舗の自店調達実績を管理します';
+        document.getElementById('pageDesc').textContent = '全店舗の自店調達申請を管理します';
       }
+
+      document.getElementById('procurementSection').style.display = viewMode === 'store' ? '' : 'none';
 
       // Build filters
       var filterHtml = '';
@@ -134,6 +136,15 @@
         row += '</tr>';
         return row;
       }).join('');
+    }
+
+    function submitProcurement() {
+      var amount = document.getElementById('procAmount').value;
+      var reason = document.getElementById('procReason').value;
+      if (!amount || !reason) { alert('金額と理由を入力してください'); return; }
+      alert('自店調達を申請しました');
+      document.getElementById('procAmount').value = '';
+      document.getElementById('procReason').value = '';
     }
 
     initView();
