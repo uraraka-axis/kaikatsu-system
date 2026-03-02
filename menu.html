@@ -66,8 +66,8 @@
         </div>
       </div>
 
-      <!-- 発注メニュー -->
-      <div class="menu-section">
+      <!-- 発注メニュー（店舗のみ） -->
+      <div class="menu-section" id="orderSection">
         <div class="menu-section-title">発注</div>
         <div class="menu-grid">
           <a href="repair-order.html" class="menu-card">
@@ -155,5 +155,17 @@
       </div>
     </div>
   </main>
+  <script>
+    (function() {
+      var params = new URLSearchParams(window.location.search);
+      var isAdmin = params.get('role') === 'admin';
+      if (isAdmin) {
+        document.getElementById('orderSection').style.display = 'none';
+        document.querySelector('.header-user').textContent = '本部管理者：鈴木一郎様';
+      } else {
+        document.getElementById('adminSection').style.display = 'none';
+      }
+    })();
+  </script>
 </body>
 </html>
