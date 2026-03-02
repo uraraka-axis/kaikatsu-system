@@ -25,29 +25,11 @@ body {
   text-align: center;
   margin-bottom: 36px;
 }
-.login-brand {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 48px;
-  height: 48px;
-  background-color: #1e293b;
-  border-radius: 10px;
-  margin: 0 auto 20px;
-  font-size: 20px;
-  font-weight: 700;
-  color: #fff;
-  letter-spacing: -1px;
-}
 .login-title {
   font-size: 20px;
   font-weight: 700;
   color: #1e293b;
   margin-bottom: 6px;
-}
-.login-subtitle {
-  font-size: 13px;
-  color: #94a3b8;
 }
 
 /* ===== Divider ===== */
