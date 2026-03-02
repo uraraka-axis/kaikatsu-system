@@ -18,16 +18,8 @@
       <button class="btn-logout" onclick="location.href='login.html'">ログアウト</button>
     </div>
   </header>
-  <nav class="nav">
-    <button class="nav-btn" onclick="location.href='menu.html'">メニュー</button>
-    <button class="nav-btn" onclick="location.href='repair-order.html'">修理発注</button>
-    <button class="nav-btn" onclick="location.href='equipment-order.html'">備品発注</button>
-    <button class="nav-btn" onclick="location.href='parts-order.html'">部品発注</button>
-    <button class="nav-btn" onclick="location.href='order-list.html'">発注一覧</button>
-    <button class="nav-btn" onclick="location.href='budget-management.html'">予算管理</button>
-    <button class="nav-btn" onclick="location.href='procurement-history.html'">自店調達</button>
-    <button class="nav-btn active">管理メニュー</button>
-  </nav>
+  <nav class="nav" data-active="admin-menu.html"></nav>
+  <script src="js/common-nav.js"></script>
   <main class="main">
     <h2 class="page-title">管理メニュー</h2>
     <p class="page-desc">マスタデータの更新とシステム設定を行います。ExcelファイルをアップロードしてマスタをBatch更新できます。</p>
