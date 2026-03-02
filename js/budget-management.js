@@ -157,6 +157,8 @@
         updateShopOptions();
       }
 
+      document.getElementById('procurementSection').style.display = viewMode === 'store' ? '' : 'none';
+
       renderSummary();
       renderTable();
     }
@@ -323,6 +325,15 @@
         row.classList.add('expanded');
         detail.classList.add('visible');
       }
+    }
+
+    function submitProcurement() {
+      var amount = document.getElementById('procAmount').value;
+      var reason = document.getElementById('procReason').value;
+      if (!amount || !reason) { alert('金額と理由を入力してください'); return; }
+      alert('自店調達を申請しました');
+      document.getElementById('procAmount').value = '';
+      document.getElementById('procReason').value = '';
     }
 
     // ===== Init =====

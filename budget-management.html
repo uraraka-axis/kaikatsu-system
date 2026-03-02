@@ -79,6 +79,29 @@
       <!-- JS renders -->
     </div>
 
+    <!-- Procurement Application (store only) -->
+    <div class="procurement-section" id="procurementSection" style="display:none">
+      <div class="procurement-title">自店調達申請</div>
+      <div class="procurement-form">
+        <div class="form-group">
+          <label class="form-label">カテゴリ</label>
+          <select class="form-select" id="procCategory">
+            <option value="fit">フィットネス</option>
+            <option value="ig">インドアゴルフ</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">金額</label>
+          <input type="number" class="form-input" id="procAmount" placeholder="10000" style="width:150px">
+        </div>
+        <div class="form-group" style="flex:2;min-width:200px">
+          <label class="form-label">理由</label>
+          <input type="text" class="form-input" id="procReason" placeholder="緊急で備品が必要なため" style="width:100%">
+        </div>
+        <button class="btn-submit" onclick="submitProcurement()">申請する</button>
+      </div>
+    </div>
+
     <!-- Budget Table -->
     <div class="table-container">
       <table class="budget-table">

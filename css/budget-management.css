@@ -204,6 +204,39 @@
 .monthly-table .negative { color: #ef4444; }
 .monthly-table .over-budget { color: #ef4444; font-weight: 600; }
 
+/* ===== Procurement Section (store only) ===== */
+.procurement-section {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 24px;
+}
+.procurement-title { font-size: 16px; font-weight: 700; margin-bottom: 16px; }
+.procurement-form {
+  display: flex;
+  gap: 16px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+.procurement-form .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 0;
+}
+.procurement-form .form-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  margin-bottom: 0;
+}
+.procurement-form .btn-submit {
+  padding: 10px 24px;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
 /* ===== Responsive ===== */
 @media (min-width: 601px) and (max-width: 1024px) {
   .summary-grid { grid-template-columns: repeat(3, 1fr); }
@@ -220,4 +253,5 @@
   .detail-content { padding: 10px; overflow-x: auto; }
   .detail-header { flex-direction: column; align-items: flex-start; }
   .monthly-table { min-width: 650px; }
+  .procurement-form { flex-direction: column; }
 }
