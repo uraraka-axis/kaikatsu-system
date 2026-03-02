@@ -47,6 +47,11 @@
         <select class="form-select" id="filterShop" onchange="filterBudget()">
           <option value="">店舗</option>
         </select>
+        <select class="form-select" id="filterDept" onchange="filterBudget()">
+          <option value="">すべての部門</option>
+          <option value="fit">フィットネス</option>
+          <option value="ig">インドアゴルフ</option>
+        </select>
         <select class="form-select" id="filterYear" onchange="filterBudget()">
           <option value="2025" selected>2025年度</option>
           <option value="2024">2024年度</option>
@@ -57,6 +62,11 @@
     <!-- Store Filters -->
     <div class="toolbar" id="storeToolbar" style="display:none">
       <div class="toolbar-filters">
+        <select class="form-select" id="storeDept" onchange="filterBudget()">
+          <option value="">すべての部門</option>
+          <option value="fit">フィットネス</option>
+          <option value="ig">インドアゴルフ</option>
+        </select>
         <select class="form-select" id="storeYear" onchange="filterBudget()">
           <option value="2025" selected>2025年度</option>
           <option value="2024">2024年度</option>

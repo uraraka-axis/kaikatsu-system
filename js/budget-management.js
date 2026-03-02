@@ -217,11 +217,18 @@
         html += numCells(d.month);
         html += '</tr>';
 
-        // Detail: all departments stacked vertically
+        // Detail: toggle buttons + department sections
         html += '<tr class="detail-row" id="detail-' + idx + '"><td colspan="13"><div class="detail-content">';
-        html += '<div class="detail-header"><div class="detail-title">2025年度 月別明細 — ' + d.shop + '</div></div>';
+        html += '<div class="detail-header"><div class="detail-title">2025年度 月別明細 — ' + d.shop + '</div>';
+        html += '<div class="dept-toggles">';
         departments.forEach(function(dept) {
-          html += '<div class="dept-section">';
+          var activeClass = dept.key === 'all' ? ' active' : '';
+          html += '<button class="dept-toggle' + activeClass + '" onclick="event.stopPropagation(); toggleDept(' + idx + ',\'' + dept.key + '\', this)">' + dept.label + '</button>';
+        });
+        html += '</div></div>';
+        departments.forEach(function(dept) {
+          var hideStyle = dept.key === 'all' ? '' : ' style="display:none"';
+          html += '<div class="dept-section" id="dept-' + idx + '-' + dept.key + '"' + hideStyle + '>';
           html += '<div class="dept-section-title">' + dept.label + '</div>';
           html += renderMonthlyTable(d.details[dept.key]);
           html += '</div>';
@@ -293,6 +300,17 @@
 
       h += '</tbody></table>';
       return h;
+    }
+
+    function toggleDept(idx, key, btn) {
+      var section = document.getElementById('dept-' + idx + '-' + key);
+      if (btn.classList.contains('active')) {
+        btn.classList.remove('active');
+        section.style.display = 'none';
+      } else {
+        btn.classList.add('active');
+        section.style.display = '';
+      }
     }
 
     function toggleDetail(idx) {

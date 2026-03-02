@@ -142,6 +142,27 @@
   color: #475569;
 }
 
+/* Department toggle buttons */
+.dept-toggles { display: flex; gap: 6px; }
+.dept-toggle {
+  padding: 5px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #fff;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: inherit;
+}
+.dept-toggle:hover { background: #f1f5f9; }
+.dept-toggle.active {
+  background: #1e293b;
+  color: #fff;
+  border-color: #1e293b;
+}
+
 /* Department section (stacked vertically) */
 .dept-section {
   margin-bottom: 16px;
