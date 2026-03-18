@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+html { background: #ffffff; }
+body {
+  width: 720pt; height: 405pt; margin: 0; padding: 0;
+  background: #f5f5f5; font-family: Arial, sans-serif;
+  display: flex; flex-direction: column;
+}
+.header { background: #333333; padding: 6pt 20pt; display: flex; justify-content: space-between; align-items: center; }
+.header h1 { color: #ffffff; font-size: 9pt; margin: 0; }
+.header-right { display: flex; align-items: center; gap: 8pt; }
+.header-right p { color: #cccccc; font-size: 7pt; margin: 0; }
+.logout-btn { background: #555555; padding: 3pt 8pt; }
+.logout-btn p { color: #ffffff; font-size: 7pt; margin: 0; }
+.nav { background: #eeeeee; padding: 4pt 20pt; display: flex; gap: 4pt; border-bottom: 1pt solid #cccccc; }
+.nav-item { padding: 4pt 10pt; background: #ffffff; border: 1pt solid #cccccc; }
+.nav-item p { color: #555555; font-size: 7pt; margin: 0; }
+.nav-item.active { background: #333333; border-color: #333333; }
+.nav-item.active p { color: #ffffff; }
+.screen-label { position: absolute; top: 6pt; right: 20pt; }
+.screen-label p { color: #999999; font-size: 7pt; margin: 0; }
+.filter-bar { padding: 8pt 20pt; display: flex; gap: 8pt; align-items: center; background: #ffffff; border-bottom: 1pt solid #e0e0e0; }
+.filter-select { width: 100pt; height: 20pt; background: #ffffff; border: 1pt solid #cccccc; display: flex; align-items: center; padding: 0 6pt; }
+.filter-select p { color: #888888; font-size: 7pt; margin: 0; }
+.search-box { width: 160pt; height: 20pt; background: #ffffff; border: 1pt solid #cccccc; display: flex; align-items: center; padding: 0 6pt; }
+.search-box p { color: #bbbbbb; font-size: 7pt; margin: 0; }
+.product-grid { flex: 1; padding: 8pt 20pt; display: flex; flex-wrap: wrap; gap: 8pt; overflow: hidden; }
+.product-card { width: 108pt; background: #ffffff; border: 1pt solid #cccccc; padding: 6pt; }
+.product-card.selected { border: 2pt solid #333333; }
+.product-img { width: 96pt; height: 50pt; background: #e8e8e8; border: 1pt solid #dddddd; display: flex; align-items: center; justify-content: center; }
+.product-img p { color: #bbbbbb; font-size: 7pt; margin: 0; text-align: center; }
+.badge { background: #888888; padding: 1pt 4pt; display: inline-block; margin: 3pt 0 0 0; }
+.badge p { color: #ffffff; font-size: 6pt; margin: 0; }
+.product-name { color: #333333; font-size: 8pt; margin: 3pt 0 1pt 0; font-weight: 700; }
+.product-code { color: #999999; font-size: 6pt; margin: 0; }
+.product-price { color: #333333; font-size: 9pt; margin: 2pt 0; font-weight: 700; }
+.product-supplier { color: #888888; font-size: 6pt; margin: 0 0 3pt 0; }
+.qty-row { display: flex; align-items: center; gap: 3pt; }
+.qty-btn { width: 18pt; height: 18pt; background: #eeeeee; border: 1pt solid #cccccc; display: flex; align-items: center; justify-content: center; }
+.qty-btn p { color: #555555; font-size: 9pt; margin: 0; }
+.qty-input { width: 28pt; height: 18pt; background: #ffffff; border: 1pt solid #cccccc; display: flex; align-items: center; justify-content: center; }
+.qty-input p { color: #333333; font-size: 8pt; margin: 0; text-align: center; }
+.cart-bar { position: absolute; bottom: 0; left: 0; right: 0; background: #ffffff; border-top: 2pt solid #333333; padding: 6pt 20pt; display: flex; justify-content: space-between; align-items: center; }
+.cart-info { display: flex; align-items: center; gap: 12pt; }
+.cart-info p { color: #333333; font-size: 8pt; margin: 0; }
+.cart-total { color: #333333; font-size: 11pt; margin: 0; font-weight: 700; }
+.btn-order { padding: 6pt 24pt; background: #333333; }
+.btn-order p { color: #ffffff; font-size: 9pt; margin: 0; }
+.budget-warn { background: #e0e0e0; padding: 3pt 8pt; margin: 0 0 0 8pt; }
+.budget-warn p { color: #555555; font-size: 7pt; margin: 0; }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>備品発注画面</h1>
+  <div class="header-right">
+    <p>新宿東口店：田中太郎様</p>
+    <div class="logout-btn"><p>ログアウト</p></div>
+  </div>
+</div>
+<div class="screen-label"><p>04 備品発注画面</p></div>
+<div class="nav">
+  <div class="nav-item"><p>メニュー</p></div>
+  <div class="nav-item"><p>修理発注</p></div>
+  <div class="nav-item active"><p>備品発注</p></div>
+  <div class="nav-item"><p>部品発注</p></div>
+  <div class="nav-item"><p>発注一覧</p></div>
+  <div class="nav-item"><p>予算管理</p></div>
+  <div class="nav-item"><p>管理メニュー</p></div>
+</div>
+<div class="filter-bar">
+  <div class="filter-select"><p>カテゴリ ▼</p></div>
+  <div class="search-box"><p>商品名・コードで検索...</p></div>
+</div>
+<div class="product-grid">
+  <div class="product-card">
+    <div class="product-img"><p>商品画像</p></div>
+    <div class="badge"><p>推奨品</p></div>
+    <p class="product-name">トレーニングマット</p>
+    <p class="product-code">MAT-001</p>
+    <p class="product-price">¥3,500</p>
+    <p class="product-supplier">仕入先: フィットネスジャパン</p>
+    <div class="qty-row">
+      <div class="qty-btn"><p>-</p></div>
+      <div class="qty-input"><p>0</p></div>
+      <div class="qty-btn"><p>+</p></div>
+    </div>
+  </div>
+  <div class="product-card selected">
+    <div class="product-img"><p>商品画像</p></div>
+    <div class="badge"><p>推奨品</p></div>
+    <p class="product-name">ダンベル 5kg</p>
+    <p class="product-code">DB-005</p>
+    <p class="product-price">¥2,800</p>
+    <p class="product-supplier">仕入先: フィットネスジャパン</p>
+    <div class="qty-row">
+      <div class="qty-btn"><p>-</p></div>
+      <div class="qty-input"><p>3</p></div>
+      <div class="qty-btn"><p>+</p></div>
+    </div>
+  </div>
+  <div class="product-card">
+    <div class="product-img"><p>商品画像</p></div>
+    <p class="product-name">バランスボール 65cm</p>
+    <p class="product-code">BB-065</p>
+    <p class="product-price">¥1,800</p>
+    <p class="product-supplier">仕入先: スポーツ用品販売</p>
+    <div class="qty-row">
+      <div class="qty-btn"><p>-</p></div>
+      <div class="qty-input"><p>0</p></div>
+      <div class="qty-btn"><p>+</p></div>
+    </div>
+  </div>
+  <div class="product-card selected">
+    <div class="product-img"><p>商品画像</p></div>
+    <p class="product-name">ヨガブロック</p>
+    <p class="product-code">YB-001</p>
+    <p class="product-price">¥1,200</p>
+    <p class="product-supplier">仕入先: フィットネスジャパン</p>
+    <div class="qty-row">
+      <div class="qty-btn"><p>-</p></div>
+      <div class="qty-input"><p>2</p></div>
+      <div class="qty-btn"><p>+</p></div>
+    </div>
+  </div>
+  <div class="product-card">
+    <div class="product-img"><p>商品画像</p></div>
+    <div class="badge"><p>推奨品</p></div>
+    <p class="product-name">タオル（大）10枚</p>
+    <p class="product-code">TW-L10</p>
+    <p class="product-price">¥5,600</p>
+    <p class="product-supplier">仕入先: リネンサービス</p>
+    <div class="qty-row">
+      <div class="qty-btn"><p>-</p></div>
+      <div class="qty-input"><p>0</p></div>
+      <div class="qty-btn"><p>+</p></div>
+    </div>
+  </div>
+</div>
+<div class="cart-bar">
+  <div class="cart-info">
+    <p>選択商品: 2点（5個）</p>
+    <p class="cart-total">合計: ¥10,800</p>
+    <div class="budget-warn"><p>予算超過時に警告を表示</p></div>
+  </div>
+  <div class="btn-order"><p>発注する</p></div>
+</div>
+</body>
+</html>

@@ -136,17 +136,14 @@
       filterBudget();
     }
 
+    function exportBudgetExcel() {
+      alert('Excel出力（モックアップ）\n\n現在の表示内容をExcelファイルとしてダウンロードします。');
+    }
+
     // ===== Init =====
     function initView() {
       document.getElementById('adminToolbar').style.display = viewMode === 'admin' ? '' : 'none';
       document.getElementById('storeToolbar').style.display = viewMode === 'store' ? '' : 'none';
-
-      var header = document.querySelector('.header-user');
-      if (viewMode === 'admin') {
-        header.textContent = '本部管理者：鈴木一郎様';
-      } else {
-        header.textContent = '新宿東口店：田中太郎様';
-      }
 
       var desc = document.getElementById('pageDesc');
       if (viewMode === 'store') {

@@ -1,0 +1,1984 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>業務フロー図 & UI/UX提案</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Noto Sans JP', sans-serif;
+      background: #f0f2f5;
+      color: #1a1a2e;
+      line-height: 1.7;
+      padding: 40px 20px;
+    }
+    .container { max-width: 1100px; margin: 0 auto; }
+    h1 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .subtitle {
+      color: #64748b;
+      font-size: 0.9rem;
+      margin-bottom: 40px;
+    }
+    .toc {
+      background: #fff;
+      border-radius: 12px;
+      padding: 24px 32px;
+      margin-bottom: 40px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    .toc-title { font-weight: 700; font-size: 1rem; margin-bottom: 12px; }
+    .toc ol { padding-left: 20px; }
+    .toc li { margin-bottom: 6px; }
+    .toc a { color: #2563eb; text-decoration: none; }
+    .toc a:hover { text-decoration: underline; }
+
+    /* ── Section ── */
+    .section {
+      background: #fff;
+      border-radius: 12px;
+      padding: 32px;
+      margin-bottom: 32px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    .section-label {
+      display: inline-block;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      padding: 3px 10px;
+      border-radius: 4px;
+      margin-bottom: 8px;
+    }
+    .label-flow { background: #dbeafe; color: #1e40af; }
+    .label-proposal { background: #fef3c7; color: #92400e; }
+    .section h2 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .section-desc {
+      color: #64748b;
+      font-size: 0.85rem;
+      margin-bottom: 24px;
+    }
+
+    /* ── Flow Diagram ── */
+    .flow {
+      display: flex;
+      align-items: flex-start;
+      gap: 0;
+      overflow-x: auto;
+      padding: 16px 0 20px;
+    }
+    .flow-step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 130px;
+      flex-shrink: 0;
+    }
+    .flow-actor {
+      font-size: 0.65rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 10px;
+      margin-bottom: 6px;
+      white-space: nowrap;
+    }
+    .actor-store { background: #dbeafe; color: #1e40af; }
+    .actor-hq { background: #fce7f3; color: #9d174d; }
+    .actor-vendor { background: #d1fae5; color: #065f46; }
+    .flow-box {
+      background: #f8fafc;
+      border: 2px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 12px 16px;
+      text-align: center;
+      font-size: 0.8rem;
+      font-weight: 500;
+      min-height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 130px;
+      position: relative;
+    }
+    .flow-box.highlight {
+      border-color: #3b82f6;
+      background: #eff6ff;
+    }
+    .flow-box.complete {
+      border-color: #10b981;
+      background: #ecfdf5;
+    }
+    .flow-arrow {
+      display: flex;
+      align-items: center;
+      padding-top: 26px;
+      min-width: 40px;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .flow-arrow svg {
+      width: 32px;
+      height: 20px;
+      color: #94a3b8;
+    }
+    .flow-note {
+      font-size: 0.65rem;
+      color: #94a3b8;
+      margin-top: 6px;
+      text-align: center;
+      max-width: 130px;
+    }
+
+    /* ── Status comparison ── */
+    .status-compare {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin: 16px 0;
+    }
+    .status-box {
+      padding: 20px;
+      border-radius: 10px;
+      border: 1px solid #e2e8f0;
+    }
+    .status-box h4 {
+      font-size: 0.85rem;
+      margin-bottom: 12px;
+    }
+    .status-box.current { background: #fef2f2; border-color: #fecaca; }
+    .status-box.proposed { background: #f0fdf4; border-color: #bbf7d0; }
+    .status-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+    }
+    .status-chip {
+      font-size: 0.75rem;
+      font-weight: 500;
+      padding: 4px 12px;
+      border-radius: 6px;
+      white-space: nowrap;
+    }
+    .status-arrow-text {
+      font-size: 0.8rem;
+      color: #94a3b8;
+      margin: 0 2px;
+    }
+
+    /* ── Proposal Cards ── */
+    .proposal-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 20px;
+    }
+    .proposal-card {
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 20px 24px;
+      display: flex;
+      gap: 16px;
+    }
+    .proposal-num {
+      width: 32px;
+      height: 32px;
+      background: #2563eb;
+      color: #fff;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.85rem;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .proposal-body h4 {
+      font-size: 0.95rem;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .proposal-body p {
+      font-size: 0.82rem;
+      color: #475569;
+      margin-bottom: 6px;
+    }
+    .proposal-tag {
+      display: inline-block;
+      font-size: 0.65rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 4px;
+      margin-right: 4px;
+    }
+    .tag-screen { background: #dbeafe; color: #1e40af; }
+    .tag-new { background: #fef3c7; color: #92400e; }
+    .tag-change { background: #fce7f3; color: #9d174d; }
+
+    /* ── Mockup wireframe ── */
+    .wireframe {
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      overflow: hidden;
+      margin: 16px 0;
+      background: #f8fafc;
+    }
+    .wireframe-header {
+      background: #1e293b;
+      color: #fff;
+      padding: 8px 16px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    .wireframe-body {
+      padding: 20px;
+    }
+    .wf-row {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 12px;
+      align-items: center;
+    }
+    .wf-label {
+      font-size: 0.72rem;
+      color: #64748b;
+      min-width: 80px;
+      text-align: right;
+    }
+    .wf-input {
+      flex: 1;
+      height: 32px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      background: #fff;
+      padding: 0 10px;
+      font-size: 0.75rem;
+      color: #94a3b8;
+      display: flex;
+      align-items: center;
+    }
+    .wf-btn {
+      padding: 6px 16px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      border: none;
+      cursor: default;
+    }
+    .wf-btn-primary { background: #2563eb; color: #fff; }
+    .wf-btn-success { background: #10b981; color: #fff; }
+    .wf-btn-outline { background: #fff; color: #475569; border: 1px solid #cbd5e1; }
+    .wf-badge {
+      font-size: 0.65rem;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+    .wf-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.72rem;
+    }
+    .wf-table th {
+      background: #f1f5f9;
+      padding: 8px 10px;
+      text-align: left;
+      font-weight: 600;
+      border-bottom: 2px solid #e2e8f0;
+    }
+    .wf-table td {
+      padding: 10px;
+      border-bottom: 1px solid #f1f5f9;
+    }
+    .wf-amount-input {
+      width: 100px;
+      height: 28px;
+      border: 1px dashed #f59e0b;
+      border-radius: 4px;
+      background: #fffbeb;
+      text-align: right;
+      padding: 0 8px;
+      font-size: 0.72rem;
+      color: #92400e;
+    }
+    .wf-divider {
+      border: none;
+      border-top: 1px solid #e2e8f0;
+      margin: 16px 0;
+    }
+    .wf-note {
+      font-size: 0.68rem;
+      color: #f59e0b;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 768px) {
+      .status-compare { grid-template-columns: 1fr; }
+      .flow { padding-bottom: 16px; }
+      .proposal-card { flex-direction: column; }
+    }
+    @media print {
+      body { background: #fff; padding: 20px; }
+      .section { box-shadow: none; border: 1px solid #e2e8f0; break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>業務フロー図 & UI/UX提案</h1>
+    <p class="subtitle">快活フロンティア様 フィットネス/ゴルフ 発注管理・予算管理システム</p>
+
+    <div class="toc">
+      <div class="toc-title">目次</div>
+      <ol>
+        <li><a href="#flow-equipment">備品発注フロー</a></li>
+        <li><a href="#flow-repair-life">修理依頼フロー（ライフフィットネス）</a></li>
+        <li><a href="#flow-repair-think">修理依頼フロー（THINKフィットネス）</a></li>
+        <li><a href="#flow-parts">部品発注フロー</a></li>
+        <li><a href="#proposal-status">UI提案① ステータスの見直し</a></li>
+        <li><a href="#proposal-complete">UI提案② 発注一覧の詳細展開 & ステータス更新</a></li>
+        <li><a href="#status-matrix">全種別×全ステータス 画面一覧</a></li>
+        <li><a href="#proposal-dashboard">UI提案③ 本部ダッシュボード</a></li>
+        <li><a href="#proposal-notify">UI提案④ 通知・アラート設計</a></li>
+        <li><a href="#proposal-summary">提案まとめ</a></li>
+      </ol>
+    </div>
+
+    <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+    <!-- FLOW 1: 備品発注 -->
+    <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+    <div class="section" id="flow-equipment">
+      <span class="section-label label-flow">FLOW</span>
+      <h2>1. 備品発注フロー</h2>
+      <p class="section-desc">店舗 → 本社 → 業者 → 店舗納品の流れ</p>
+
+      <div class="flow">
+        <div class="flow-step">
+          <span class="flow-actor actor-store">店舗</span>
+          <div class="flow-box highlight">備品を選択<br>発注依頼</div>
+          <div class="flow-note">備品発注画面から<br>カートに追加して送信</div>
+        </div>
+        <div class="flow-arrow"><svg viewBox="0 0 32 20"><path d="M2 10h24m-6-6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="flow-step">
+          <span class="flow-actor actor-hq">本社（商品部）</span>
+          <div class="flow-box">依頼受付<br>内容確認</div>
+          <div class="flow-note">発注一覧で確認<br>ステータス: 依頼中→対応中</div>
+        </div>
+        <div class="flow-arrow"><svg viewBox="0 0 32 20"><path d="M2 10h24m-6-6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="flow-step">
+          <span class="flow-actor actor-hq">本社（商品部）</span>
+          <div class="flow-box">業者へ<br>見積依頼</div>
+          <div class="flow-note">ステータス: 対応中</div>
+        </div>
+        <div class="flow-arrow"><svg viewBox="0 0 32 20"><path d="M2 10h24m-6-6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="flow-step">
+          <span class="flow-actor actor-vendor">業者</span>
+          <div class="flow-box">見積回答</div>
+          <div class="flow-note">金額確定</div>
+        </div>
+        <div class="flow-arrow"><svg viewBox="0 0 32 20"><path d="M2 10h24m-6-6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="flow-step">
+          <span class="flow-actor actor-hq">本社（商品部）</span>
+          <div class="flow-box">発注確定</div>
+          <div class="flow-note">金額＋納品予定日を入力<br>ステータス: 発注済へ</div>
+        </div>
+        <div class="flow-arrow"><svg viewBox="0 0 32 20"><path d="M2 10h24m-6-6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="flow-step">
+          <span class="flow-actor actor-store">店舗</span>
+          <div class="flow-box complete">店舗納品<br>完了</div>
+          <div class="flow-note">納品予定日翌日に<br>システムが自動完了</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+    <!-- FLOW 2: 修理依頼（ライフフィットネス） -->
+    <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+    <div class="section" id="flow-repair-life">
+      <span class="section-label label-flow">FLOW</span>
+      <h2>2. 修理依頼フロー（ライフフィットネス）</h2>
+      <p class="section-desc">店舗が直接ライフフィットネスへ依頼 → 見積は本社へ → 本社が発注 → 店舗で修理</p>
+
+      <div class="flow">
+        <div class="flow-step">
+          <span class="flow-actor actor-store">店舗</span>
+          <div class="flow-box highlight">修理依頼<br>登録</div>
+          <div class="flow-note">修理発注画面から<br>不具合内容・写真を送信</div>
+        </div>
+        <div class="flow-arrow"><svg viewBox="0 0 32 20"><path d="M2 10h24m-6-6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="flow-step">
+          <span class="flow-actor actor-vendor">ライフフィットネス</span>
+          <div class="flow-box">依頼受付<br>現地調査</div>
+          <div class="flow-note">店舗→業者へ<br>直接依頼</div>
+        </div>
+        <div class="flow-arrow"><svg viewBox="0 0 32 20"><path d="M2 10h24m-6-6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="flow-step">
+          <span class="flow-actor actor-hq">本社（商品部）</span>
+          <div class="flow-box">見積受領<br>内容確認</div>
+          <div class="flow-note">業者から見積が届く<br>※最大額の見積</div>
+        </div>
+        <div class="flow-arrow"><svg viewBox="0 0 32 20"><path d="M2 10h24m-6-6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="flow-step">
+          <span class="flow-actor actor-hq">本社（商品部）</span>
+          <div class="flow-box">発注指示</div>
+          <div class="flow-note">ライフフィットネスへ<br>発注</div>
+        </div>
+        <div class="flow-arrow"><svg viewBox="0 0 32 20"><path d="M2 10h24m-6-6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="flow-step">
+          <span class="flow-actor actor-store">店舗</span>
+          <div class="flow-box">修理実施</div>
+          <div class="flow-note">業者が店舗で修理</div>
+        </div>
+        <div class="flow-arrow"><svg viewBox="0 0 32 20"><path d="M2 10h24m-6-6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="flow-step">
+          <span class="flow-actor actor-store">店舗</span>
+          <div class="flow-box" style="border-color:#ec4899;background:#fdf2f8;">修理完了確認</div>
+          <div class="flow-note">機材の稼働確認後<br>ステータス: 修理済へ</div>
+        </div>
+        <div class="flow-arrow"><svg viewBox="0 0 32 20"><path d="M2 10h24m-6-6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="flow-step">
+          <span class="flow-actor actor-hq">本社（商品部）</span>
+          <div class="flow-box complete">金額確定<br>完了</div>
+          <div class="flow-note">未使用部品を除いた<br>最終金額で計上</div>
+        </div>
+      </div>
+
+      <div style="margin-top:12px; padding:12px 16px; background:#fffbeb; border-radius:8px; border-left:3px solid #f59e0b; font-size:0.8rem; color:#92400e;">
+        <strong>ポイント：</strong>見積は「最大額」で提出される。修理後に未使用部品が差し引かれ、最終金額が確定する。<br>
+        <strong>修理済：</strong>店舗が修理完了と機材の正常稼働を確認して報告。本社は稼働状況を把握した上で最終金額を確定する。
+      </div>
+    </div>
+
+    <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+    <!-- FLOW 3: 修理依頼（THINKフィットネス） -->
+    <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+    <div class="section" id="flow-repair-think">
+      <span class="section-label label-flow">FLOW</span>
+      <h2>3. 修理依頼フロー（THINKフィットネス）</h2>
+      <p class="section-desc">店舗 → 本社 → 業者 → 店舗修理（備品発注と同様のフロー）</p>
+
+      <div class="flow">
+        <div class="flow-step">
+          <span class="flow-actor actor-store">店舗</span>
+          <div class="flow-box highlight">修理依頼<br>登録</div>
+          <div class="flow-note">修理発注画面から送信</div>
+        </div>
+        <div class="flow-arrow"><svg viewBox="0 0 32 20"><path d="M2 10h24m-6-6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="flow-step">
+          <span class="flow-actor actor-hq">本社（商品部）</span>
+          <div class="flow-box">依頼受付<br>内容確認</div>
+          <div class="flow-note">本社が業者を選定</div>
+        </div>
+        <div class="flow-arrow"><svg viewBox="0 0 32 20"><path d="M2 10h24m-6-6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="flow-step">
+          <span class="flow-actor actor-hq">本社（商品部）</span>
+          <div class="flow-box">業者へ<br>見積依頼</div>
+          <div class="flow-note">本社→業者へ依頼</div>
+        </div>
+        <div class="flow-arrow"><svg viewBox="0 0 32 20"><path d="M2 10h24m-6-6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="flow-step">
+          <span class="flow-actor actor-vendor">業者</span>
+          <div class="flow-box">見積回答</div>
+          <div class="flow-note">※最大額の見積</div>
+        </div>
+        <div class="flow-arrow"><svg viewBox="0 0 32 20"><path d="M2 10h24m-6-6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="flow-step">
+          <span class="flow-actor actor-hq">本社（商品部）</span>
+          <div class="flow-box">発注確定</div>
+          <div class="flow-note">業者へ発注</div>
+        </div>
+        <div class="flow-arrow"><svg viewBox="0 0 32 20"><path d="M2 10h24m-6-6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="flow-step">
+          <span class="flow-actor actor-store">店舗</span>
+          <div class="flow-box">修理実施</div>
+          <div class="flow-note">業者が店舗で修理</div>
+        </div>
+        <div class="flow-arrow"><svg viewBox="0 0 32 20"><path d="M2 10h24m-6-6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="flow-step">
+          <span class="flow-actor actor-store">店舗</span>
+          <div class="flow-box" style="border-color:#ec4899;background:#fdf2f8;">修理完了確認</div>
+          <div class="flow-note">機材の稼働確認後<br>ステータス: 修理済へ</div>
+        </div>
+        <div class="flow-arrow"><svg viewBox="0 0 32 20"><path d="M2 10h24m-6-6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="flow-step">
+          <span class="flow-actor actor-hq">本社（商品部）</span>
+          <div class="flow-box complete">金額確定<br>完了</div>
+          <div class="flow-note">最終金額で計上</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+    <!-- FLOW 4: 部品発注 -->
+    <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+    <div class="section" id="flow-parts">
+      <span class="section-label label-flow">FLOW</span>
+      <h2>4. 部品発注フロー</h2>
+      <p class="section-desc">備品発注と同様のフロー（店舗 → 本社 → 業者 → 店舗納品）</p>
+
+      <div class="flow">
+        <div class="flow-step">
+          <span class="flow-actor actor-store">店舗</span>
+          <div class="flow-box highlight">部品を指定<br>発注依頼</div>
+          <div class="flow-note">部品発注画面から送信</div>
+        </div>
+        <div class="flow-arrow"><svg viewBox="0 0 32 20"><path d="M2 10h24m-6-6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="flow-step">
+          <span class="flow-actor actor-hq">本社（商品部）</span>
+          <div class="flow-box">依頼受付<br>内容確認</div>
+          <div class="flow-note">ステータス: 依頼中→対応中</div>
+        </div>
+        <div class="flow-arrow"><svg viewBox="0 0 32 20"><path d="M2 10h24m-6-6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="flow-step">
+          <span class="flow-actor actor-hq">本社（商品部）</span>
+          <div class="flow-box">業者へ<br>見積依頼・発注</div>
+          <div class="flow-note">見積確認後に発注</div>
+        </div>
+        <div class="flow-arrow"><svg viewBox="0 0 32 20"><path d="M2 10h24m-6-6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="flow-step">
+          <span class="flow-actor actor-store">店舗</span>
+          <div class="flow-box complete">店舗納品<br>完了</div>
+          <div class="flow-note">ステータス: 完了へ</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+    <!-- PROPOSAL 1: ステータスの見直し -->
+    <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+    <div class="section" id="proposal-status">
+      <span class="section-label label-proposal">UI/UX提案</span>
+      <h2>提案① ステータスの見直し</h2>
+      <p class="section-desc">種別ごとに最適化されたステータスフロー。修理は店舗の完了報告を含む5段階、備品は自動完了で手間を削減。</p>
+
+      <!-- 検討経緯 -->
+      <div style="margin-bottom:24px; padding:16px 20px; background:#f8fafc; border-radius:8px; border:1px solid #e2e8f0;">
+        <div style="font-size:0.82rem; font-weight:600; margin-bottom:8px; color:#1e293b;">検討経緯</div>
+        <div style="font-size:0.8rem; color:#475569; line-height:1.8;">
+          当初は業務フローを忠実に反映した6段階（依頼中→受付済→見積中→発注済→作業中→完了）を検討しましたが、<br>
+          本社（商品部）の担当者が手動で最大5回ステータスを更新する必要があり、<strong>運用負荷が大きい</strong>と判断しました。<br>
+          受付〜見積依頼はほぼ同タイミングで行われるため統合しつつ、<br>
+          <strong>修理は「修理が完了して機材が正常稼働しているか」を店舗が報告</strong>するステップを追加。<br>
+          <strong>備品は倉庫在庫からの出荷のためスケジュールが立ちやすく、発注確定後にシステムが自動完了</strong>とし、手動更新を最小限にしています。
+        </div>
+      </div>
+
+      <div class="status-compare">
+        <div class="status-box current">
+          <h4>現在のステータス（4段階）</h4>
+          <div class="status-list">
+            <span class="status-chip" style="background:#fef3c7;color:#92400e;">仮登録</span>
+            <span class="status-arrow-text">→</span>
+            <span class="status-chip" style="background:#dbeafe;color:#1e40af;">本登録</span>
+            <span class="status-arrow-text">→</span>
+            <span class="status-chip" style="background:#e0e7ff;color:#3730a3;">確定済</span>
+            <span class="status-arrow-text">→</span>
+            <span class="status-chip" style="background:#d1fae5;color:#065f46;">完了</span>
+          </div>
+          <div style="font-size:0.72rem; color:#94a3b8; margin-top:8px;">ステータス名が抽象的で、業務上の意味が分かりにくい</div>
+        </div>
+        <div class="status-box proposed">
+          <h4>提案するステータス — 修理（5段階）</h4>
+          <div class="status-list">
+            <span class="status-chip" style="background:#fef3c7;color:#92400e;">依頼中</span>
+            <span class="status-arrow-text">→</span>
+            <span class="status-chip" style="background:#dbeafe;color:#1e40af;">対応中</span>
+            <span class="status-arrow-text">→</span>
+            <span class="status-chip" style="background:#e0e7ff;color:#3730a3;">発注済</span>
+            <span class="status-arrow-text">→</span>
+            <span class="status-chip" style="background:#fce7f3;color:#9d174d;">修理済</span>
+            <span class="status-arrow-text">→</span>
+            <span class="status-chip" style="background:#d1fae5;color:#065f46;">完了</span>
+          </div>
+          <div style="font-size:0.72rem; color:#16a34a; margin-top:8px;">店舗が修理完了を報告 → 本社が最終金額を確定して完了</div>
+        </div>
+      </div>
+      <div style="margin-top:12px;">
+        <div class="status-box proposed" style="border-color:#3b82f6;">
+          <h4>提案するステータス — 備品（4段階・自動完了）</h4>
+          <div class="status-list">
+            <span class="status-chip" style="background:#fef3c7;color:#92400e;">依頼中</span>
+            <span class="status-arrow-text">→</span>
+            <span class="status-chip" style="background:#dbeafe;color:#1e40af;">対応中</span>
+            <span class="status-arrow-text">→</span>
+            <span class="status-chip" style="background:#e0e7ff;color:#3730a3;">発注済</span>
+            <span class="status-arrow-text">→</span>
+            <span class="status-chip" style="background:#d1fae5;color:#065f46;">完了</span>
+          </div>
+          <div style="font-size:0.72rem; color:#16a34a; margin-top:8px;">発注確定時に納品予定日を入力 → 予定日到来でシステムが自動的に完了へ遷移</div>
+        </div>
+      </div>
+
+      <!-- 修理ステータスの詳細 -->
+      <div style="margin-top:24px;">
+        <div style="font-size:0.85rem; font-weight:600; margin-bottom:12px; color:#1e293b;">修理のステータス定義と更新タイミング</div>
+        <table class="wf-table" style="font-size:0.78rem;">
+          <thead>
+            <tr>
+              <th style="width:100px;">ステータス</th>
+              <th style="width:100px;">更新者</th>
+              <th>更新タイミング</th>
+              <th>操作</th>
+              <th>カバーする業務範囲</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="wf-badge" style="background:#fef3c7;color:#92400e;">依頼中</span></td>
+              <td style="font-weight:500;">自動（システム）</td>
+              <td>店舗が発注画面で送信した瞬間</td>
+              <td>送信ボタン押下で自動セット</td>
+              <td style="font-size:0.72rem; color:#64748b;">店舗からの依頼が届いた状態</td>
+            </tr>
+            <tr>
+              <td><span class="wf-badge" style="background:#dbeafe;color:#1e40af;">対応中</span></td>
+              <td style="font-weight:500;">本社（商品部）</td>
+              <td>本社が内容を確認し、業者へ見積依頼・手配を開始した時</td>
+              <td>「対応中にする」ボタン → ダイアログ<br><span style="font-size:0.68rem;color:#94a3b8;">メモ（任意）</span></td>
+              <td style="font-size:0.72rem; color:#64748b;">受付確認 ＋ 見積依頼 ＋ 業者手配を包含</td>
+            </tr>
+            <tr>
+              <td><span class="wf-badge" style="background:#e0e7ff;color:#3730a3;">発注済</span></td>
+              <td style="font-weight:500;">本社（商品部）</td>
+              <td>見積回答を受けて発注を確定した時</td>
+              <td>「発注確定にする」ボタン → ダイアログ<br><span style="font-size:0.68rem;color:#94a3b8;">見積金額（必須）＋修理予定日（任意）＋メモ（任意）</span></td>
+              <td style="font-size:0.72rem; color:#64748b;">発注確定 ＋ 修理待ち</td>
+            </tr>
+            <tr style="background:#fdf2f8;">
+              <td><span class="wf-badge" style="background:#fce7f3;color:#9d174d;">修理済</span></td>
+              <td style="font-weight:500; color:#9d174d;">店舗</td>
+              <td>修理が完了し、機材が正常に稼働していることを確認した時</td>
+              <td>「修理完了にする」ボタン → ダイアログ<br><span style="font-size:0.68rem;color:#94a3b8;">修理完了日（必須）＋メモ（任意）</span></td>
+              <td style="font-size:0.72rem; color:#64748b;">修理完了確認 ＋ 稼働確認</td>
+            </tr>
+            <tr>
+              <td><span class="wf-badge" style="background:#d1fae5;color:#065f46;">完了</span></td>
+              <td style="font-weight:500;">本社（商品部）</td>
+              <td>修理済報告を受けて最終金額を確定する時</td>
+              <td>「完了にする」ボタン → ダイアログ<br><span style="font-size:0.68rem;color:#f59e0b;">最終金額（必須）＋メモ（任意）</span></td>
+              <td style="font-size:0.72rem; color:#64748b;">最終金額確定 ＋ 案件クローズ</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- 備品ステータスの詳細 -->
+      <div style="margin-top:24px;">
+        <div style="font-size:0.85rem; font-weight:600; margin-bottom:12px; color:#1e293b;">備品のステータス定義と更新タイミング</div>
+        <table class="wf-table" style="font-size:0.78rem;">
+          <thead>
+            <tr>
+              <th style="width:100px;">ステータス</th>
+              <th style="width:100px;">更新者</th>
+              <th>更新タイミング</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="wf-badge" style="background:#fef3c7;color:#92400e;">依頼中</span></td>
+              <td style="font-weight:500;">自動（システム）</td>
+              <td>店舗が発注画面で送信した瞬間</td>
+              <td>自動セット</td>
+            </tr>
+            <tr>
+              <td><span class="wf-badge" style="background:#dbeafe;color:#1e40af;">対応中</span></td>
+              <td style="font-weight:500;">本社（商品部）</td>
+              <td>内容確認・手配開始時</td>
+              <td>「対応中にする」ボタン → ダイアログ（メモ任意）</td>
+            </tr>
+            <tr>
+              <td><span class="wf-badge" style="background:#e0e7ff;color:#3730a3;">発注済</span></td>
+              <td style="font-weight:500;">本社（商品部）</td>
+              <td>発注確定時</td>
+              <td>「発注確定」ダイアログ<br><span style="font-size:0.68rem;color:#94a3b8;">金額（必須）＋納品予定日（必須）</span></td>
+            </tr>
+            <tr style="background:#f0fdf4;">
+              <td><span class="wf-badge" style="background:#d1fae5;color:#065f46;">完了</span></td>
+              <td style="font-weight:500; color:#16a34a;">自動（システム）</td>
+              <td>納品予定日が到来した時点</td>
+              <td>システムが自動的に完了へ遷移<br><span style="font-size:0.68rem;color:#94a3b8;">倉庫在庫のため納品スケジュールが確定的</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- 操作回数の比較 -->
+      <div style="margin-top:24px; display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px;">
+        <div style="padding:16px; background:#fef2f2; border-radius:8px; text-align:center;">
+          <div style="font-size:0.72rem; color:#991b1b; font-weight:500; margin-bottom:4px;">6段階案の場合</div>
+          <div style="font-size:1.8rem; font-weight:700; color:#dc2626;">5回</div>
+          <div style="font-size:0.72rem; color:#991b1b;">本社の手動更新</div>
+        </div>
+        <div style="padding:16px; background:#f0fdf4; border-radius:8px; text-align:center;">
+          <div style="font-size:0.72rem; color:#166534; font-weight:500; margin-bottom:4px;">修理（本提案）</div>
+          <div style="font-size:1.8rem; font-weight:700; color:#16a34a;">3回</div>
+          <div style="font-size:0.72rem; color:#166534;">本社2回 ＋ 店舗1回 ＋ 自動1回</div>
+        </div>
+        <div style="padding:16px; background:#eff6ff; border-radius:8px; text-align:center;">
+          <div style="font-size:0.72rem; color:#1e40af; font-weight:500; margin-bottom:4px;">備品（本提案）</div>
+          <div style="font-size:1.8rem; font-weight:700; color:#2563eb;">2回</div>
+          <div style="font-size:0.72rem; color:#1e40af;">本社2回 ＋ 自動2回</div>
+        </div>
+      </div>
+
+      <div style="margin-top:20px; font-size:0.82rem; color:#475569;">
+        <strong>この設計のポイント：</strong>
+        <ul style="margin-top:4px; padding-left:20px;">
+          <li><strong>「依頼中」は自動</strong> — 店舗が送信した瞬間にシステムが自動でセット。本社の操作不要</li>
+          <li><strong>「対応中」で受付〜見積を統合</strong> — 受付確認と業者手配はほぼ同時に行われるため、確認ダイアログのみで遷移</li>
+          <li><strong>「発注済」でダイアログ入力</strong> — 修理は見積金額＋修理予定日（任意）、備品は金額＋納品予定日を入力</li>
+          <li><strong>修理は「修理済」で店舗が報告</strong> — 修理が終わり機材が正常稼働していることを店舗が確認。本社は稼働状況を把握できる</li>
+          <li><strong>修理の「完了」で最終金額を確定</strong> — 見積額（最大額）から未使用部品を差し引いた最終金額を入力</li>
+          <li><strong>備品は自動完了</strong> — 倉庫在庫から出荷するためスケジュールが確定的。納品予定日翌日に自動的に完了し、手動更新を削減（手動で完了にすることも可）</li>
+          <li><strong>メモはダイアログ内で入力</strong> — 各ステータス遷移時のダイアログにメモ欄（任意）を設置。ステータス履歴に紐づいて表示されるため、専用のメモ欄＋保存ボタンは不要</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+    <!-- PROPOSAL 2+3 統合: 発注一覧の詳細展開とステータス更新 -->
+    <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+    <div class="section" id="proposal-complete">
+      <span class="section-label label-proposal">UI/UX提案</span>
+      <h2>提案② 発注一覧の詳細展開 & ステータス更新</h2>
+      <p class="section-desc">一覧のカラム構成は既存のまま変更しない。「詳細」ボタンで行を展開し、依頼内容の確認・ステータス履歴の閲覧・ステータス更新をすべて展開エリア内で行う。入力項目はダイアログで完結。</p>
+
+      <!-- 操作の流れ -->
+      <div style="margin-bottom:24px; padding:16px 20px; background:#f8fafc; border-radius:8px; border:1px solid #e2e8f0;">
+        <div style="font-size:0.82rem; font-weight:600; margin-bottom:8px; color:#1e293b;">操作の流れ</div>
+        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:0.8rem; color:#475569;">
+          <span style="background:#e2e8f0; padding:4px 12px; border-radius:6px; font-weight:500;">① 一覧でステータスを確認</span>
+          <span style="color:#94a3b8;">→</span>
+          <span style="background:#dbeafe; padding:4px 12px; border-radius:6px; font-weight:500;">②「詳細」で行を展開</span>
+          <span style="color:#94a3b8;">→</span>
+          <span style="background:#fef3c7; padding:4px 12px; border-radius:6px; font-weight:500;">③ 依頼内容を確認</span>
+          <span style="color:#94a3b8;">→</span>
+          <span style="background:#d1fae5; padding:4px 12px; border-radius:6px; font-weight:500;">④ 展開内のボタンでステータス更新</span>
+        </div>
+        <div style="font-size:0.72rem; color:#94a3b8; margin-top:8px;">※一覧行に操作ボタンは追加しない → iPadでもカラムが収まる</div>
+      </div>
+
+      <!-- ステータスごとの操作テーブル（修理） -->
+      <div style="margin-bottom:24px;">
+        <div style="font-size:0.85rem; font-weight:600; margin-bottom:12px; color:#1e293b;">修理 — ステータスごとの操作と入力項目</div>
+        <table class="wf-table" style="font-size:0.78rem;">
+          <thead>
+            <tr>
+              <th style="width:80px;">現ステータス</th>
+              <th style="width:80px;">操作者</th>
+              <th style="width:120px;">展開内のボタン</th>
+              <th>押下時の動作</th>
+              <th style="width:80px;">次ステータス</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="wf-badge" style="background:#fef3c7;color:#92400e;">依頼中</span></td>
+              <td style="font-weight:500;">本社</td>
+              <td><span class="wf-btn wf-btn-primary" style="font-size:0.68rem;">対応中にする</span></td>
+              <td>確認ダイアログを表示 →<br>
+                <strong>メモ</strong>（任意）<br>
+                →「対応中にする」で確定<br>
+                <span style="font-size:0.68rem;color:#94a3b8;">操作者・日時はログイン情報から自動記録</span></td>
+              <td><span class="wf-badge" style="background:#dbeafe;color:#1e40af;">対応中</span></td>
+            </tr>
+            <tr>
+              <td><span class="wf-badge" style="background:#dbeafe;color:#1e40af;">対応中</span></td>
+              <td style="font-weight:500;">本社</td>
+              <td><span class="wf-btn wf-btn-primary" style="font-size:0.68rem;">発注確定にする</span></td>
+              <td>
+                ダイアログを表示 →<br>
+                <strong>見積金額</strong>（必須）<br>
+                <strong>修理予定日</strong>（任意）: まだ不明な場合もあるため必須にしない<br>
+                <strong>メモ</strong>（任意）: 業者名や備考<br>
+                →「発注確定にする」で確定<br>
+                <span style="font-size:0.68rem;color:#94a3b8;">操作者・日時は自動記録</span>
+              </td>
+              <td><span class="wf-badge" style="background:#e0e7ff;color:#3730a3;">発注済</span></td>
+            </tr>
+            <tr style="background:#fdf2f8;">
+              <td><span class="wf-badge" style="background:#e0e7ff;color:#3730a3;">発注済</span></td>
+              <td style="font-weight:500; color:#9d174d;">店舗</td>
+              <td><span class="wf-btn" style="font-size:0.68rem; background:#ec4899; color:#fff;">修理完了にする</span></td>
+              <td>
+                ダイアログを表示 →<br>
+                <strong>修理完了日</strong>（必須）<br>
+                <strong>メモ</strong>（任意）: 稼働状況や業者の対応内容など<br>
+                →「修理完了にする」で確定<br>
+                <span style="font-size:0.68rem;color:#94a3b8;">報告者・日時は自動記録</span>
+              </td>
+              <td><span class="wf-badge" style="background:#fce7f3;color:#9d174d;">修理済</span></td>
+            </tr>
+            <tr>
+              <td><span class="wf-badge" style="background:#fce7f3;color:#9d174d;">修理済</span></td>
+              <td style="font-weight:500;">本社</td>
+              <td><span class="wf-btn wf-btn-success" style="font-size:0.68rem;">完了にする</span></td>
+              <td>
+                ダイアログを表示 →<br>
+                <strong>最終金額</strong>（必須）: 見積額との差額を自動表示<br>
+                <strong>メモ</strong>（任意）<br>
+                <span style="font-size:0.68rem;color:#94a3b8;">完了日は自動記録</span>
+              </td>
+              <td><span class="wf-badge" style="background:#d1fae5;color:#065f46;">完了</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- ステータスごとの操作テーブル（備品） -->
+      <div style="margin-bottom:24px;">
+        <div style="font-size:0.85rem; font-weight:600; margin-bottom:12px; color:#1e293b;">備品 — ステータスごとの操作と入力項目</div>
+        <table class="wf-table" style="font-size:0.78rem;">
+          <thead>
+            <tr>
+              <th style="width:80px;">現ステータス</th>
+              <th style="width:80px;">操作者</th>
+              <th style="width:120px;">展開内のボタン</th>
+              <th>押下時の動作</th>
+              <th style="width:80px;">次ステータス</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="wf-badge" style="background:#fef3c7;color:#92400e;">依頼中</span></td>
+              <td style="font-weight:500;">本社</td>
+              <td><span class="wf-btn wf-btn-primary" style="font-size:0.68rem;">対応中にする</span></td>
+              <td>確認ダイアログ → メモ（任意）→「対応中にする」で確定</td>
+              <td><span class="wf-badge" style="background:#dbeafe;color:#1e40af;">対応中</span></td>
+            </tr>
+            <tr>
+              <td><span class="wf-badge" style="background:#dbeafe;color:#1e40af;">対応中</span></td>
+              <td style="font-weight:500;">本社</td>
+              <td><span class="wf-btn wf-btn-primary" style="font-size:0.68rem;">発注確定にする</span></td>
+              <td>
+                ダイアログを表示 →<br>
+                <strong>金額</strong>（必須）<br>
+                <strong>納品予定日</strong>（必須）: 自動完了のトリガーとなる日付<br>
+                <strong>メモ</strong>（任意）
+              </td>
+              <td><span class="wf-badge" style="background:#e0e7ff;color:#3730a3;">発注済</span></td>
+            </tr>
+            <tr style="background:#f0fdf4;">
+              <td><span class="wf-badge" style="background:#e0e7ff;color:#3730a3;">発注済</span></td>
+              <td style="font-weight:500; color:#16a34a;">自動</td>
+              <td><span style="font-size:0.68rem; color:#16a34a; font-weight:600;">（システム自動）</span></td>
+              <td>
+                納品予定日の到来でシステムが自動的に完了へ遷移<br>
+                <span style="font-size:0.68rem;color:#94a3b8;">倉庫在庫のためスケジュールが確定的</span>
+              </td>
+              <td><span class="wf-badge" style="background:#d1fae5;color:#065f46;">完了</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- メインワイヤーフレーム: 展開イメージ -->
+      <div class="wireframe">
+        <div class="wireframe-header">発注一覧 — 修理依頼の行展開イメージ（本社ビュー）</div>
+        <div class="wireframe-body" style="padding:0;">
+          <!-- 一覧（既存カラムのまま） -->
+          <table class="wf-table" style="margin:0;">
+            <thead>
+              <tr>
+                <th style="width:30px;"></th>
+                <th>種別</th>
+                <th>発注番号</th>
+                <th>カテゴリ</th>
+                <th>内容</th>
+                <th>発注数</th>
+                <th>金額</th>
+                <th>ステータス</th>
+                <th>発注日</th>
+                <th style="width:50px;">詳細</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style="background:#eff6ff; border-left:3px solid #3b82f6;">
+                <td><input type="checkbox" disabled></td>
+                <td style="color:#dc2626;font-weight:600;">修理</td>
+                <td>ORD-2026-001</td>
+                <td>フィットネス</td>
+                <td>ランニングマシン ベルト異常</td>
+                <td>1</td>
+                <td style="text-align:right;color:#94a3b8;">—</td>
+                <td><span class="wf-badge" style="background:#fef3c7;color:#92400e;">依頼中</span></td>
+                <td>2026-02-25</td>
+                <td style="text-align:center; font-size:0.68rem; color:#3b82f6; cursor:pointer;">−</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <!-- 展開された詳細エリア -->
+          <div style="background:#f8fafc; border-top:1px solid #e2e8f0; padding:20px 24px;">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:24px;">
+
+              <!-- 左: 店舗入力情報（読み取り専用） -->
+              <div>
+                <div style="font-weight:600; font-size:0.78rem; color:#2563eb; margin-bottom:10px; display:flex; align-items:center; gap:4px;">
+                  <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 1v14M1 8h14"/></svg>
+                  店舗からの依頼内容
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px 16px; font-size:0.75rem;">
+                  <div>
+                    <div style="color:#94a3b8; font-size:0.68rem; margin-bottom:2px;">故障機材</div>
+                    <div style="font-weight:500;">ランニングマシン TR-800</div>
+                  </div>
+                  <div>
+                    <div style="color:#94a3b8; font-size:0.68rem; margin-bottom:2px;">不具合内容</div>
+                    <div style="font-weight:500;">ベルトが滑る。異音が発生。</div>
+                  </div>
+                  <div>
+                    <div style="color:#94a3b8; font-size:0.68rem; margin-bottom:2px;">対応不可日時</div>
+                    <div style="font-weight:500;">2026-03-05（終日）、2026-03-12（午前）</div>
+                  </div>
+                  <div>
+                    <div style="color:#94a3b8; font-size:0.68rem; margin-bottom:2px;">対応不可曜日</div>
+                    <div style="font-weight:500;">火曜日、木曜日</div>
+                  </div>
+                </div>
+                <div style="margin-top:12px;">
+                  <div style="color:#94a3b8; font-size:0.68rem; margin-bottom:6px;">故障写真（2枚）</div>
+                  <div style="display:flex; gap:8px;">
+                    <div style="width:64px;height:64px;background:#e2e8f0;border-radius:6px;display:flex;align-items:center;justify-content:center;">
+                      <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#94a3b8" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+                    </div>
+                    <div style="width:64px;height:64px;background:#e2e8f0;border-radius:6px;display:flex;align-items:center;justify-content:center;">
+                      <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#94a3b8" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 右: 対応情報 + ステータス履歴 -->
+              <div>
+                <div style="font-weight:600; font-size:0.78rem; color:#f59e0b; margin-bottom:10px; display:flex; align-items:center; gap:4px;">
+                  <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M11.5 1.5l3 3L5 14H2v-3L11.5 1.5z"/></svg>
+                  対応情報
+                </div>
+
+                <!-- 発注情報（発注済以降に表示） -->
+                <div style="padding:10px 14px; background:#f1f5f9; border-radius:6px; font-size:0.75rem; margin-bottom:12px;">
+                  <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px 16px;">
+                    <div>
+                      <span style="color:#94a3b8; font-size:0.68rem;">見積金額</span>
+                      <div style="font-weight:500; color:#94a3b8;">—（発注確定時に入力）</div>
+                    </div>
+                    <div>
+                      <span style="color:#94a3b8; font-size:0.68rem;">修理予定日</span>
+                      <div style="font-weight:500; color:#94a3b8;">—（発注確定時に入力）</div>
+                    </div>
+                  </div>
+                  <div style="font-size:0.65rem; color:#94a3b8; margin-top:4px;">※ 発注確定ダイアログで入力した内容がここに表示されます</div>
+                </div>
+
+                <!-- ステータス履歴 -->
+                <div style="padding-top:4px;">
+                  <div style="font-weight:600; font-size:0.72rem; color:#64748b; margin-bottom:8px;">ステータス履歴</div>
+                  <div style="border-left:2px solid #e2e8f0; padding-left:12px; margin-left:6px;">
+                    <div style="position:relative; padding-bottom:10px;">
+                      <div style="position:absolute;left:-18px;top:2px;width:10px;height:10px;border-radius:50%;background:#3b82f6;border:2px solid #fff;box-shadow:0 0 0 2px #3b82f6;"></div>
+                      <div style="font-size:0.72rem;font-weight:600;color:#3b82f6;">依頼中 ← 現在</div>
+                      <div style="font-size:0.65rem;color:#94a3b8;">2026/02/25 09:15 — 新宿東口店 田中太郎</div>
+                    </div>
+                  </div>
+                  <div style="font-size:0.65rem; color:#94a3b8; margin-top:4px;">※ 各ステータス遷移時のメモもここに表示されます</div>
+                </div>
+
+                <!-- アクションボタン（展開エリア内） -->
+                <div style="margin-top:16px; padding-top:16px; border-top:1px solid #e2e8f0; display:flex; justify-content:flex-end; gap:8px;">
+                  <span class="wf-btn wf-btn-primary" style="font-size:0.75rem; padding:8px 20px;">対応中にする</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ダイアログ例 -->
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:16px;">
+        <div class="wireframe">
+          <div class="wireframe-header">①「対応中にする」ダイアログ（本社）</div>
+          <div class="wireframe-body">
+            <div style="font-weight:600; font-size:0.82rem; margin-bottom:12px; text-align:center;">対応中にする</div>
+            <div class="wf-row"><span class="wf-label">発注番号</span><div class="wf-input" style="background:#f8fafc;">ORD-2026-001</div></div>
+            <div class="wf-row"><span class="wf-label">内容</span><div class="wf-input" style="background:#f8fafc;">ランニングマシン ベルト異常</div></div>
+            <hr class="wf-divider">
+            <div class="wf-row">
+              <span class="wf-label">メモ</span>
+              <div class="wf-input" style="height:40px;background:#fff;color:#94a3b8;align-items:flex-start;padding-top:6px;">任意入力</div>
+            </div>
+            <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:12px;">
+              <span class="wf-btn wf-btn-outline">キャンセル</span>
+              <span class="wf-btn wf-btn-primary">対応中にする</span>
+            </div>
+          </div>
+        </div>
+        <div class="wireframe">
+          <div class="wireframe-header">②「発注確定にする」ダイアログ（本社）</div>
+          <div class="wireframe-body">
+            <div style="font-weight:600; font-size:0.82rem; margin-bottom:12px; text-align:center;">発注を確定する</div>
+            <div class="wf-row"><span class="wf-label">発注番号</span><div class="wf-input" style="background:#f8fafc;">ORD-2026-001</div></div>
+            <hr class="wf-divider">
+            <div class="wf-row">
+              <span class="wf-label">見積金額 <span style="color:#dc2626;">*</span></span>
+              <div class="wf-input" style="border-color:#3b82f6;background:#fff;">¥85,000</div>
+            </div>
+            <div class="wf-row">
+              <span class="wf-label">修理予定日</span>
+              <div class="wf-input" style="background:#fff;color:#94a3b8;">年/月/日</div>
+            </div>
+            <div class="wf-row">
+              <span class="wf-label">メモ</span>
+              <div class="wf-input" style="height:40px;background:#fff;color:#94a3b8;align-items:flex-start;padding-top:6px;">任意入力</div>
+            </div>
+            <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:12px;">
+              <span class="wf-btn wf-btn-outline">キャンセル</span>
+              <span class="wf-btn wf-btn-primary">発注確定にする</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:16px;">
+        <div class="wireframe">
+          <div class="wireframe-header">③「修理完了にする」ダイアログ（店舗）</div>
+          <div class="wireframe-body">
+            <div style="font-weight:600; font-size:0.82rem; margin-bottom:12px; text-align:center;">修理完了にする</div>
+            <div class="wf-row"><span class="wf-label">発注番号</span><div class="wf-input" style="background:#f8fafc;">ORD-2026-001</div></div>
+            <div class="wf-row"><span class="wf-label">機材名</span><div class="wf-input" style="background:#f8fafc;">ランニングマシン TR-800</div></div>
+            <hr class="wf-divider">
+            <div style="padding:8px 12px; background:#f0fdf4; border-radius:6px; font-size:0.72rem; color:#166534; margin-bottom:8px;">
+              修理が完了し、機材が正常に稼働していることを確認してから報告してください。
+            </div>
+            <div class="wf-row">
+              <span class="wf-label">修理完了日 <span style="color:#dc2626;">*</span></span>
+              <div class="wf-input" style="border-color:#ec4899;background:#fff;">2026/03/10</div>
+            </div>
+            <div class="wf-row">
+              <span class="wf-label">メモ</span>
+              <div class="wf-input" style="height:40px;background:#fff;color:#94a3b8;align-items:flex-start;padding-top:6px;">稼働状況や備考</div>
+            </div>
+            <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:12px;">
+              <span class="wf-btn wf-btn-outline">キャンセル</span>
+              <span class="wf-btn" style="background:#ec4899;color:#fff;">修理完了にする</span>
+            </div>
+          </div>
+        </div>
+        <div class="wireframe">
+          <div class="wireframe-header">④「完了にする」ダイアログ（本社）</div>
+          <div class="wireframe-body">
+            <div style="font-weight:600; font-size:0.82rem; margin-bottom:12px; text-align:center;">完了にする</div>
+            <div class="wf-row"><span class="wf-label">見積額</span><div class="wf-input" style="background:#f8fafc;">¥85,000</div></div>
+            <hr class="wf-divider">
+            <div class="wf-row">
+              <span class="wf-label">最終金額 <span style="color:#dc2626;">*</span></span>
+              <div class="wf-input" style="border-color:#f59e0b;background:#fffbeb;color:#92400e;">¥72,000</div>
+            </div>
+            <div style="display:flex; justify-content:space-between; padding:4px 0; font-size:0.7rem;">
+              <span style="color:#94a3b8;">差額</span>
+              <span style="color:#16a34a; font-weight:600;">-¥13,000</span>
+            </div>
+            <div class="wf-row">
+              <span class="wf-label">メモ</span>
+              <div class="wf-input" style="height:40px;background:#fff;color:#94a3b8;align-items:flex-start;padding-top:6px;">任意入力</div>
+            </div>
+            <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:12px;">
+              <span class="wf-btn wf-btn-outline">キャンセル</span>
+              <span class="wf-btn wf-btn-success">完了にする</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:20px; font-size:0.82rem; color:#475569;">
+        <strong>設計のポイント：</strong>
+        <ul style="margin-top:4px; padding-left:20px;">
+          <li><strong>一覧カラムは既存のまま</strong> — 種別/発注番号/カテゴリ/内容/発注数/金額/ステータス/発注日/詳細。操作列を追加しないため、iPadでも横幅が収まる</li>
+          <li><strong>「内容を確認してからアクション」の自然な流れ</strong> — 展開して依頼内容を確認した上でステータス更新ボタンを押す</li>
+          <li><strong>左側＝店舗の入力情報（読み取り専用）</strong> — 故障機材、不具合内容、対応不可日時/曜日、写真。本社が業者に依頼する際に必要な情報がすべて揃っている</li>
+          <li><strong>右側＝対応情報＋ステータス履歴＋アクションボタン</strong> — ダイアログで入力された情報（見積金額・修理予定日等）の表示、ステータス遷移の時系列表示、次段階への遷移ボタン</li>
+          <li><strong>入力はすべてダイアログで完結</strong> — 展開エリア内にインライン入力欄を持たない。ダイアログで入力した内容は対応情報エリアとステータス履歴に反映</li>
+          <li><strong>メモはステータス履歴に紐づけ</strong> — 各ダイアログにメモ欄（任意）を設置。ステータス遷移ごとのメモが時系列で閲覧でき、専用のメモ欄＋保存ボタンは不要</li>
+          <li><strong>本社と店舗の双方が参加</strong> — 修理では店舗が「修理完了確認」で稼働確認を報告。本社は機材の稼働状況を把握できる</li>
+          <li><strong>備品は自動完了</strong> — 発注確定時に納品予定日を入力。予定日到来でシステムが自動的に完了に遷移し、手動更新を削減</li>
+        </ul>
+      </div>
+
+      <!-- 種別ごとの展開表示内容 -->
+      <div style="margin-top:20px;">
+        <div style="font-size:0.85rem; font-weight:600; margin-bottom:12px; color:#1e293b;">種別ごとの展開表示項目</div>
+        <table class="wf-table" style="font-size:0.78rem;">
+          <thead>
+            <tr>
+              <th>表示項目</th>
+              <th>修理</th>
+              <th>備品</th>
+              <th>部品</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="font-weight:500;">故障機材名 / 商品名 / 部品名</td>
+              <td style="text-align:center;">○</td>
+              <td style="text-align:center;">○</td>
+              <td style="text-align:center;">○</td>
+            </tr>
+            <tr>
+              <td style="font-weight:500;">不具合内容 / 発注理由</td>
+              <td style="text-align:center;">○</td>
+              <td style="text-align:center;">—</td>
+              <td style="text-align:center;">○</td>
+            </tr>
+            <tr>
+              <td style="font-weight:500;">対応不可日時・曜日</td>
+              <td style="text-align:center;">○</td>
+              <td style="text-align:center;">—</td>
+              <td style="text-align:center;">—</td>
+            </tr>
+            <tr>
+              <td style="font-weight:500;">写真</td>
+              <td style="text-align:center;">○（最大3枚）</td>
+              <td style="text-align:center;">—</td>
+              <td style="text-align:center;">○（最大3枚）</td>
+            </tr>
+            <tr>
+              <td style="font-weight:500;">対象機材名</td>
+              <td style="text-align:center;">—</td>
+              <td style="text-align:center;">—</td>
+              <td style="text-align:center;">○</td>
+            </tr>
+            <tr>
+              <td style="font-weight:500;">数量</td>
+              <td style="text-align:center;">—</td>
+              <td style="text-align:center;">○</td>
+              <td style="text-align:center;">○</td>
+            </tr>
+            <tr style="background:#fffbeb;">
+              <td style="font-weight:500;">見積金額 / 金額（ダイアログ入力）</td>
+              <td style="text-align:center;">○</td>
+              <td style="text-align:center;">○</td>
+              <td style="text-align:center;">○</td>
+            </tr>
+            <tr style="background:#fffbeb;">
+              <td style="font-weight:500;">修理予定日 / 納品予定日（ダイアログ入力）</td>
+              <td style="text-align:center;">○</td>
+              <td style="text-align:center;">○（必須）</td>
+              <td style="text-align:center;">○</td>
+            </tr>
+            <tr style="background:#fffbeb;">
+              <td style="font-weight:500;">ステータス履歴（メモ含む）</td>
+              <td style="text-align:center;">○</td>
+              <td style="text-align:center;">○</td>
+              <td style="text-align:center;">○</td>
+            </tr>
+            <tr style="background:#fffbeb;">
+              <td style="font-weight:500;">アクションボタン</td>
+              <td style="text-align:center;">○（店舗＋本社）</td>
+              <td style="text-align:center;">○（本社のみ）</td>
+              <td style="text-align:center;">○</td>
+            </tr>
+          </tbody>
+        </table>
+        <div style="font-size:0.7rem; color:#94a3b8; margin-top:4px;">黄色背景 = ダイアログで入力 or 操作する項目（対応情報エリアに表示）</div>
+      </div>
+    </div>
+
+    <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+    <!-- STATUS MATRIX: 全種別×全ステータス 画面一覧 -->
+    <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+    <div class="section" id="status-matrix">
+      <span class="section-label label-flow">REFERENCE</span>
+      <h2>全種別 × 全ステータス — 画面状態一覧</h2>
+      <p class="section-desc">本社ビュー・店舗ビューそれぞれで、種別とステータスの組み合わせごとに「対応情報カード」「アクションボタン」がどう表示されるかを一覧化</p>
+
+      <!-- =============================== -->
+      <!-- 本社ビュー -->
+      <!-- =============================== -->
+      <h3 style="font-size:1.05rem; margin:24px 0 16px; padding-bottom:8px; border-bottom:2px solid #1e293b;">本社ビュー（role=admin）</h3>
+
+      <!-- ── 修理 × 本社 ── -->
+      <div style="margin-bottom:32px;">
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
+          <span class="wf-badge" style="background:#fef2f2; color:#dc2626; font-size:0.8rem; padding:4px 12px;">修理</span>
+          <span style="font-size:0.85rem; font-weight:600;">— 本社ビュー（5段階）</span>
+        </div>
+        <div style="display:grid; grid-template-columns:repeat(5, 1fr); gap:12px;">
+          <!-- 依頼中 -->
+          <div style="border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">
+            <div style="background:#fef3c7; padding:6px 10px; font-size:0.72rem; font-weight:600; color:#92400e; text-align:center;">依頼中</div>
+            <div style="padding:10px; font-size:0.68rem;">
+              <div style="background:#f1f5f9; border-radius:4px; padding:8px; margin-bottom:8px;">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px;">
+                  <div><span style="color:#94a3b8;">見積金額</span><br><strong>—</strong></div>
+                  <div><span style="color:#94a3b8;">修理予定日</span><br><strong>—</strong></div>
+                  <div><span style="color:#94a3b8;">最終金額</span><br><strong>—</strong></div>
+                  <div><span style="color:#94a3b8;">修理完了日</span><br><strong>—</strong></div>
+                </div>
+              </div>
+              <div style="text-align:right;">
+                <span class="wf-btn wf-btn-primary" style="font-size:0.62rem; padding:4px 10px;">対応中にする</span>
+              </div>
+            </div>
+          </div>
+          <!-- 対応中 -->
+          <div style="border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">
+            <div style="background:#dbeafe; padding:6px 10px; font-size:0.72rem; font-weight:600; color:#1e40af; text-align:center;">対応中</div>
+            <div style="padding:10px; font-size:0.68rem;">
+              <div style="background:#f1f5f9; border-radius:4px; padding:8px; margin-bottom:8px;">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px;">
+                  <div><span style="color:#94a3b8;">見積金額</span><br><strong>—</strong></div>
+                  <div><span style="color:#94a3b8;">修理予定日</span><br><strong>—</strong></div>
+                  <div><span style="color:#94a3b8;">最終金額</span><br><strong>—</strong></div>
+                  <div><span style="color:#94a3b8;">修理完了日</span><br><strong>—</strong></div>
+                </div>
+              </div>
+              <div style="text-align:right;">
+                <span class="wf-btn wf-btn-primary" style="font-size:0.62rem; padding:4px 10px;">発注確定にする</span>
+              </div>
+            </div>
+          </div>
+          <!-- 発注済 -->
+          <div style="border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">
+            <div style="background:#e0e7ff; padding:6px 10px; font-size:0.72rem; font-weight:600; color:#3730a3; text-align:center;">発注済</div>
+            <div style="padding:10px; font-size:0.68rem;">
+              <div style="background:#f1f5f9; border-radius:4px; padding:8px; margin-bottom:8px;">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px;">
+                  <div><span style="color:#94a3b8;">見積金額</span><br><strong>¥85,000</strong></div>
+                  <div><span style="color:#94a3b8;">修理予定日</span><br><strong>2026-03-10</strong></div>
+                  <div><span style="color:#94a3b8;">最終金額</span><br><strong>—</strong></div>
+                  <div><span style="color:#94a3b8;">修理完了日</span><br><strong>—</strong></div>
+                </div>
+              </div>
+              <div style="text-align:right;">
+                <span style="font-size:0.62rem; color:#94a3b8;">店舗修理待ち</span>
+              </div>
+            </div>
+          </div>
+          <!-- 修理済 -->
+          <div style="border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">
+            <div style="background:#fce7f3; padding:6px 10px; font-size:0.72rem; font-weight:600; color:#9d174d; text-align:center;">修理済</div>
+            <div style="padding:10px; font-size:0.68rem;">
+              <div style="background:#f1f5f9; border-radius:4px; padding:8px; margin-bottom:8px;">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px;">
+                  <div><span style="color:#94a3b8;">見積金額</span><br><strong>¥85,000</strong></div>
+                  <div><span style="color:#94a3b8;">修理予定日</span><br><strong>2026-03-10</strong></div>
+                  <div><span style="color:#94a3b8;">最終金額</span><br><strong>—</strong></div>
+                  <div><span style="color:#94a3b8;">修理完了日</span><br><strong>2026-03-10</strong></div>
+                </div>
+              </div>
+              <div style="text-align:right;">
+                <span class="wf-btn wf-btn-success" style="font-size:0.62rem; padding:4px 10px;">完了にする</span>
+              </div>
+            </div>
+          </div>
+          <!-- 完了 -->
+          <div style="border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">
+            <div style="background:#d1fae5; padding:6px 10px; font-size:0.72rem; font-weight:600; color:#065f46; text-align:center;">完了</div>
+            <div style="padding:10px; font-size:0.68rem;">
+              <div style="background:#f1f5f9; border-radius:4px; padding:8px; margin-bottom:8px;">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px;">
+                  <div><span style="color:#94a3b8;">見積金額</span><br><strong>¥85,000</strong></div>
+                  <div><span style="color:#94a3b8;">修理予定日</span><br><strong>2026-03-10</strong></div>
+                  <div><span style="color:#94a3b8;">最終金額</span><br><strong style="color:#065f46;">¥72,000</strong></div>
+                  <div><span style="color:#94a3b8;">修理完了日</span><br><strong>2026-03-10</strong></div>
+                </div>
+              </div>
+              <div style="text-align:right;">
+                <span style="font-size:0.62rem; color:#94a3b8;">修理完了</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── 備品 × 本社 ── -->
+      <div style="margin-bottom:32px;">
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
+          <span class="wf-badge" style="background:#eff6ff; color:#2563eb; font-size:0.8rem; padding:4px 12px;">備品</span>
+          <span style="font-size:0.85rem; font-weight:600;">— 本社ビュー（4段階・自動完了）</span>
+        </div>
+        <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:12px;">
+          <!-- 依頼中 -->
+          <div style="border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">
+            <div style="background:#fef3c7; padding:6px 10px; font-size:0.72rem; font-weight:600; color:#92400e; text-align:center;">依頼中</div>
+            <div style="padding:10px; font-size:0.68rem;">
+              <div style="background:#f1f5f9; border-radius:4px; padding:8px; margin-bottom:8px;">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px;">
+                  <div><span style="color:#94a3b8;">見積金額</span><br><strong>¥22,900</strong></div>
+                  <div><span style="color:#94a3b8;">納品予定日</span><br><strong>2026-03-23</strong></div>
+                  <div><span style="color:#94a3b8;">最終金額</span><br><strong style="color:#94a3b8;">—</strong></div>
+                  <div><span style="color:#94a3b8;">納品日</span><br><strong style="color:#94a3b8;">—</strong></div>
+                </div>
+              </div>
+              <div style="text-align:right;">
+                <span class="wf-btn wf-btn-primary" style="font-size:0.62rem; padding:4px 10px;">対応中にする</span>
+              </div>
+            </div>
+          </div>
+          <!-- 対応中 -->
+          <div style="border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">
+            <div style="background:#dbeafe; padding:6px 10px; font-size:0.72rem; font-weight:600; color:#1e40af; text-align:center;">対応中</div>
+            <div style="padding:10px; font-size:0.68rem;">
+              <div style="background:#f1f5f9; border-radius:4px; padding:8px; margin-bottom:8px;">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px;">
+                  <div><span style="color:#94a3b8;">見積金額</span><br><strong>¥22,900</strong></div>
+                  <div><span style="color:#94a3b8;">納品予定日</span><br><strong>2026-03-23</strong></div>
+                  <div><span style="color:#94a3b8;">最終金額</span><br><strong style="color:#94a3b8;">—</strong></div>
+                  <div><span style="color:#94a3b8;">納品日</span><br><strong style="color:#94a3b8;">—</strong></div>
+                </div>
+              </div>
+              <div style="text-align:right;">
+                <span class="wf-btn wf-btn-primary" style="font-size:0.62rem; padding:4px 10px;">発注確定にする</span>
+              </div>
+            </div>
+          </div>
+          <!-- 発注済 -->
+          <div style="border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">
+            <div style="background:#e0e7ff; padding:6px 10px; font-size:0.72rem; font-weight:600; color:#3730a3; text-align:center;">発注済</div>
+            <div style="padding:10px; font-size:0.68rem;">
+              <div style="background:#f1f5f9; border-radius:4px; padding:8px; margin-bottom:8px;">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px;">
+                  <div><span style="color:#94a3b8;">見積金額</span><br><strong>¥22,900</strong></div>
+                  <div><span style="color:#94a3b8;">納品予定日</span><br><strong>2026-03-23</strong></div>
+                  <div><span style="color:#94a3b8;">最終金額</span><br><strong style="color:#94a3b8;">—</strong></div>
+                  <div><span style="color:#94a3b8;">納品日</span><br><strong style="color:#94a3b8;">—</strong></div>
+                </div>
+              </div>
+              <div style="text-align:right;">
+                <span class="wf-btn wf-btn-success" style="font-size:0.62rem; padding:4px 10px;">完了にする</span>
+              </div>
+            </div>
+          </div>
+          <!-- 完了 -->
+          <div style="border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">
+            <div style="background:#d1fae5; padding:6px 10px; font-size:0.72rem; font-weight:600; color:#065f46; text-align:center;">完了</div>
+            <div style="padding:10px; font-size:0.68rem;">
+              <div style="background:#f1f5f9; border-radius:4px; padding:8px; margin-bottom:8px;">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px;">
+                  <div><span style="color:#94a3b8;">見積金額</span><br><strong>¥22,900</strong></div>
+                  <div><span style="color:#94a3b8;">納品予定日</span><br><strong>2026-03-23</strong></div>
+                  <div><span style="color:#94a3b8;">最終金額</span><br><strong>¥23,100</strong></div>
+                  <div><span style="color:#94a3b8;">納品日</span><br><strong>2026-03-24</strong></div>
+                </div>
+              </div>
+              <div style="text-align:right;">
+                <span style="font-size:0.62rem; color:#94a3b8;">納品完了</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── 部品 × 本社 ── -->
+      <div style="margin-bottom:32px;">
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
+          <span class="wf-badge" style="background:#f0fdf4; color:#16a34a; font-size:0.8rem; padding:4px 12px;">部品</span>
+          <span style="font-size:0.85rem; font-weight:600;">— 本社ビュー（4段階）</span>
+        </div>
+        <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:12px;">
+          <!-- 依頼中 -->
+          <div style="border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">
+            <div style="background:#fef3c7; padding:6px 10px; font-size:0.72rem; font-weight:600; color:#92400e; text-align:center;">依頼中</div>
+            <div style="padding:10px; font-size:0.68rem;">
+              <div style="background:#f1f5f9; border-radius:4px; padding:8px; margin-bottom:8px;">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px;">
+                  <div><span style="color:#94a3b8;">見積金額</span><br><strong>—</strong></div>
+                  <div><span style="color:#94a3b8;">納品予定日</span><br><strong>—</strong></div>
+                  <div><span style="color:#94a3b8;">最終金額</span><br><strong>—</strong></div>
+                </div>
+              </div>
+              <div style="text-align:right;">
+                <span class="wf-btn wf-btn-primary" style="font-size:0.62rem; padding:4px 10px;">対応中にする</span>
+              </div>
+            </div>
+          </div>
+          <!-- 対応中 -->
+          <div style="border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">
+            <div style="background:#dbeafe; padding:6px 10px; font-size:0.72rem; font-weight:600; color:#1e40af; text-align:center;">対応中</div>
+            <div style="padding:10px; font-size:0.68rem;">
+              <div style="background:#f1f5f9; border-radius:4px; padding:8px; margin-bottom:8px;">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px;">
+                  <div><span style="color:#94a3b8;">見積金額</span><br><strong>—</strong></div>
+                  <div><span style="color:#94a3b8;">納品予定日</span><br><strong>—</strong></div>
+                  <div><span style="color:#94a3b8;">最終金額</span><br><strong>—</strong></div>
+                </div>
+              </div>
+              <div style="text-align:right;">
+                <span class="wf-btn wf-btn-primary" style="font-size:0.62rem; padding:4px 10px;">発注確定にする</span>
+              </div>
+            </div>
+          </div>
+          <!-- 発注済 -->
+          <div style="border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">
+            <div style="background:#e0e7ff; padding:6px 10px; font-size:0.72rem; font-weight:600; color:#3730a3; text-align:center;">発注済</div>
+            <div style="padding:10px; font-size:0.68rem;">
+              <div style="background:#f1f5f9; border-radius:4px; padding:8px; margin-bottom:8px;">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px;">
+                  <div><span style="color:#94a3b8;">見積金額</span><br><strong>¥12,000</strong></div>
+                  <div><span style="color:#94a3b8;">納品予定日</span><br><strong>2026-03-20</strong></div>
+                  <div><span style="color:#94a3b8;">最終金額</span><br><strong>—</strong></div>
+                </div>
+              </div>
+              <div style="text-align:right;">
+                <span class="wf-btn wf-btn-success" style="font-size:0.62rem; padding:4px 10px;">完了にする</span>
+              </div>
+            </div>
+          </div>
+          <!-- 完了 -->
+          <div style="border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">
+            <div style="background:#d1fae5; padding:6px 10px; font-size:0.72rem; font-weight:600; color:#065f46; text-align:center;">完了</div>
+            <div style="padding:10px; font-size:0.68rem;">
+              <div style="background:#f1f5f9; border-radius:4px; padding:8px; margin-bottom:8px;">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px;">
+                  <div><span style="color:#94a3b8;">見積金額</span><br><strong>¥12,000</strong></div>
+                  <div><span style="color:#94a3b8;">納品予定日</span><br><strong>2026-03-20</strong></div>
+                  <div><span style="color:#94a3b8;">最終金額</span><br><strong style="color:#065f46;">¥11,500</strong></div>
+                </div>
+              </div>
+              <div style="text-align:right;">
+                <span style="font-size:0.62rem; color:#94a3b8;">納品完了</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- =============================== -->
+      <!-- 店舗ビュー -->
+      <!-- =============================== -->
+      <h3 style="font-size:1.05rem; margin:32px 0 16px; padding-bottom:8px; border-bottom:2px solid #1e293b;">店舗ビュー（role=store）</h3>
+
+      <!-- ── 修理 × 店舗 ── -->
+      <div style="margin-bottom:32px;">
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
+          <span class="wf-badge" style="background:#fef2f2; color:#dc2626; font-size:0.8rem; padding:4px 12px;">修理</span>
+          <span style="font-size:0.85rem; font-weight:600;">— 店舗ビュー（5段階）</span>
+        </div>
+        <div style="display:grid; grid-template-columns:repeat(5, 1fr); gap:12px;">
+          <!-- 依頼中 -->
+          <div style="border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">
+            <div style="background:#fef3c7; padding:6px 10px; font-size:0.72rem; font-weight:600; color:#92400e; text-align:center;">依頼中</div>
+            <div style="padding:10px; font-size:0.68rem;">
+              <div style="background:#f1f5f9; border-radius:4px; padding:8px; margin-bottom:8px;">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px;">
+                  <div><span style="color:#94a3b8;">見積金額</span><br><strong>—</strong></div>
+                  <div><span style="color:#94a3b8;">修理予定日</span><br><strong>—</strong></div>
+                  <div><span style="color:#94a3b8;">最終金額</span><br><strong>—</strong></div>
+                  <div><span style="color:#94a3b8;">修理完了日</span><br><strong>—</strong></div>
+                </div>
+              </div>
+              <div style="text-align:right;">
+                <span style="font-size:0.62rem; color:#94a3b8;">本部対応待ち</span>
+              </div>
+            </div>
+          </div>
+          <!-- 対応中 -->
+          <div style="border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">
+            <div style="background:#dbeafe; padding:6px 10px; font-size:0.72rem; font-weight:600; color:#1e40af; text-align:center;">対応中</div>
+            <div style="padding:10px; font-size:0.68rem;">
+              <div style="background:#f1f5f9; border-radius:4px; padding:8px; margin-bottom:8px;">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px;">
+                  <div><span style="color:#94a3b8;">見積金額</span><br><strong>—</strong></div>
+                  <div><span style="color:#94a3b8;">修理予定日</span><br><strong>—</strong></div>
+                  <div><span style="color:#94a3b8;">最終金額</span><br><strong>—</strong></div>
+                  <div><span style="color:#94a3b8;">修理完了日</span><br><strong>—</strong></div>
+                </div>
+              </div>
+              <div style="text-align:right;">
+                <span style="font-size:0.62rem; color:#94a3b8;">本部対応待ち</span>
+              </div>
+            </div>
+          </div>
+          <!-- 発注済 -->
+          <div style="border:1px solid #e2e8f0; border-radius:8px; overflow:hidden; border-color:#ec4899;">
+            <div style="background:#e0e7ff; padding:6px 10px; font-size:0.72rem; font-weight:600; color:#3730a3; text-align:center;">発注済</div>
+            <div style="padding:10px; font-size:0.68rem;">
+              <div style="background:#f1f5f9; border-radius:4px; padding:8px; margin-bottom:8px;">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px;">
+                  <div><span style="color:#94a3b8;">見積金額</span><br><strong>¥85,000</strong></div>
+                  <div><span style="color:#94a3b8;">修理予定日</span><br><strong>2026-03-10</strong></div>
+                  <div><span style="color:#94a3b8;">最終金額</span><br><strong>—</strong></div>
+                  <div><span style="color:#94a3b8;">修理完了日</span><br><strong>—</strong></div>
+                </div>
+              </div>
+              <div style="text-align:right;">
+                <span class="wf-btn" style="font-size:0.62rem; padding:4px 10px; background:#ec4899; color:#fff;">修理完了にする</span>
+              </div>
+            </div>
+          </div>
+          <!-- 修理済 -->
+          <div style="border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">
+            <div style="background:#fce7f3; padding:6px 10px; font-size:0.72rem; font-weight:600; color:#9d174d; text-align:center;">修理済</div>
+            <div style="padding:10px; font-size:0.68rem;">
+              <div style="background:#f1f5f9; border-radius:4px; padding:8px; margin-bottom:8px;">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px;">
+                  <div><span style="color:#94a3b8;">見積金額</span><br><strong>¥85,000</strong></div>
+                  <div><span style="color:#94a3b8;">修理予定日</span><br><strong>2026-03-10</strong></div>
+                  <div><span style="color:#94a3b8;">最終金額</span><br><strong>—</strong></div>
+                  <div><span style="color:#94a3b8;">修理完了日</span><br><strong>2026-03-10</strong></div>
+                </div>
+              </div>
+              <div style="text-align:right;">
+                <span style="font-size:0.62rem; color:#94a3b8;">金額確定待ち</span>
+              </div>
+            </div>
+          </div>
+          <!-- 完了 -->
+          <div style="border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">
+            <div style="background:#d1fae5; padding:6px 10px; font-size:0.72rem; font-weight:600; color:#065f46; text-align:center;">完了</div>
+            <div style="padding:10px; font-size:0.68rem;">
+              <div style="background:#f1f5f9; border-radius:4px; padding:8px; margin-bottom:8px;">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px;">
+                  <div><span style="color:#94a3b8;">見積金額</span><br><strong>¥85,000</strong></div>
+                  <div><span style="color:#94a3b8;">修理予定日</span><br><strong>2026-03-10</strong></div>
+                  <div><span style="color:#94a3b8;">最終金額</span><br><strong style="color:#065f46;">¥72,000</strong></div>
+                  <div><span style="color:#94a3b8;">修理完了日</span><br><strong>2026-03-10</strong></div>
+                </div>
+              </div>
+              <div style="text-align:right;">
+                <span style="font-size:0.62rem; color:#94a3b8;">修理完了</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── 備品 × 店舗 ── -->
+      <div style="margin-bottom:32px;">
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
+          <span class="wf-badge" style="background:#eff6ff; color:#2563eb; font-size:0.8rem; padding:4px 12px;">備品</span>
+          <span style="font-size:0.85rem; font-weight:600;">— 店舗ビュー（4段階）</span>
+        </div>
+        <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:12px;">
+          <!-- 依頼中 -->
+          <div style="border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">
+            <div style="background:#fef3c7; padding:6px 10px; font-size:0.72rem; font-weight:600; color:#92400e; text-align:center;">依頼中</div>
+            <div style="padding:10px; font-size:0.68rem;">
+              <div style="background:#f1f5f9; border-radius:4px; padding:8px; margin-bottom:8px;">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px;">
+                  <div><span style="color:#94a3b8;">見積金額</span><br><strong>¥22,900</strong></div>
+                  <div><span style="color:#94a3b8;">納品予定日</span><br><strong>2026-03-23</strong></div>
+                  <div><span style="color:#94a3b8;">最終金額</span><br><strong style="color:#94a3b8;">—</strong></div>
+                  <div><span style="color:#94a3b8;">納品日</span><br><strong style="color:#94a3b8;">—</strong></div>
+                </div>
+              </div>
+              <div style="text-align:right;">
+                <span style="font-size:0.62rem; color:#94a3b8;">本部対応待ち</span>
+              </div>
+            </div>
+          </div>
+          <!-- 対応中 -->
+          <div style="border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">
+            <div style="background:#dbeafe; padding:6px 10px; font-size:0.72rem; font-weight:600; color:#1e40af; text-align:center;">対応中</div>
+            <div style="padding:10px; font-size:0.68rem;">
+              <div style="background:#f1f5f9; border-radius:4px; padding:8px; margin-bottom:8px;">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px;">
+                  <div><span style="color:#94a3b8;">見積金額</span><br><strong>¥22,900</strong></div>
+                  <div><span style="color:#94a3b8;">納品予定日</span><br><strong>2026-03-23</strong></div>
+                  <div><span style="color:#94a3b8;">最終金額</span><br><strong style="color:#94a3b8;">—</strong></div>
+                  <div><span style="color:#94a3b8;">納品日</span><br><strong style="color:#94a3b8;">—</strong></div>
+                </div>
+              </div>
+              <div style="text-align:right;">
+                <span style="font-size:0.62rem; color:#94a3b8;">本部対応待ち</span>
+              </div>
+            </div>
+          </div>
+          <!-- 発注済 -->
+          <div style="border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">
+            <div style="background:#e0e7ff; padding:6px 10px; font-size:0.72rem; font-weight:600; color:#3730a3; text-align:center;">発注済</div>
+            <div style="padding:10px; font-size:0.68rem;">
+              <div style="background:#f1f5f9; border-radius:4px; padding:8px; margin-bottom:8px;">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px;">
+                  <div><span style="color:#94a3b8;">見積金額</span><br><strong>¥22,900</strong></div>
+                  <div><span style="color:#94a3b8;">納品予定日</span><br><strong>2026-03-23</strong></div>
+                  <div><span style="color:#94a3b8;">最終金額</span><br><strong style="color:#94a3b8;">—</strong></div>
+                  <div><span style="color:#94a3b8;">納品日</span><br><strong style="color:#94a3b8;">—</strong></div>
+                </div>
+              </div>
+              <div style="text-align:right;">
+                <span style="font-size:0.62rem; color:#94a3b8;">納品待ち</span>
+              </div>
+            </div>
+          </div>
+          <!-- 完了 -->
+          <div style="border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">
+            <div style="background:#d1fae5; padding:6px 10px; font-size:0.72rem; font-weight:600; color:#065f46; text-align:center;">完了</div>
+            <div style="padding:10px; font-size:0.68rem;">
+              <div style="background:#f1f5f9; border-radius:4px; padding:8px; margin-bottom:8px;">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px;">
+                  <div><span style="color:#94a3b8;">見積金額</span><br><strong>¥22,900</strong></div>
+                  <div><span style="color:#94a3b8;">納品予定日</span><br><strong>2026-03-23</strong></div>
+                  <div><span style="color:#94a3b8;">最終金額</span><br><strong>¥23,100</strong></div>
+                  <div><span style="color:#94a3b8;">納品日</span><br><strong>2026-03-24</strong></div>
+                </div>
+              </div>
+              <div style="text-align:right;">
+                <span style="font-size:0.62rem; color:#94a3b8;">納品完了</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── 部品 × 店舗 ── -->
+      <div style="margin-bottom:16px;">
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
+          <span class="wf-badge" style="background:#f0fdf4; color:#16a34a; font-size:0.8rem; padding:4px 12px;">部品</span>
+          <span style="font-size:0.85rem; font-weight:600;">— 店舗ビュー（4段階）</span>
+        </div>
+        <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:12px;">
+          <!-- 依頼中 -->
+          <div style="border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">
+            <div style="background:#fef3c7; padding:6px 10px; font-size:0.72rem; font-weight:600; color:#92400e; text-align:center;">依頼中</div>
+            <div style="padding:10px; font-size:0.68rem;">
+              <div style="background:#f1f5f9; border-radius:4px; padding:8px; margin-bottom:8px;">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px;">
+                  <div><span style="color:#94a3b8;">見積金額</span><br><strong>—</strong></div>
+                  <div><span style="color:#94a3b8;">納品予定日</span><br><strong>—</strong></div>
+                  <div><span style="color:#94a3b8;">最終金額</span><br><strong>—</strong></div>
+                </div>
+              </div>
+              <div style="text-align:right;">
+                <span style="font-size:0.62rem; color:#94a3b8;">本部対応待ち</span>
+              </div>
+            </div>
+          </div>
+          <!-- 対応中 -->
+          <div style="border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">
+            <div style="background:#dbeafe; padding:6px 10px; font-size:0.72rem; font-weight:600; color:#1e40af; text-align:center;">対応中</div>
+            <div style="padding:10px; font-size:0.68rem;">
+              <div style="background:#f1f5f9; border-radius:4px; padding:8px; margin-bottom:8px;">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px;">
+                  <div><span style="color:#94a3b8;">見積金額</span><br><strong>—</strong></div>
+                  <div><span style="color:#94a3b8;">納品予定日</span><br><strong>—</strong></div>
+                  <div><span style="color:#94a3b8;">最終金額</span><br><strong>—</strong></div>
+                </div>
+              </div>
+              <div style="text-align:right;">
+                <span style="font-size:0.62rem; color:#94a3b8;">本部対応待ち</span>
+              </div>
+            </div>
+          </div>
+          <!-- 発注済 -->
+          <div style="border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">
+            <div style="background:#e0e7ff; padding:6px 10px; font-size:0.72rem; font-weight:600; color:#3730a3; text-align:center;">発注済</div>
+            <div style="padding:10px; font-size:0.68rem;">
+              <div style="background:#f1f5f9; border-radius:4px; padding:8px; margin-bottom:8px;">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px;">
+                  <div><span style="color:#94a3b8;">見積金額</span><br><strong>¥12,000</strong></div>
+                  <div><span style="color:#94a3b8;">納品予定日</span><br><strong>2026-03-20</strong></div>
+                  <div><span style="color:#94a3b8;">最終金額</span><br><strong>—</strong></div>
+                </div>
+              </div>
+              <div style="text-align:right;">
+                <span style="font-size:0.62rem; color:#94a3b8;">納品待ち</span>
+              </div>
+            </div>
+          </div>
+          <!-- 完了 -->
+          <div style="border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">
+            <div style="background:#d1fae5; padding:6px 10px; font-size:0.72rem; font-weight:600; color:#065f46; text-align:center;">完了</div>
+            <div style="padding:10px; font-size:0.68rem;">
+              <div style="background:#f1f5f9; border-radius:4px; padding:8px; margin-bottom:8px;">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px;">
+                  <div><span style="color:#94a3b8;">見積金額</span><br><strong>¥12,000</strong></div>
+                  <div><span style="color:#94a3b8;">納品予定日</span><br><strong>2026-03-20</strong></div>
+                  <div><span style="color:#94a3b8;">最終金額</span><br><strong style="color:#065f46;">¥11,500</strong></div>
+                </div>
+              </div>
+              <div style="text-align:right;">
+                <span style="font-size:0.62rem; color:#94a3b8;">納品完了</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- サマリテーブル -->
+      <div style="margin-top:32px;">
+        <div style="font-size:0.85rem; font-weight:600; margin-bottom:12px; color:#1e293b;">アクションボタン表示マトリクス</div>
+        <table class="wf-table" style="font-size:0.75rem;">
+          <thead>
+            <tr>
+              <th>ステータス</th>
+              <th style="text-align:center;">修理（本社）</th>
+              <th style="text-align:center;">修理（店舗）</th>
+              <th style="text-align:center;">備品（本社）</th>
+              <th style="text-align:center;">備品（店舗）</th>
+              <th style="text-align:center;">部品（本社）</th>
+              <th style="text-align:center;">部品（店舗）</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="wf-badge" style="background:#fef3c7;color:#92400e;">依頼中</span></td>
+              <td style="text-align:center;"><span class="wf-btn wf-btn-primary" style="font-size:0.6rem;padding:2px 6px;">対応中にする</span></td>
+              <td style="text-align:center;color:#94a3b8;font-size:0.68rem;">本部対応待ち</td>
+              <td style="text-align:center;"><span class="wf-btn wf-btn-primary" style="font-size:0.6rem;padding:2px 6px;">対応中にする</span></td>
+              <td style="text-align:center;color:#94a3b8;font-size:0.68rem;">本部対応待ち</td>
+              <td style="text-align:center;"><span class="wf-btn wf-btn-primary" style="font-size:0.6rem;padding:2px 6px;">対応中にする</span></td>
+              <td style="text-align:center;color:#94a3b8;font-size:0.68rem;">本部対応待ち</td>
+            </tr>
+            <tr>
+              <td><span class="wf-badge" style="background:#dbeafe;color:#1e40af;">対応中</span></td>
+              <td style="text-align:center;"><span class="wf-btn wf-btn-primary" style="font-size:0.6rem;padding:2px 6px;">発注確定にする</span></td>
+              <td style="text-align:center;color:#94a3b8;font-size:0.68rem;">本部対応待ち</td>
+              <td style="text-align:center;"><span class="wf-btn wf-btn-primary" style="font-size:0.6rem;padding:2px 6px;">発注確定にする</span></td>
+              <td style="text-align:center;color:#94a3b8;font-size:0.68rem;">本部対応待ち</td>
+              <td style="text-align:center;"><span class="wf-btn wf-btn-primary" style="font-size:0.6rem;padding:2px 6px;">発注確定にする</span></td>
+              <td style="text-align:center;color:#94a3b8;font-size:0.68rem;">本部対応待ち</td>
+            </tr>
+            <tr>
+              <td><span class="wf-badge" style="background:#e0e7ff;color:#3730a3;">発注済</span></td>
+              <td style="text-align:center;color:#94a3b8;font-size:0.68rem;">店舗修理待ち</td>
+              <td style="text-align:center;"><span class="wf-btn" style="font-size:0.6rem;padding:2px 6px;background:#ec4899;color:#fff;">修理完了にする</span></td>
+              <td style="text-align:center;"><span class="wf-btn wf-btn-success" style="font-size:0.6rem;padding:2px 6px;">完了にする</span></td>
+              <td style="text-align:center;color:#94a3b8;font-size:0.68rem;">納品待ち</td>
+              <td style="text-align:center;"><span class="wf-btn wf-btn-success" style="font-size:0.6rem;padding:2px 6px;">完了にする</span></td>
+              <td style="text-align:center;color:#94a3b8;font-size:0.68rem;">納品待ち</td>
+            </tr>
+            <tr style="background:#fdf2f8;">
+              <td><span class="wf-badge" style="background:#fce7f3;color:#9d174d;">修理済</span></td>
+              <td style="text-align:center;"><span class="wf-btn wf-btn-success" style="font-size:0.6rem;padding:2px 6px;">完了にする</span></td>
+              <td style="text-align:center;color:#94a3b8;font-size:0.68rem;">金額確定待ち</td>
+              <td style="text-align:center;color:#94a3b8;font-size:0.68rem;" colspan="2">—（備品にこのステータスなし）</td>
+              <td style="text-align:center;color:#94a3b8;font-size:0.68rem;" colspan="2">—（部品にこのステータスなし）</td>
+            </tr>
+            <tr>
+              <td><span class="wf-badge" style="background:#d1fae5;color:#065f46;">完了</span></td>
+              <td style="text-align:center;color:#94a3b8;font-size:0.68rem;">修理完了</td>
+              <td style="text-align:center;color:#94a3b8;font-size:0.68rem;">修理完了</td>
+              <td style="text-align:center;color:#94a3b8;font-size:0.68rem;">納品完了</td>
+              <td style="text-align:center;color:#94a3b8;font-size:0.68rem;">納品完了</td>
+              <td style="text-align:center;color:#94a3b8;font-size:0.68rem;">納品完了</td>
+              <td style="text-align:center;color:#94a3b8;font-size:0.68rem;">納品完了</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- 対応情報カードの項目マトリクス -->
+      <div style="margin-top:24px;">
+        <div style="font-size:0.85rem; font-weight:600; margin-bottom:12px; color:#1e293b;">対応情報カードの表示項目</div>
+        <table class="wf-table" style="font-size:0.75rem;">
+          <thead>
+            <tr>
+              <th>項目</th>
+              <th style="text-align:center;">修理</th>
+              <th style="text-align:center;">備品</th>
+              <th style="text-align:center;">部品</th>
+              <th>値の入力タイミング</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="font-weight:500;">見積金額 / 金額</td>
+              <td style="text-align:center;">見積金額</td>
+              <td style="text-align:center;">金額<br><span style="font-size:0.6rem;color:#94a3b8;">（商品マスタ自動）</span></td>
+              <td style="text-align:center;">見積金額</td>
+              <td>発注確定ダイアログで入力</td>
+            </tr>
+            <tr>
+              <td style="font-weight:500;">修理予定日 / 納品予定日</td>
+              <td style="text-align:center;">修理予定日</td>
+              <td style="text-align:center;">納品予定日<br><span style="font-size:0.6rem;color:#94a3b8;">（締め曜日+3営業日自動）</span></td>
+              <td style="text-align:center;">納品予定日</td>
+              <td>発注確定ダイアログで入力</td>
+            </tr>
+            <tr>
+              <td style="font-weight:500;">最終金額</td>
+              <td style="text-align:center;">○</td>
+              <td style="text-align:center;">—</td>
+              <td style="text-align:center;">○</td>
+              <td>完了ダイアログで入力（見積額との差額表示）</td>
+            </tr>
+            <tr>
+              <td style="font-weight:500;">修理完了日</td>
+              <td style="text-align:center;">○</td>
+              <td style="text-align:center;">—</td>
+              <td style="text-align:center;">—</td>
+              <td>修理完了ダイアログで入力（店舗）</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+    <!-- PROPOSAL 4: 本部ダッシュボード -->
+    <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+    <div class="section" id="proposal-dashboard">
+      <span class="section-label label-proposal">UI/UX提案</span>
+      <h2>提案③ 本部向けダッシュボード</h2>
+      <p class="section-desc">本部管理者のメニュー画面に、対応が必要な案件数をサマリ表示する</p>
+
+      <div class="wireframe">
+        <div class="wireframe-header">本部メニュー画面 — ダッシュボード追加イメージ</div>
+        <div class="wireframe-body">
+          <div style="display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-bottom:16px;">
+            <div style="background:#fef2f2; border-radius:8px; padding:16px; text-align:center;">
+              <div style="font-size:1.5rem; font-weight:700; color:#dc2626;">3</div>
+              <div style="font-size:0.72rem; color:#991b1b; font-weight:500;">新規依頼（未処理）</div>
+            </div>
+            <div style="background:#fefce8; border-radius:8px; padding:16px; text-align:center;">
+              <div style="font-size:1.5rem; font-weight:700; color:#ca8a04;">5</div>
+              <div style="font-size:0.72rem; color:#854d0e; font-weight:500;">対応中</div>
+            </div>
+            <div style="background:#eff6ff; border-radius:8px; padding:16px; text-align:center;">
+              <div style="font-size:1.5rem; font-weight:700; color:#2563eb;">2</div>
+              <div style="font-size:0.72rem; color:#1e40af; font-weight:500;">発注済（修理/納品待ち）</div>
+            </div>
+            <div style="background:#fce7f3; border-radius:8px; padding:16px; text-align:center;">
+              <div style="font-size:1.5rem; font-weight:700; color:#ec4899;">1</div>
+              <div style="font-size:0.72rem; color:#9d174d; font-weight:500;">修理済（完了待ち）</div>
+            </div>
+            <div style="background:#fdf2f8; border-radius:8px; padding:16px; text-align:center;">
+              <div style="font-size:1.5rem; font-weight:700; color:#db2777;">1</div>
+              <div style="font-size:0.72rem; color:#9d174d; font-weight:500;">予算超過アラート</div>
+            </div>
+          </div>
+          <div style="font-size:0.72rem; color:#94a3b8;">各カードをクリックすると、該当ステータスで絞り込んだ発注一覧へ遷移</div>
+        </div>
+      </div>
+
+      <div style="margin-top:16px; font-size:0.82rem; color:#475569;">
+        <strong>メリット：</strong>
+        <ul style="margin-top:4px; padding-left:20px;">
+          <li>本社の商品部（小迫氏・川上氏）がログイン直後に「今何をすべきか」を即座に把握できる</li>
+          <li>対応漏れの防止（特に見積回答待ちの案件が埋もれない）</li>
+          <li>予算超過案件の早期検知</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+    <!-- PROPOSAL 5: 通知設計 -->
+    <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+    <div class="section" id="proposal-notify">
+      <span class="section-label label-proposal">UI/UX提案</span>
+      <h2>提案④ 通知・アラート設計</h2>
+      <p class="section-desc">業務フロー上の重要なタイミングで、適切な相手に通知を届ける</p>
+
+      <table class="wf-table" style="font-size:0.78rem;">
+        <thead>
+          <tr>
+            <th>トリガー</th>
+            <th>通知先</th>
+            <th>通知内容</th>
+            <th>手段</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>店舗が発注依頼を登録</td>
+            <td>本社 商品部</td>
+            <td>「○○店から修理依頼が届きました」</td>
+            <td>画面内通知 / メール</td>
+          </tr>
+          <tr>
+            <td>本社がステータスを更新</td>
+            <td>依頼元の店舗</td>
+            <td>「RP-0042のステータスが"対応中"に変わりました」</td>
+            <td>画面内通知</td>
+          </tr>
+          <tr>
+            <td>店舗が修理完了にする</td>
+            <td>本社 商品部</td>
+            <td>「○○店がRP-0042を修理完了にしました」</td>
+            <td>画面内通知 / メール</td>
+          </tr>
+          <tr>
+            <td>備品発注で予算超過</td>
+            <td>ゾーンマネージャー / エリアマネージャー</td>
+            <td>「○○店が予算超過で備品発注しました（超過額: ¥XX）」</td>
+            <td>メール通知</td>
+          </tr>
+          <tr>
+            <td>修理完了・金額確定</td>
+            <td>依頼元の店舗</td>
+            <td>「修理が完了しました（最終金額: ¥72,000）」</td>
+            <td>画面内通知</td>
+          </tr>
+          <tr>
+            <td>見積回答が3日以上未処理</td>
+            <td>本社 商品部</td>
+            <td>「RP-0042の見積回答が届いていません」</td>
+            <td>画面内アラート</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div style="margin-top:16px; font-size:0.82rem; color:#475569;">
+        <strong>補足：</strong>
+        <ul style="margin-top:4px; padding-left:20px;">
+          <li>予算超過アラートの通知先（ゾンマネ・エリマネ）は要件に記載の通り</li>
+          <li>メール通知は将来的な実装とし、初期リリースでは画面内通知を優先してもよい</li>
+          <li>通知の既読管理はヘッダーのベルアイコンで実装</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+    <!-- SUMMARY -->
+    <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+    <div class="section" id="proposal-summary">
+      <span class="section-label label-proposal">SUMMARY</span>
+      <h2>提案まとめ — 画面への影響</h2>
+      <p class="section-desc">上記提案を実装した場合の、既存画面への変更点まとめ</p>
+
+      <div class="proposal-grid">
+        <div class="proposal-card">
+          <div class="proposal-num">1</div>
+          <div class="proposal-body">
+            <h4>発注一覧画面の改修</h4>
+            <p>修理は5段階（依頼中→対応中→発注済→修理済→完了）、備品は4段階（自動完了）に変更。一覧カラムは既存のまま維持し、詳細展開エリア内に依頼内容（読み取り専用）＋対応情報＋ステータス履歴＋アクションボタンを配置。入力はすべてダイアログで完結。修理では店舗が「修理完了確認」で稼働確認を報告し、本社が最終金額を確定して完了。</p>
+            <span class="proposal-tag tag-change">変更</span>
+            <span class="proposal-tag tag-screen">order-list.html</span>
+          </div>
+        </div>
+        <div class="proposal-card">
+          <div class="proposal-num">2</div>
+          <div class="proposal-body">
+            <h4>本部メニューにダッシュボード追加</h4>
+            <p>管理者ログイン時のメニュー画面に、対応ステータス別の件数サマリカードを追加。クリックで該当一覧に遷移。</p>
+            <span class="proposal-tag tag-new">新規</span>
+            <span class="proposal-tag tag-screen">menu.html（role=admin時）</span>
+          </div>
+        </div>
+        <div class="proposal-card">
+          <div class="proposal-num">3</div>
+          <div class="proposal-body">
+            <h4>通知機能の追加</h4>
+            <p>ヘッダーにベルアイコン＋未読バッジを追加。ステータス変更・予算超過時に通知を生成。初期リリースは画面内通知のみ。</p>
+            <span class="proposal-tag tag-new">新規</span>
+            <span class="proposal-tag tag-screen">共通ヘッダー</span>
+          </div>
+        </div>
+        <div class="proposal-card">
+          <div class="proposal-num">4</div>
+          <div class="proposal-body">
+            <h4>修理依頼画面は現状維持</h4>
+            <p>現在の画面で業務フローの初期入力は十分対応できている。業者選択（ライフフィットネス/THINK等）は本社側の運用判断のため、画面上での選択は不要。</p>
+            <span class="proposal-tag tag-screen">repair-order.html</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>

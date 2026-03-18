@@ -143,6 +143,28 @@ body {
 .btn-submit:hover:not(:disabled) { background-color: #2563eb; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); }
 .btn-submit:disabled { background-color: #94a3b8; cursor: not-allowed; }
 
+/* ===== Action Buttons (shared) ===== */
+.btn-action {
+  padding: 8px 20px;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.btn-action svg { width: 16px; height: 16px; }
+.btn-primary { background-color: #3b82f6; color: #fff; }
+.btn-primary:hover { background-color: #2563eb; }
+.btn-secondary { background-color: #fff; color: #475569; border: 1px solid #d1d5db; }
+.btn-secondary:hover { background-color: #f1f5f9; }
+.btn-success { background-color: #22c55e; color: #fff; }
+.btn-success:hover { background-color: #16a34a; }
+
 .submit-section {
   margin-top: 32px;
   display: flex;

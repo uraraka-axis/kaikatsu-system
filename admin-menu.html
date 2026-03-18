@@ -11,13 +11,7 @@
   <link rel="stylesheet" href="css/admin-menu.css">
 </head>
 <body>
-  <header class="header">
-    <h1>管理メニュー</h1>
-    <div class="header-right">
-      <span class="header-user">本部：管理者様</span>
-      <button class="btn-logout" onclick="location.href='login.html'">ログアウト</button>
-    </div>
-  </header>
+  <header class="header" data-title="管理メニュー"></header>
   <nav class="nav" data-active="admin-menu.html"></nav>
   <script src="js/common-nav.js"></script>
   <main class="main">
@@ -32,7 +26,7 @@
         <div class="master-card">
           <div class="master-card-header">
             <div class="master-card-info">
-              <div class="master-icon blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg></div>
+              <div class="master-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg></div>
               <div><div class="master-card-title">ゾーンマスタ</div><div class="master-card-desc">ゾーン情報の管理</div></div>
             </div>
           </div>
@@ -42,7 +36,7 @@
           </div>
           <div class="master-card-footer">
             <span class="last-updated">最終更新: 2026/02/20</span>
-            <button class="btn-action"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>DL</button>
+            <button class="btn-dl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>DL</button>
           </div>
         </div>
 
@@ -50,7 +44,7 @@
         <div class="master-card">
           <div class="master-card-header">
             <div class="master-card-info">
-              <div class="master-icon green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg></div>
+              <div class="master-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg></div>
               <div><div class="master-card-title">エリアマスタ</div><div class="master-card-desc">エリア情報の管理</div></div>
             </div>
           </div>
@@ -60,7 +54,7 @@
           </div>
           <div class="master-card-footer">
             <span class="last-updated">最終更新: 2026/02/20</span>
-            <button class="btn-action"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>DL</button>
+            <button class="btn-dl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>DL</button>
           </div>
         </div>
 
@@ -68,7 +62,7 @@
         <div class="master-card">
           <div class="master-card-header">
             <div class="master-card-info">
-              <div class="master-icon orange"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg></div>
+              <div class="master-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg></div>
               <div><div class="master-card-title">店舗マスタ</div><div class="master-card-desc">店舗情報の管理</div></div>
             </div>
           </div>
@@ -78,7 +72,7 @@
           </div>
           <div class="master-card-footer">
             <span class="last-updated">最終更新: 2026/02/18</span>
-            <button class="btn-action"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>DL</button>
+            <button class="btn-dl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>DL</button>
           </div>
         </div>
 
@@ -86,7 +80,7 @@
         <div class="master-card">
           <div class="master-card-header">
             <div class="master-card-info">
-              <div class="master-icon purple"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg></div>
+              <div class="master-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg></div>
               <div><div class="master-card-title">ユーザーマスタ</div><div class="master-card-desc">ユーザー・権限の管理</div></div>
             </div>
           </div>
@@ -99,7 +93,7 @@
               <span class="last-updated">最終更新: 2026/02/15</span>
               <span class="scheduled-update">予約更新: 2026/02/28</span>
             </div>
-            <button class="btn-action"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>DL</button>
+            <button class="btn-dl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>DL</button>
           </div>
         </div>
 
@@ -107,7 +101,7 @@
         <div class="master-card">
           <div class="master-card-header">
             <div class="master-card-info">
-              <div class="master-icon red"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg></div>
+              <div class="master-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg></div>
               <div><div class="master-card-title">仕入先マスタ</div><div class="master-card-desc">仕入先情報の管理</div></div>
             </div>
           </div>
@@ -117,7 +111,7 @@
           </div>
           <div class="master-card-footer">
             <span class="last-updated">—</span>
-            <button class="btn-action"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>DL</button>
+            <button class="btn-dl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>DL</button>
           </div>
         </div>
 
@@ -125,7 +119,7 @@
         <div class="master-card">
           <div class="master-card-header">
             <div class="master-card-info">
-              <div class="master-icon slate"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg></div>
+              <div class="master-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg></div>
               <div><div class="master-card-title">商品マスタ</div><div class="master-card-desc">商品・画像の管理</div></div>
             </div>
           </div>
@@ -135,7 +129,7 @@
           </div>
           <div class="master-card-footer">
             <span class="last-updated">最終更新: 2026/02/25</span>
-            <button class="btn-action"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>DL</button>
+            <button class="btn-dl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>DL</button>
           </div>
         </div>
 
@@ -143,7 +137,7 @@
         <div class="master-card">
           <div class="master-card-header">
             <div class="master-card-info">
-              <div class="master-icon green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg></div>
+              <div class="master-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg></div>
               <div><div class="master-card-title">予算マスタ</div><div class="master-card-desc">店舗別・月別・部門別の予算管理</div></div>
             </div>
           </div>
@@ -153,7 +147,7 @@
           </div>
           <div class="master-card-footer">
             <span class="last-updated">最終更新: 2026/02/25</span>
-            <button class="btn-action"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>DL</button>
+            <button class="btn-dl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>DL</button>
           </div>
         </div>
       </div>
@@ -166,7 +160,7 @@
         <div class="master-card">
           <div class="master-card-header">
             <div class="master-card-info">
-              <div class="master-icon blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg></div>
+              <div class="master-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg></div>
               <div><div class="master-card-title">発注データ</div><div class="master-card-desc">発注一覧データのExcel出力</div></div>
             </div>
           </div>
@@ -193,9 +187,10 @@
                 <label class="export-filter-label">ステータス</label>
                 <select class="form-select" id="exportStatus">
                   <option>すべて</option>
-                  <option>仮登録</option>
-                  <option>本登録</option>
-                  <option>確定済</option>
+                  <option>依頼中</option>
+                  <option>対応中</option>
+                  <option>発注済</option>
+                  <option>修理済</option>
                   <option>完了</option>
                 </select>
               </div>
@@ -203,7 +198,38 @@
           </div>
           <div class="master-card-footer">
             <span class="last-updated">全6件（2026年2月）</span>
-            <button class="btn-action export-btn" onclick="exportOrderData()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>Excel出力</button>
+            <button class="btn-dl export-btn" onclick="exportOrderData()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>Excel出力</button>
+          </div>
+        </div>
+        <div class="master-card">
+          <div class="master-card-header">
+            <div class="master-card-info">
+              <div class="master-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg></div>
+              <div><div class="master-card-title">予算管理データ</div><div class="master-card-desc">予算・実績データのExcel出力</div></div>
+            </div>
+          </div>
+          <div class="export-filters">
+            <div class="export-filter-row">
+              <div class="export-filter-group">
+                <label class="export-filter-label">年度</label>
+                <select class="form-select" id="exportBudgetYear">
+                  <option>2025年度</option>
+                  <option>2024年度</option>
+                </select>
+              </div>
+              <div class="export-filter-group">
+                <label class="export-filter-label">ゾーン</label>
+                <select class="form-select" id="exportBudgetZone">
+                  <option>すべて</option>
+                  <option>東日本</option>
+                  <option>西日本</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="master-card-footer">
+            <span class="last-updated">全店舗（2025年度）</span>
+            <button class="btn-dl export-btn" onclick="exportBudgetData()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>Excel出力</button>
           </div>
         </div>
       </div>

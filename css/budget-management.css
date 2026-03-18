@@ -27,6 +27,13 @@
 }
 .btn-search:hover { background: #2563eb; box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3); }
 
+/* ===== Action Bar ===== */
+.budget-action-bar {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
 /* ===== Summary Cards ===== */
 .summary-grid {
   display: grid;

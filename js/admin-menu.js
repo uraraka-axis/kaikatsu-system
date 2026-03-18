@@ -13,3 +13,9 @@
       var status = document.getElementById('exportStatus').value;
       alert('発注データ出力（モックアップ）\n\n期間: ' + period + '\n種別: ' + type + '\nステータス: ' + status + '\n\nExcelファイルをダウンロードします。');
     }
+
+    function exportBudgetData() {
+      var year = document.getElementById('exportBudgetYear').value;
+      var zone = document.getElementById('exportBudgetZone').value;
+      alert('予算管理データ出力（モックアップ）\n\n年度: ' + year + '\nゾーン: ' + zone + '\n\nExcelファイルをダウンロードします。');
+    }

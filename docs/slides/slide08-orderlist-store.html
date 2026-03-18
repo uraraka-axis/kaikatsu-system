@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+html { background: #ffffff; }
+body {
+  width: 720pt; height: 405pt; margin: 0; padding: 0;
+  background: #f5f5f5; font-family: Arial, sans-serif;
+  display: flex; flex-direction: column;
+}
+.header { background: #333333; padding: 6pt 20pt; display: flex; justify-content: space-between; align-items: center; }
+.header h1 { color: #ffffff; font-size: 9pt; margin: 0; }
+.header-right { display: flex; align-items: center; gap: 8pt; }
+.header-right p { color: #cccccc; font-size: 7pt; margin: 0; }
+.logout-btn { background: #555555; padding: 3pt 8pt; }
+.logout-btn p { color: #ffffff; font-size: 7pt; margin: 0; }
+.nav { background: #eeeeee; padding: 4pt 20pt; display: flex; gap: 4pt; border-bottom: 1pt solid #cccccc; }
+.nav-item { padding: 4pt 10pt; background: #ffffff; border: 1pt solid #cccccc; }
+.nav-item p { color: #555555; font-size: 7pt; margin: 0; }
+.nav-item.active { background: #333333; border-color: #333333; }
+.nav-item.active p { color: #ffffff; }
+.screen-label { position: absolute; top: 6pt; right: 20pt; }
+.screen-label p { color: #999999; font-size: 7pt; margin: 0; }
+.filter-bar { padding: 6pt 20pt; display: flex; gap: 6pt; align-items: center; background: #ffffff; border-bottom: 1pt solid #e0e0e0; }
+.filter-select { height: 18pt; background: #ffffff; border: 1pt solid #cccccc; display: flex; align-items: center; padding: 0 6pt; }
+.filter-select p { color: #888888; font-size: 7pt; margin: 0; }
+.action-btns { margin-left: auto; display: flex; gap: 4pt; }
+.btn-action { padding: 3pt 10pt; background: #333333; }
+.btn-action p { color: #ffffff; font-size: 7pt; margin: 0; }
+.btn-action.secondary { background: #ffffff; border: 1pt solid #999999; }
+.btn-action.secondary p { color: #555555; }
+.table-area { flex: 1; padding: 0 20pt 6pt 20pt; overflow: hidden; }
+.data-table { width: 100%; border-collapse: collapse; margin: 4pt 0; }
+.data-table p { font-size: 6pt; margin: 0; }
+.th-row { display: flex; background: #f0f0f0; border-bottom: 1pt solid #cccccc; }
+.th-cell { padding: 4pt 4pt; }
+.th-cell p { color: #666666; font-size: 6pt; margin: 0; font-weight: 700; }
+.td-row { display: flex; border-bottom: 1pt solid #eeeeee; align-items: center; }
+.td-row.expanded { background: #fafafa; }
+.td-cell { padding: 3pt 4pt; }
+.td-cell p { color: #333333; font-size: 6pt; margin: 0; }
+.w-ck { width: 16pt; }
+.w-type { width: 36pt; }
+.w-num { width: 70pt; }
+.w-cat { width: 50pt; }
+.w-content { width: 120pt; }
+.w-qty { width: 36pt; }
+.w-amount { width: 50pt; }
+.w-status { width: 42pt; }
+.w-date { width: 56pt; }
+.w-detail { width: 30pt; }
+.ck-box { width: 8pt; height: 8pt; border: 1pt solid #999999; background: #ffffff; }
+.status-badge { padding: 1pt 4pt; display: inline-block; }
+.status-badge p { font-size: 6pt; margin: 0; }
+.status-draft { background: #f0f0f0; }
+.status-draft p { color: #999999; }
+.status-confirmed { background: #e0e0e0; }
+.status-confirmed p { color: #555555; }
+.type-badge { padding: 1pt 4pt; }
+.type-repair p { color: #555555; }
+.type-equip p { color: #555555; }
+.type-parts p { color: #555555; }
+.detail-btn { padding: 1pt 4pt; border: 1pt solid #cccccc; background: #ffffff; }
+.detail-btn p { color: #555555; font-size: 6pt; margin: 0; }
+.detail-panel { margin: 0 20pt 4pt 20pt; padding: 8pt; background: #ffffff; border: 1pt solid #dddddd; }
+.detail-panel h4 { color: #333333; font-size: 7pt; margin: 0 0 4pt 0; }
+.detail-grid { display: flex; flex-wrap: wrap; gap: 6pt; }
+.detail-item { width: 140pt; }
+.detail-label { color: #888888; font-size: 6pt; margin: 0 0 1pt 0; }
+.detail-value { color: #333333; font-size: 7pt; margin: 0; }
+.note { color: #888888; font-size: 6pt; margin: 6pt 0 0 0; }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>発注一覧（店舗ビュー）</h1>
+  <div class="header-right">
+    <p>新宿東口店：田中太郎様</p>
+    <div class="logout-btn"><p>ログアウト</p></div>
+  </div>
+</div>
+<div class="screen-label"><p>06 発注一覧（店舗ビュー）</p></div>
+<div class="nav">
+  <div class="nav-item"><p>メニュー</p></div>
+  <div class="nav-item"><p>修理発注</p></div>
+  <div class="nav-item"><p>備品発注</p></div>
+  <div class="nav-item"><p>部品発注</p></div>
+  <div class="nav-item active"><p>発注一覧</p></div>
+  <div class="nav-item"><p>予算管理</p></div>
+  <div class="nav-item"><p>管理メニュー</p></div>
+</div>
+<div class="filter-bar">
+  <div class="filter-select"><p>カテゴリ ▼</p></div>
+  <div class="filter-select"><p>種別 ▼</p></div>
+  <div class="filter-select"><p>ステータス ▼</p></div>
+  <div class="action-btns">
+    <div class="btn-action"><p>正式発注</p></div>
+    <div class="btn-action secondary"><p>Excel出力</p></div>
+  </div>
+</div>
+<div class="table-area">
+  <div class="th-row">
+    <div class="th-cell w-ck"><p></p></div>
+    <div class="th-cell w-type"><p>種別</p></div>
+    <div class="th-cell w-num"><p>発注番号</p></div>
+    <div class="th-cell w-cat"><p>カテゴリ</p></div>
+    <div class="th-cell w-content"><p>内容</p></div>
+    <div class="th-cell w-qty"><p>発注数</p></div>
+    <div class="th-cell w-amount"><p>金額</p></div>
+    <div class="th-cell w-status"><p>ステータス</p></div>
+    <div class="th-cell w-date"><p>発注日</p></div>
+    <div class="th-cell w-detail"><p>詳細</p></div>
+  </div>
+  <div class="td-row">
+    <div class="td-cell w-ck"><div class="ck-box"></div></div>
+    <div class="td-cell w-type"><div class="type-badge type-repair"><p>修理</p></div></div>
+    <div class="td-cell w-num"><p>ORD-2026-001</p></div>
+    <div class="td-cell w-cat"><p>フィットネス</p></div>
+    <div class="td-cell w-content"><p>ランニングマシン TR-800</p></div>
+    <div class="td-cell w-qty"><p>1</p></div>
+    <div class="td-cell w-amount"><p>-</p></div>
+    <div class="td-cell w-status"><div class="status-badge status-draft"><p>仮登録</p></div></div>
+    <div class="td-cell w-date"><p>2026/02/24</p></div>
+    <div class="td-cell w-detail"><div class="detail-btn"><p>▼</p></div></div>
+  </div>
+  <div class="td-row">
+    <div class="td-cell w-ck"><div class="ck-box"></div></div>
+    <div class="td-cell w-type"><div class="type-badge type-equip"><p>備品</p></div></div>
+    <div class="td-cell w-num"><p>ORD-2026-002</p></div>
+    <div class="td-cell w-cat"><p>フィットネス</p></div>
+    <div class="td-cell w-content"><p>トレーニングマット 他1商品</p></div>
+    <div class="td-cell w-qty"><p>2</p></div>
+    <div class="td-cell w-amount"><p>¥22,900</p></div>
+    <div class="td-cell w-status"><div class="status-badge status-confirmed"><p>本登録</p></div></div>
+    <div class="td-cell w-date"><p>2026/02/24</p></div>
+    <div class="td-cell w-detail"><div class="detail-btn"><p>▼</p></div></div>
+  </div>
+  <div class="td-row">
+    <div class="td-cell w-ck"><div class="ck-box"></div></div>
+    <div class="td-cell w-type"><div class="type-badge type-parts"><p>部品</p></div></div>
+    <div class="td-cell w-num"><p>ORD-2026-003</p></div>
+    <div class="td-cell w-cat"><p>フィットネス</p></div>
+    <div class="td-cell w-content"><p>ベルト RB-4520</p></div>
+    <div class="td-cell w-qty"><p>1</p></div>
+    <div class="td-cell w-amount"><p>-</p></div>
+    <div class="td-cell w-status"><div class="status-badge status-draft"><p>仮登録</p></div></div>
+    <div class="td-cell w-date"><p>2026/02/25</p></div>
+    <div class="td-cell w-detail"><div class="detail-btn"><p>▼</p></div></div>
+  </div>
+</div>
+<div class="detail-panel">
+  <h4>修理詳細（展開時）</h4>
+  <div class="detail-grid">
+    <div class="detail-item">
+      <p class="detail-label">故障機材</p>
+      <p class="detail-value">ランニングマシン TR-800</p>
+    </div>
+    <div class="detail-item">
+      <p class="detail-label">不具合内容</p>
+      <p class="detail-value">異音が発生。ベルトの摩耗</p>
+    </div>
+    <div class="detail-item">
+      <p class="detail-label">対応不可日時</p>
+      <p class="detail-value">2/28 10:00-18:00</p>
+    </div>
+    <div class="detail-item">
+      <p class="detail-label">修理金額 / 予定日</p>
+      <p class="detail-value">¥25,000 / 2026/03/05</p>
+    </div>
+  </div>
+  <p class="note">※ 写真プレビュー、修理完了/取消ボタンあり</p>
+</div>
+</body>
+</html>

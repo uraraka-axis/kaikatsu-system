@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+html { background: #ffffff; }
+body {
+  width: 720pt; height: 405pt; margin: 0; padding: 0;
+  background: #f5f5f5; font-family: Arial, sans-serif;
+  display: flex; flex-direction: column;
+}
+.header { background: #333333; padding: 6pt 20pt; display: flex; justify-content: space-between; align-items: center; }
+.header h1 { color: #ffffff; font-size: 9pt; margin: 0; }
+.header-right { display: flex; align-items: center; gap: 8pt; }
+.header-right p { color: #cccccc; font-size: 7pt; margin: 0; }
+.logout-btn { background: #555555; padding: 3pt 8pt; }
+.logout-btn p { color: #ffffff; font-size: 7pt; margin: 0; }
+.nav { background: #eeeeee; padding: 4pt 20pt; display: flex; gap: 4pt; border-bottom: 1pt solid #cccccc; }
+.nav-item { padding: 4pt 10pt; background: #ffffff; border: 1pt solid #cccccc; }
+.nav-item p { color: #555555; font-size: 7pt; margin: 0; }
+.nav-item.active { background: #333333; border-color: #333333; }
+.nav-item.active p { color: #ffffff; }
+.screen-label { position: absolute; top: 6pt; right: 20pt; }
+.screen-label p { color: #999999; font-size: 7pt; margin: 0; }
+.main { flex: 1; padding: 24pt 40pt; display: flex; flex-direction: column; align-items: center; }
+.main h2 { color: #333333; font-size: 12pt; margin: 0 0 20pt 0; text-align: center; }
+.card-grid { display: flex; gap: 16pt; justify-content: center; }
+.admin-card { width: 160pt; height: 110pt; background: #ffffff; border: 1pt solid #cccccc; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 12pt; }
+.icon-box { width: 36pt; height: 36pt; background: #e0e0e0; border: 1pt solid #bbbbbb; margin: 0 0 8pt 0; }
+.admin-card h3 { color: #333333; font-size: 10pt; margin: 0 0 4pt 0; text-align: center; }
+.admin-card p { color: #888888; font-size: 7pt; margin: 0; text-align: center; }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>管理メニュー</h1>
+  <div class="header-right">
+    <p>本部管理者：山田花子様</p>
+    <div class="logout-btn"><p>ログアウト</p></div>
+  </div>
+</div>
+<div class="screen-label"><p>09 管理メニュー画面</p></div>
+<div class="nav">
+  <div class="nav-item"><p>メニュー</p></div>
+  <div class="nav-item"><p>修理発注</p></div>
+  <div class="nav-item"><p>備品発注</p></div>
+  <div class="nav-item"><p>部品発注</p></div>
+  <div class="nav-item"><p>発注一覧</p></div>
+  <div class="nav-item"><p>予算管理</p></div>
+  <div class="nav-item active"><p>管理メニュー</p></div>
+</div>
+<div class="main">
+  <h2>管理機能</h2>
+  <div class="card-grid">
+    <div class="admin-card">
+      <div class="icon-box"></div>
+      <h3>発注履歴閲覧</h3>
+      <p>過去の発注データを検索・閲覧</p>
+    </div>
+    <div class="admin-card">
+      <div class="icon-box"></div>
+      <h3>予算管理設定</h3>
+      <p>店舗別の予算設定・変更</p>
+    </div>
+    <div class="admin-card">
+      <div class="icon-box"></div>
+      <h3>システム設定</h3>
+      <p>発注ルール・通知の設定</p>
+    </div>
+  </div>
+</div>
+</body>
+</html>

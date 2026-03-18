@@ -11,13 +11,7 @@
   <link rel="stylesheet" href="css/menu.css">
 </head>
 <body>
-  <header class="header">
-    <h1>発注管理・予算管理システム</h1>
-    <div class="header-right">
-      <span class="header-user">新宿東口店：田中太郎様</span>
-      <button class="btn-logout" onclick="location.href='login.html'">ログアウト</button>
-    </div>
-  </header>
+  <header class="header" data-title="発注管理・予算管理システム"></header>
 
   <main class="main">
     <div class="menu-container">
@@ -161,7 +155,7 @@
       var isAdmin = params.get('role') === 'admin';
       if (isAdmin) {
         document.getElementById('orderSection').style.display = 'none';
-        document.querySelector('.header-user').textContent = '本部管理者：鈴木一郎様';
+        document.querySelector('.header-user').textContent = '商品部';
       } else {
         document.getElementById('adminSection').style.display = 'none';
       }

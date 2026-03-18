@@ -11,13 +11,7 @@
   <link rel="stylesheet" href="css/order-list.css">
 </head>
 <body>
-  <header class="header">
-    <h1>発注一覧画面</h1>
-    <div class="header-right">
-      <span class="header-user">新宿東口店：田中太郎様</span>
-      <button class="btn-logout" onclick="location.href='login.html'">ログアウト</button>
-    </div>
-  </header>
+  <header class="header" data-title="発注一覧画面"></header>
   <nav class="nav" data-active="order-list.html"></nav>
   <script src="js/common-nav.js"></script>
   <main class="main">
@@ -67,17 +61,12 @@
           <span class="filter-label">ステータス</span>
           <select class="form-select" id="adminFilterStatus" onchange="renderOrders()">
             <option value="">すべて</option>
-            <option value="0">仮登録</option>
-            <option value="1">本登録</option>
-            <option value="2">確定済</option>
-            <option value="3">完了</option>
+            <option value="0">依頼中</option>
+            <option value="1">対応中</option>
+            <option value="2">発注済</option>
+            <option value="3">修理済</option>
+            <option value="4">完了</option>
           </select>
-        </div>
-        <div class="filter-group filter-actions">
-          <button class="btn-action btn-primary" onclick="renderOrders()">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-            検索
-          </button>
         </div>
       </div>
     </div>
@@ -86,41 +75,40 @@
     <div class="toolbar" id="storeFilterBar">
       <div class="toolbar-left">
         <select class="form-select" id="filterCategory" onchange="renderOrders()">
-          <option value="">すべてのカテゴリ</option>
+          <option value="">カテゴリ</option>
           <option value="fitness">フィットネス</option>
           <option value="golf">ゴルフ</option>
         </select>
         <select class="form-select" id="filterType" onchange="renderOrders()">
-          <option value="">すべての種別</option>
-          <option value="repair">修理発注</option>
-          <option value="equipment">備品発注</option>
-          <option value="parts">部品発注</option>
+          <option value="">種別</option>
+          <option value="repair">修理</option>
+          <option value="equipment">備品</option>
+          <option value="parts">部品</option>
         </select>
         <select class="form-select" id="filterStatus" onchange="renderOrders()">
-          <option value="">すべてのステータス</option>
-          <option value="0">仮登録</option>
-          <option value="1">本登録</option>
-          <option value="2">確定済</option>
-          <option value="3">完了</option>
+          <option value="">ステータス</option>
+          <option value="0">依頼中</option>
+          <option value="1">対応中</option>
+          <option value="2">発注済</option>
+          <option value="3">修理済</option>
+          <option value="4">完了</option>
         </select>
       </div>
-      <div class="toolbar-right">
-        <button class="btn-action btn-primary" onclick="confirmSelected()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
-          正式発注
-        </button>
-        <button class="btn-action btn-secondary" onclick="exportExcel()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-          Excel出力
-        </button>
-      </div>
+    </div>
+
+    <!-- Action Bar (store mode) -->
+    <div class="store-action-bar" id="storeActionBar" style="display:none;">
+      <button class="btn-action btn-secondary" onclick="exportExcel()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+        Excel出力
+      </button>
     </div>
 
     <!-- Action Bar (admin mode) -->
     <div class="admin-action-bar" id="adminActionBar">
-      <button class="btn-action btn-primary" onclick="confirmSelected()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
-        正式発注
+      <button class="btn-action btn-secondary" onclick="bulkInprogress()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+        ステータス一括変更
       </button>
       <button class="btn-action btn-secondary" onclick="exportExcel()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
@@ -148,6 +136,15 @@
       </table>
     </div>
   </main>
+
+  <!-- Status Change Modal -->
+  <div class="modal-overlay" id="modalOverlay" onclick="closeModal()">
+    <div class="modal-dialog" onclick="event.stopPropagation()">
+      <div class="modal-title" id="modalTitle"></div>
+      <div class="modal-body" id="modalBody"></div>
+      <div class="modal-footer" id="modalFooter"></div>
+    </div>
+  </div>
 
   <script src="js/order-list.js"></script>
 </body>
