@@ -259,7 +259,7 @@
         periodCard('期中', qLabel, totM) +
         periodCard('当月', currentMonth, totMo);
 
-      document.getElementById('midtermHeader').textContent = '期中（' + qLabel + '）';
+      document.getElementById('midtermHeader').textContent = '期中';
     }
 
     // ===== Table =====
