@@ -531,6 +531,9 @@ function renderOrders() {
     });
   }
 
+  // 発注日の新しい順にソート
+  filtered.sort(function(a, b) { return b.date.localeCompare(a.date); });
+
   var colSpan = viewMode === 'admin' ? 11 : 10;
   var tbody = document.getElementById('orderTableBody');
   var html = '';
