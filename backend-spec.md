@@ -203,9 +203,9 @@
 |--------|------|------|
 | id | INT PK AUTO | ID |
 | shop_code | VARCHAR(5) FK | 店舗 |
-| fiscal_year | INT | 年度（2025 等） |
-| month | TINYINT | 月（1〜12） |
-| department | ENUM('all','fit','ig') | 部門 |
+| fiscal_year | INT | 年度（2026 = 2025年4月〜2026年3月） |
+| month | TINYINT | 月（1〜12）※暦月 |
+| department | ENUM('all','fit','ig') | 部門（all=全体合算） |
 | budget_amount | INT | 予算額 |
 | actual_amount | INT | 実績額 |
 
@@ -326,9 +326,16 @@
 
 ### 5.4 予算管理
 
-- 年度は4月〜翌3月（月度配列: 4,5,6,7,8,9,10,11,12,1,2,3）
+- 年度ラベル: 2026年度 = 2025年4月〜2026年3月（月度配列: 4,5,6,7,8,9,10,11,12,1,2,3）
 - 部門別（全体 / フィットネス / インドアゴルフ）に予算・実績を管理
+- 集計期間:
+  - 当期: 年度全体（12ヶ月）
+  - 期中: 四半期ベース（Q1=4〜6月, Q2=7〜9月, Q3=10〜12月, Q4=1〜3月）
+  - 当月: 当該月のみ
 - 消化率の色分け: 緑（60%未満）、黄（60〜90%）、赤（90%以上）
+- 管理者画面: ゾーン→エリア→店舗のカスケードフィルタ、部門・年度フィルタ
+- 店舗画面: 自店のデータのみ表示、部門・年度フィルタ
+- デフォルト年度: 最新年度を初期選択
 - 備品発注時、月次予算（50,000円）を超える場合にアラート表示
 
 ### 5.5 一括ステータス変更（管理者）
@@ -402,7 +409,17 @@
 | メソッド | エンドポイント | 説明 | 権限 |
 |---------|--------------|------|------|
 | GET | /api/budgets | 予算一覧取得 | 店舗:自店 / 管理者:全店 |
-| GET | /api/budgets?shop={code}&year={year} | 店舗別・年度別取得 | 同上 |
+| GET | /api/budgets?shop={code}&year={year}&dept={dept} | 店舗別・年度別・部門別取得 | 同上 |
+
+**クエリパラメータ:**
+
+| パラメータ | 型 | 説明 |
+|-----------|------|------|
+| year | int | 年度（2026 等） |
+| dept | string | 部門フィルタ（all/fit/ig） |
+| zone | string | ゾーンコード（管理者のみ） |
+| area | string | エリアコード（管理者のみ） |
+| shop | string | 店舗コード |
 
 **レスポンス例:**
 
@@ -410,13 +427,15 @@
 {
   "shop": "10301",
   "shop_name": "新宿東口",
-  "fiscal_year": 2025,
-  "period": { "budget": 600000, "actual": 387200, "balance": 212800, "rate": 64.5 },
-  "midterm": { "budget": 300000, "actual": 201200, "balance": 98800, "rate": 67.1 },
-  "month": { "budget": 50000, "actual": 22900, "balance": 27100, "rate": 45.8 },
+  "zone": "100",
+  "area": "103",
+  "fiscal_year": 2026,
+  "period": { "budget": 624000, "actual": 576100, "balance": 47900, "rate": 92.3 },
+  "midterm": { "quarter": "Q4", "months": "1〜3月", "budget": 156000, "actual": 133660, "balance": 22340, "rate": 85.7 },
+  "month": { "month": 3, "budget": 52000, "actual": 37000, "balance": 15000, "rate": 71.2 },
   "monthly_details": {
     "all": [
-      { "month": 4, "budget": 50000, "actual": 42000, "balance": 8000, "rate": 84.0 },
+      { "month": 4, "budget": 52000, "actual": 47840, "balance": 4160, "rate": 92.0 },
       ...
     ],
     "fit": [...],
@@ -449,8 +468,8 @@
 
 | メソッド | エンドポイント | 説明 | 権限 |
 |---------|--------------|------|------|
-| GET | /api/export/orders | 発注データExcel出力 | 管理者 |
-| GET | /api/export/budgets | 予算データExcel出力 | 管理者 |
+| GET | /api/export/orders | 発注データCSV出力 | 管理者 |
+| GET | /api/export/budgets | 予算データCSV出力（年度別・部門別、月別明細付き） | 全ロール |
 
 ---
 
