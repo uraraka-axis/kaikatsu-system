@@ -105,15 +105,15 @@ var areas = [
   { code: '202', name: '中国・四国', zone: '200' }
 ];
 var shops = [
-  { code: '10101', name: '札幌', area: '101' },
-  { code: '10102', name: '函館', area: '101' },
-  { code: '10201', name: '仙台', area: '102' },
-  { code: '10301', name: '新宿東口', area: '103' },
-  { code: '10302', name: '池袋西口', area: '103' },
-  { code: '10303', name: '横浜', area: '103' },
-  { code: '20101', name: '梅田', area: '201' },
-  { code: '20102', name: '難波', area: '201' },
-  { code: '20201', name: '広島', area: '202' }
+  { code: '10301', name: '新宿東口', shortCode: 'S01', area: '103' },
+  { code: '10302', name: '池袋西口', shortCode: 'S02', area: '103' },
+  { code: '10303', name: '横浜', shortCode: 'S03', area: '103' },
+  { code: '10101', name: '札幌', shortCode: 'S04', area: '101' },
+  { code: '10102', name: '函館', shortCode: 'S05', area: '101' },
+  { code: '10201', name: '仙台', shortCode: 'S06', area: '102' },
+  { code: '20101', name: '梅田', shortCode: 'S07', area: '201' },
+  { code: '20102', name: '難波', shortCode: 'S08', area: '201' },
+  { code: '20201', name: '広島', shortCode: 'S09', area: '202' }
 ];
 
 function getShopName(code) {
@@ -124,40 +124,95 @@ function getShopName(code) {
 // ===== Sample Data =====
 // 新ステータス: 0=依頼中, 1=発注済, 2=配達中/修理待ち, 3=納品済/修理済, 4=完了
 var storeOrders = [
+  // ===== 修理 × 全5ステータス =====
   {
-    id: 'ORD-2026-001', type: 'repair', category: 'fitness', title: 'ランニングマシン ベルト異常',
-    amount: null, status: STATUS.REQUESTING, date: '2026-02-25', shop: '10301',
+    id: 'REP-S01-20260301-0001', type: 'repair', category: 'fitness', title: 'ランニングマシン ベルト異常',
+    amount: null, status: STATUS.REQUESTING, date: '2026-03-01', shop: '10301',
     equipment: 'ランニングマシン TR-800', issue: 'ベルトが滑る。異音が発生。',
-    unavailDates: ['2026-03-05（終日）', '2026-03-12（午前）'], unavailDays: ['火曜日', '木曜日'],
+    unavailDates: ['2026-03-10（終日）', '2026-03-17（午前）'], unavailDays: ['火曜日', '木曜日'],
     photos: 2, estimateAmount: null, repairScheduleDate: '', finalAmount: null, repairCompletedDate: '', deliveryDate: '',
-    statusHistory: [{ status: 0, date: '2026/02/25 09:15', user: '新宿東口店', memo: '' }]
+    statusHistory: [{ status: 0, date: '2026/03/01 09:15', user: '新宿東口店', memo: '' }]
   },
   {
-    id: 'ORD-2026-002', type: 'equipment', category: 'fitness', title: 'トレーニングマット 他1商品',
-    amount: 22900, status: STATUS.ORDERED, date: '2026-02-24', shop: '10301',
-    equipDetails: [
-      { name: 'トレーニングマット', code: 'MAT-001', price: 3500, qty: 5, supplier: 'フィットネスジャパン', arrivalDate: '2026-02-27' },
-      { name: 'バランスボール 65cm', code: 'BB-065', price: 1800, qty: 3, supplier: 'スポーツ用品販売', arrivalDate: '2026-02-27' }
-    ],
-    estimateAmount: 22900, finalAmount: null, deliveryDate: '2026-03-05', repairScheduleDate: '', repairCompletedDate: '',
+    id: 'REP-S01-20260225-0001', type: 'repair', category: 'fitness', title: 'エアロバイク 表示パネル故障',
+    amount: null, status: STATUS.ORDERED, date: '2026-02-25', shop: '10301',
+    equipment: 'エアロバイク AB-200', issue: '液晶パネルが表示されない',
+    unavailDates: ['2026-03-05（午前）'], unavailDays: [], photos: 1,
+    estimateAmount: 35000, repairScheduleDate: '2026-03-15', finalAmount: null, repairCompletedDate: '', deliveryDate: '',
     statusHistory: [
-      { status: 0, date: '2026/02/24 14:30', user: '新宿東口店', memo: '' },
-      { status: 1, date: '2026/02/26 00:00', user: 'システム（自動:締め日）', memo: '締め日により自動発注。見積金額: ¥22,900' }
+      { status: 0, date: '2026/02/25 09:00', user: '新宿東口店', memo: '' },
+      { status: 1, date: '2026/02/27 15:00', user: '商品部', memo: '見積もり回答あり。35,000円。修理日は3/15で調整中。' }
     ]
   },
   {
-    id: 'ORD-2026-003', type: 'parts', category: 'golf', title: 'スイング診断機 センサー交換部品',
-    amount: null, status: STATUS.REQUESTING, date: '2026-02-23', shop: '10301',
-    partsName: 'センサーユニット SU-100', targetEquip: 'スイング診断機 GST-7',
-    reason: 'センサー応答が遅くなっている', quantity: 1, partsPhotos: 2,
-    estimateAmount: null, finalAmount: null, deliveryDate: '', repairScheduleDate: '', repairCompletedDate: '',
-    statusHistory: [{ status: 0, date: '2026/02/23 11:20', user: '新宿東口店', memo: '' }]
+    id: 'REP-S01-20260220-0001', type: 'repair', category: 'golf', title: 'パッティングマシン モーター異常',
+    amount: null, status: STATUS.DELIVERING, date: '2026-02-20', shop: '10301',
+    equipment: 'パッティングマシン PM-300', issue: 'モーターが回転しない',
+    unavailDates: [], unavailDays: ['日曜日'], photos: 3,
+    estimateAmount: 52000, repairScheduleDate: '2026-03-05', finalAmount: null, repairCompletedDate: '', deliveryDate: '',
+    statusHistory: [
+      { status: 0, date: '2026/02/20 08:30', user: '新宿東口店', memo: '' },
+      { status: 1, date: '2026/02/23 14:00', user: '商品部', memo: '見積52,000円。修理予定3/5。' },
+      { status: 2, date: '2026/02/25 10:00', user: '商品部', memo: '修理業者手配完了。3/5に訪問予定。' }
+    ]
   },
   {
-    id: 'ORD-2026-004', type: 'equipment', category: 'golf', title: 'ゴルフボール 1ダース × 10',
-    amount: 42000, status: STATUS.DELIVERING, date: '2026-02-22', shop: '10301',
-    equipDetails: [{ name: 'ゴルフボール 1ダース', code: 'GB-012', price: 4200, qty: 10, supplier: 'ゴルフサプライ', arrivalDate: '2026-02-25' }],
-    estimateAmount: 42000, finalAmount: null, deliveryDate: '2026-03-01', repairScheduleDate: '', repairCompletedDate: '',
+    id: 'REP-S01-20260215-0001', type: 'repair', category: 'fitness', title: 'レッグプレスマシン 油圧漏れ',
+    amount: null, status: STATUS.DELIVERED, date: '2026-02-15', shop: '10301',
+    equipment: 'レッグプレス LP-400', issue: '油圧シリンダーから微量の漏れ',
+    unavailDates: ['2026-02-28（終日）'], unavailDays: [], photos: 2,
+    estimateAmount: 65000, repairScheduleDate: '2026-02-28', finalAmount: null, repairCompletedDate: '2026-02-28', deliveryDate: '',
+    statusHistory: [
+      { status: 0, date: '2026/02/15 08:00', user: '新宿東口店', memo: '' },
+      { status: 1, date: '2026/02/18 14:00', user: '商品部', memo: '見積65,000円。2/28で修理予定。' },
+      { status: 2, date: '2026/02/20 10:00', user: '商品部', memo: '修理業者手配完了。' },
+      { status: 3, date: '2026/02/28 17:00', user: '新宿東口店', memo: '修理完了。正常稼働を確認しました。' }
+    ]
+  },
+  {
+    id: 'REP-S01-20260210-0001', type: 'repair', category: 'golf', title: 'ゴルフシミュレーター 映像不具合',
+    amount: null, status: STATUS.COMPLETED, date: '2026-02-10', shop: '10301',
+    equipment: 'ゴルフシミュレーター GS-Pro', issue: 'プロジェクターの映像がちらつく',
+    unavailDates: [], unavailDays: ['月曜日'], photos: 1,
+    estimateAmount: 45000, repairScheduleDate: '2026-02-20', finalAmount: 42000, repairCompletedDate: '2026-02-19', deliveryDate: '',
+    statusHistory: [
+      { status: 0, date: '2026/02/10 10:15', user: '新宿東口店', memo: '' },
+      { status: 1, date: '2026/02/13 11:00', user: '商品部', memo: '見積45,000円。2/20で修理予定。' },
+      { status: 2, date: '2026/02/14 10:00', user: '商品部', memo: '修理業者手配完了。' },
+      { status: 3, date: '2026/02/19 16:00', user: '新宿東口店', memo: '修理完了。映像の乱れ解消を確認。' },
+      { status: 4, date: '2026/02/20 10:00', user: '商品部', memo: '最終金額42,000円で確定。部品代差引。' }
+    ]
+  },
+  // ===== 備品 × 全5ステータス =====
+  {
+    id: 'EQU-S01-20260302-0001', type: 'equipment', category: 'fitness', title: 'トレーニングマット × 5',
+    amount: 17500, status: STATUS.REQUESTING, date: '2026-03-02', shop: '10301',
+    equipDetails: [
+      { name: 'トレーニングマット', code: 'MAT-001', price: 3500, qty: 5, supplier: 'フィットネスジャパン', arrivalDate: '' }
+    ],
+    estimateAmount: null, finalAmount: null, deliveryDate: '', repairScheduleDate: '', repairCompletedDate: '',
+    statusHistory: [{ status: 0, date: '2026/03/02 14:30', user: '新宿東口店', memo: '' }]
+  },
+  {
+    id: 'EQU-S01-20260226-0001', type: 'equipment', category: 'golf', title: 'ゴルフボール 他1商品',
+    amount: 72000, status: STATUS.ORDERED, date: '2026-02-26', shop: '10301',
+    equipDetails: [
+      { name: 'ゴルフボール 1ダース', code: 'GB-012', price: 4200, qty: 10, supplier: 'ゴルフサプライ', arrivalDate: '2026-03-05' },
+      { name: 'グローブ Lサイズ', code: 'GL-L01', price: 1500, qty: 20, supplier: 'ゴルフサプライ', arrivalDate: '2026-03-05' }
+    ],
+    estimateAmount: 72000, finalAmount: null, deliveryDate: '2026-03-05', repairScheduleDate: '', repairCompletedDate: '',
+    statusHistory: [
+      { status: 0, date: '2026/02/26 10:00', user: '新宿東口店', memo: '' },
+      { status: 1, date: '2026/02/27 00:00', user: 'システム（自動:締め日）', memo: '締め日により自動発注。見積金額: ¥72,000' }
+    ]
+  },
+  {
+    id: 'EQU-S01-20260222-0001', type: 'equipment', category: 'fitness', title: 'バランスボール × 3',
+    amount: 5400, status: STATUS.DELIVERING, date: '2026-02-22', shop: '10301',
+    equipDetails: [
+      { name: 'バランスボール 65cm', code: 'BB-065', price: 1800, qty: 3, supplier: 'スポーツ用品販売', arrivalDate: '2026-03-01' }
+    ],
+    estimateAmount: 5400, finalAmount: null, deliveryDate: '2026-03-01', repairScheduleDate: '', repairCompletedDate: '',
     statusHistory: [
       { status: 0, date: '2026/02/22 10:00', user: '新宿東口店', memo: '' },
       { status: 1, date: '2026/02/23 00:00', user: 'システム（自動:締め日）', memo: '締め日により自動発注。' },
@@ -165,38 +220,103 @@ var storeOrders = [
     ]
   },
   {
-    id: 'ORD-2026-005', type: 'repair', category: 'fitness', title: 'エアロバイク 表示パネル故障',
-    amount: null, status: STATUS.DELIVERING, date: '2026-02-21', shop: '10301',
-    equipment: 'エアロバイク AB-200', issue: '液晶パネルが表示されない',
-    unavailDates: ['2026-03-03（午前）'], unavailDays: [], photos: 1,
-    estimateAmount: 35000, repairScheduleDate: '2026-03-10', finalAmount: null, repairCompletedDate: '', deliveryDate: '',
+    id: 'EQU-S01-20260218-0001', type: 'equipment', category: 'fitness', title: 'タオル（大）10枚セット × 3',
+    amount: 16800, status: STATUS.DELIVERED, date: '2026-02-18', shop: '10301',
+    equipDetails: [{ name: 'タオル（大）10枚セット', code: 'TW-L10', price: 5600, qty: 3, supplier: 'リネンサービス', arrivalDate: '2026-02-25' }],
+    estimateAmount: 16800, finalAmount: null, deliveryDate: '2026-02-25', repairScheduleDate: '', repairCompletedDate: '',
     statusHistory: [
-      { status: 0, date: '2026/02/21 09:00', user: '新宿東口店', memo: '' },
-      { status: 1, date: '2026/02/24 15:00', user: '商品部', memo: '見積もり回答あり。35,000円。修理日は3/10で調整中。' },
-      { status: 2, date: '2026/02/25 10:00', user: '商品部', memo: '修理業者手配完了。3/10に訪問予定。' }
+      { status: 0, date: '2026/02/18 09:00', user: '新宿東口店', memo: '' },
+      { status: 1, date: '2026/02/19 00:00', user: 'システム（自動:締め日）', memo: '締め日により自動発注。' },
+      { status: 2, date: '2026/02/20 00:00', user: 'システム（自動:締め日翌日）', memo: '自動遷移。' },
+      { status: 3, date: '2026/02/25 00:00', user: 'システム（自動:納品予定日）', memo: '納品予定日により自動遷移。' }
     ]
   },
   {
-    id: 'ORD-2026-006', type: 'repair', category: 'golf', title: 'パッティングマシン モーター異常',
-    amount: null, status: STATUS.COMPLETED, date: '2026-02-18', shop: '10301',
-    equipment: 'パッティングマシン PM-300', issue: 'モーターが回転しない',
-    unavailDates: [], unavailDays: ['日曜日'], photos: 3,
-    estimateAmount: 52000, repairScheduleDate: '2026-02-28', finalAmount: 48000, repairCompletedDate: '2026-02-27', deliveryDate: '',
+    id: 'EQU-S01-20260212-0001', type: 'equipment', category: 'golf', title: 'スコアカード 100枚 × 5',
+    amount: 6000, status: STATUS.COMPLETED, date: '2026-02-12', shop: '10301',
+    equipDetails: [{ name: 'スコアカード 100枚', code: 'SC-100', price: 1200, qty: 5, supplier: 'ゴルフサプライ', arrivalDate: '2026-02-19' }],
+    estimateAmount: 6000, finalAmount: 6000, deliveryDate: '2026-02-19', actualDeliveryDate: '2026-02-19', repairScheduleDate: '', repairCompletedDate: '',
     statusHistory: [
-      { status: 0, date: '2026/02/18 08:30', user: '新宿東口店', memo: '' },
-      { status: 1, date: '2026/02/21 14:00', user: '商品部', memo: '見積52,000円。修理予定2/28。' },
-      { status: 2, date: '2026/02/22 10:00', user: '商品部', memo: '修理業者手配完了。' },
-      { status: 3, date: '2026/02/27 17:00', user: '新宿東口店', memo: '修理完了。正常稼働を確認しました。' },
-      { status: 4, date: '2026/02/28 10:00', user: '商品部', memo: '最終金額48,000円で確定。未使用部品分を差引。' }
+      { status: 0, date: '2026/02/12 09:00', user: '新宿東口店', memo: '' },
+      { status: 1, date: '2026/02/13 00:00', user: 'システム（自動:締め日）', memo: '締め日により自動発注。' },
+      { status: 2, date: '2026/02/14 00:00', user: 'システム（自動:締め日翌日）', memo: '自動遷移。' },
+      { status: 3, date: '2026/02/19 00:00', user: 'システム（自動:納品予定日）', memo: '納品予定日により自動遷移。' },
+      { status: 4, date: '2026/02/20 00:00', user: 'システム（自動:納品予定日翌日）', memo: '納品予定日翌日により自動完了。見積金額を最終金額に適用。' }
+    ]
+  },
+  // ===== 部品 × 全5ステータス =====
+  {
+    id: 'PTS-S01-20260303-0001', type: 'parts', category: 'golf', title: 'スイング診断機 センサー交換部品',
+    amount: null, status: STATUS.REQUESTING, date: '2026-03-03', shop: '10301',
+    partsName: 'センサーユニット SU-100', targetEquip: 'スイング診断機 GST-7',
+    reason: 'センサー応答が遅くなっている', quantity: 1, partsPhotos: 2,
+    estimateAmount: null, finalAmount: null, deliveryDate: '', repairScheduleDate: '', repairCompletedDate: '',
+    statusHistory: [{ status: 0, date: '2026/03/03 11:20', user: '新宿東口店', memo: '' }]
+  },
+  {
+    id: 'PTS-S01-20260227-0001', type: 'parts', category: 'fitness', title: 'エアロバイク ペダル交換部品',
+    amount: null, status: STATUS.ORDERED, date: '2026-02-27', shop: '10301',
+    partsName: 'ペダルユニット PD-200', targetEquip: 'エアロバイク AB-150',
+    reason: 'ペダル軸の摩耗', quantity: 2, partsPhotos: 1,
+    estimateAmount: 8500, finalAmount: null, deliveryDate: '2026-03-15', repairScheduleDate: '', repairCompletedDate: '',
+    statusHistory: [
+      { status: 0, date: '2026/02/27 09:00', user: '新宿東口店', memo: '' },
+      { status: 1, date: '2026/03/01 11:00', user: '商品部', memo: '8,500円で発注確定。3/15納品予定。' }
+    ]
+  },
+  {
+    id: 'PTS-S01-20260221-0001', type: 'parts', category: 'golf', title: 'スイングカメラ レンズユニット',
+    amount: null, status: STATUS.DELIVERING, date: '2026-02-21', shop: '10301',
+    partsName: 'レンズユニット LC-300', targetEquip: 'スイングカメラ SC-200',
+    reason: 'レンズに傷。映像にノイズ', quantity: 1, partsPhotos: 3,
+    estimateAmount: 12000, finalAmount: null, deliveryDate: '2026-03-10', repairScheduleDate: '', repairCompletedDate: '',
+    statusHistory: [
+      { status: 0, date: '2026/02/21 11:00', user: '新宿東口店', memo: '' },
+      { status: 1, date: '2026/02/24 14:00', user: '商品部', memo: '12,000円で発注確定。' },
+      { status: 2, date: '2026/02/26 10:00', user: '商品部', memo: '配達手配完了。3/10納品予定。' }
+    ]
+  },
+  {
+    id: 'PTS-S01-20260216-0001', type: 'parts', category: 'fitness', title: 'トレッドミル ベルト交換部品',
+    amount: null, status: STATUS.DELIVERED, date: '2026-02-16', shop: '10301',
+    partsName: 'ベルトユニット BT-100', targetEquip: 'トレッドミル TM-500',
+    reason: 'ベルトの摩耗が進行', quantity: 1, partsPhotos: 1,
+    estimateAmount: 18000, finalAmount: null, deliveryDate: '2026-02-28', repairScheduleDate: '', repairCompletedDate: '',
+    statusHistory: [
+      { status: 0, date: '2026/02/16 10:00', user: '新宿東口店', memo: '' },
+      { status: 1, date: '2026/02/19 11:00', user: '商品部', memo: '18,000円で発注確定。' },
+      { status: 2, date: '2026/02/21 10:00', user: '商品部', memo: '配達手配完了。2/28納品予定。' },
+      { status: 3, date: '2026/02/28 14:00', user: '新宿東口店', memo: '部品受領。問題なし。' }
+    ]
+  },
+  {
+    id: 'PTS-S01-20260211-0001', type: 'parts', category: 'golf', title: 'パッティングマシン センサー部品',
+    amount: null, status: STATUS.COMPLETED, date: '2026-02-11', shop: '10301',
+    partsName: 'モーターユニット MU-200', targetEquip: 'パッティングマシン PM-300',
+    reason: 'モーター回転不良の予防交換', quantity: 1, partsPhotos: 0,
+    estimateAmount: 25000, finalAmount: 25000, deliveryDate: '2026-02-20', repairScheduleDate: '', repairCompletedDate: '',
+    statusHistory: [
+      { status: 0, date: '2026/02/11 09:30', user: '新宿東口店', memo: '' },
+      { status: 1, date: '2026/02/14 10:00', user: '商品部', memo: '25,000円で発注確定。' },
+      { status: 2, date: '2026/02/16 10:00', user: '商品部', memo: '配達手配完了。2/20納品予定。' },
+      { status: 3, date: '2026/02/20 15:00', user: '新宿東口店', memo: '部品受領。' },
+      { status: 4, date: '2026/02/21 10:00', user: '商品部', memo: '最終金額25,000円で確定。' }
     ]
   }
 ];
 
-var adminOrders = [
-  storeOrders[0], storeOrders[1], storeOrders[2], storeOrders[3], storeOrders[4], storeOrders[5],
+var adminOrders = storeOrders.concat([
   // 札幌店
   {
-    id: 'ORD-2026-007', type: 'equipment', category: 'fitness', title: 'ダンベルセット 10kg × 3',
+    id: 'REP-S04-20260223-0001', type: 'repair', category: 'fitness', title: 'トレッドミル 異音発生',
+    amount: null, status: STATUS.REQUESTING, date: '2026-02-23', shop: '10101',
+    equipment: 'トレッドミル TM-500', issue: '動作時に異音が発生',
+    unavailDates: ['2026-03-07（終日）'], unavailDays: ['土曜日'], photos: 0,
+    estimateAmount: null, finalAmount: null, repairScheduleDate: '', repairCompletedDate: '', deliveryDate: '',
+    statusHistory: [{ status: 0, date: '2026/02/23 13:00', user: '札幌店', memo: '' }]
+  },
+  {
+    id: 'EQU-S04-20260224-0001', type: 'equipment', category: 'fitness', title: 'ダンベルセット 10kg × 3',
     amount: 25200, status: STATUS.ORDERED, date: '2026-02-24', shop: '10101',
     equipDetails: [{ name: 'ダンベルセット 10kg', code: 'DB-010', price: 8400, qty: 3, supplier: 'フィットネスジャパン', arrivalDate: '2026-02-28' }],
     estimateAmount: 25200, finalAmount: null, deliveryDate: '2026-03-05', repairScheduleDate: '', repairCompletedDate: '',
@@ -205,17 +325,9 @@ var adminOrders = [
       { status: 1, date: '2026/02/26 00:00', user: 'システム（自動:締め日）', memo: '締め日により自動発注。' }
     ]
   },
-  {
-    id: 'ORD-2026-008', type: 'repair', category: 'fitness', title: 'トレッドミル 異音発生',
-    amount: null, status: STATUS.REQUESTING, date: '2026-02-23', shop: '10101',
-    equipment: 'トレッドミル TM-500', issue: '動作時に異音が発生',
-    unavailDates: ['2026-03-07（終日）'], unavailDays: ['土曜日'], photos: 0,
-    estimateAmount: null, finalAmount: null, repairScheduleDate: '', repairCompletedDate: '', deliveryDate: '',
-    statusHistory: [{ status: 0, date: '2026/02/23 13:00', user: '札幌店', memo: '' }]
-  },
   // 函館店
   {
-    id: 'ORD-2026-009', type: 'parts', category: 'fitness', title: 'エアロバイク ペダル交換部品',
+    id: 'PTS-S05-20260222-0001', type: 'parts', category: 'fitness', title: 'エアロバイク ペダル交換部品',
     amount: null, status: STATUS.DELIVERING, date: '2026-02-22', shop: '10102',
     partsName: 'ペダルユニット PD-200', targetEquip: 'エアロバイク AB-150',
     reason: 'ペダル軸の摩耗', quantity: 2, partsPhotos: 1,
@@ -228,7 +340,7 @@ var adminOrders = [
   },
   // 池袋西口店
   {
-    id: 'ORD-2026-010', type: 'equipment', category: 'golf', title: 'グローブ Lサイズ 他1商品',
+    id: 'EQU-S02-20260225-0001', type: 'equipment', category: 'golf', title: 'グローブ Lサイズ 他1商品',
     amount: 38000, status: STATUS.ORDERED, date: '2026-02-25', shop: '10302',
     equipDetails: [
       { name: 'グローブ Lサイズ', code: 'GL-L01', price: 1500, qty: 20, supplier: 'ゴルフサプライ', arrivalDate: '2026-02-28' },
@@ -241,7 +353,7 @@ var adminOrders = [
     ]
   },
   {
-    id: 'ORD-2026-011', type: 'repair', category: 'golf', title: 'シミュレーター プロジェクター不具合',
+    id: 'REP-S02-20260224-0001', type: 'repair', category: 'golf', title: 'シミュレーター プロジェクター不具合',
     amount: null, status: STATUS.REQUESTING, date: '2026-02-24', shop: '10302',
     equipment: 'ゴルフシミュレーター GS-Pro', issue: 'プロジェクターの映像がちらつく',
     unavailDates: ['2026-03-10（午後）'], unavailDays: ['月曜日'], photos: 1,
@@ -250,7 +362,7 @@ var adminOrders = [
   },
   // 横浜店
   {
-    id: 'ORD-2026-012', type: 'equipment', category: 'fitness', title: 'タオル（大）10枚セット × 3',
+    id: 'EQU-S03-20260220-0001', type: 'equipment', category: 'fitness', title: 'タオル（大）10枚セット × 3',
     amount: 16800, status: STATUS.DELIVERED, date: '2026-02-20', shop: '10303',
     equipDetails: [{ name: 'タオル（大）10枚セット', code: 'TW-L10', price: 5600, qty: 3, supplier: 'リネンサービス', arrivalDate: '2026-02-28' }],
     estimateAmount: 16800, finalAmount: null, deliveryDate: '2026-02-28', repairScheduleDate: '', repairCompletedDate: '',
@@ -263,7 +375,7 @@ var adminOrders = [
   },
   // 仙台店
   {
-    id: 'ORD-2026-013', type: 'repair', category: 'fitness', title: 'レッグプレスマシン 油圧漏れ',
+    id: 'REP-S06-20260219-0001', type: 'repair', category: 'fitness', title: 'レッグプレスマシン 油圧漏れ',
     amount: null, status: STATUS.DELIVERING, date: '2026-02-19', shop: '10201',
     equipment: 'レッグプレス LP-400', issue: '油圧シリンダーから微量の漏れ',
     unavailDates: ['2026-03-20（終日）'], unavailDays: [], photos: 2,
@@ -276,7 +388,7 @@ var adminOrders = [
   },
   // 梅田店
   {
-    id: 'ORD-2026-014', type: 'equipment', category: 'golf', title: 'スコアカード 100枚 × 5',
+    id: 'EQU-S07-20260217-0001', type: 'equipment', category: 'golf', title: 'スコアカード 100枚 × 5',
     amount: 6000, status: STATUS.COMPLETED, date: '2026-02-17', shop: '20101',
     equipDetails: [{ name: 'スコアカード 100枚', code: 'SC-100', price: 1200, qty: 5, supplier: 'ゴルフサプライ', arrivalDate: '2026-02-21' }],
     estimateAmount: 6000, finalAmount: 6000, deliveryDate: '2026-02-21', actualDeliveryDate: '2026-02-21', repairScheduleDate: '', repairCompletedDate: '',
@@ -289,7 +401,7 @@ var adminOrders = [
     ]
   },
   {
-    id: 'ORD-2026-015', type: 'parts', category: 'golf', title: 'スイングカメラ レンズユニット',
+    id: 'PTS-S07-20260226-0001', type: 'parts', category: 'golf', title: 'スイングカメラ レンズユニット',
     amount: null, status: STATUS.REQUESTING, date: '2026-02-26', shop: '20101',
     partsName: 'レンズユニット LC-300', targetEquip: 'スイングカメラ SC-200',
     reason: 'レンズに傷。映像にノイズ', quantity: 1, partsPhotos: 3,
@@ -298,7 +410,7 @@ var adminOrders = [
   },
   // 難波店
   {
-    id: 'ORD-2026-016', type: 'repair', category: 'fitness', title: 'ランニングマシン 速度制御不良',
+    id: 'REP-S08-20260226-0001', type: 'repair', category: 'fitness', title: 'ランニングマシン 速度制御不良',
     amount: null, status: STATUS.REQUESTING, date: '2026-02-26', shop: '20102',
     equipment: 'ランニングマシン TR-900', issue: '速度が安定しない',
     unavailDates: [], unavailDays: ['水曜日', '金曜日'], photos: 0,
@@ -307,7 +419,7 @@ var adminOrders = [
   },
   // 広島店
   {
-    id: 'ORD-2026-017', type: 'equipment', category: 'fitness', title: 'ヨガマット × 10',
+    id: 'EQU-S09-20260225-0001', type: 'equipment', category: 'fitness', title: 'ヨガマット × 10',
     amount: 15000, status: STATUS.ORDERED, date: '2026-02-25', shop: '20201',
     equipDetails: [{ name: 'ヨガマット', code: 'YM-001', price: 1500, qty: 10, supplier: 'フィットネスジャパン', arrivalDate: '2026-02-28' }],
     estimateAmount: 15000, finalAmount: null, deliveryDate: '2026-03-06', repairScheduleDate: '', repairCompletedDate: '',
@@ -316,7 +428,7 @@ var adminOrders = [
       { status: 1, date: '2026/02/26 00:00', user: 'システム（自動:締め日）', memo: '締め日により自動発注。' }
     ]
   }
-];
+]);
 
 var expandedIds = {};
 
@@ -434,7 +546,11 @@ function renderOrders() {
 
     var orderCount = 1;
     var contentLabel = o.title;
-    if (o.type === 'equipment' && o.equipDetails) {
+    if (o.type === 'repair') {
+      contentLabel = o.issue || o.title;
+    } else if (o.type === 'parts') {
+      contentLabel = o.partsName || o.title;
+    } else if (o.type === 'equipment' && o.equipDetails) {
       orderCount = o.equipDetails.length;
       if (orderCount === 1) {
         contentLabel = o.equipDetails[0].name + ' × ' + o.equipDetails[0].qty;
@@ -453,7 +569,7 @@ function renderOrders() {
     }
 
     html += '<td>' + catLabel + '</td>' +
-      '<td>' + contentLabel + '</td>' +
+      '<td class="td-content">' + contentLabel + '</td>' +
       '<td>' + orderCount + '</td>' +
       '<td>' + displayAmount + '</td>' +
       '<td><span class="status-badge ' + statusClass + '">' + statusLabel + '</span></td>' +
@@ -494,8 +610,7 @@ function renderDetailContent(o) {
 
   // Left: 依頼内容（読み取り専用）
   html += '<div>';
-  html += '<div class="detail-section-title store-info">' +
-    (o.type === 'repair' ? '店舗からの依頼内容' : o.type === 'equipment' ? '発注内容' : '部品発注内容') + '</div>';
+  html += '<div class="detail-section-title store-info">店舗からの依頼内容</div>';
 
   if (o.type === 'repair') {
     html += '<div class="detail-grid">' +
@@ -1148,9 +1263,6 @@ function doBulkStatusChange() {
   if (selectAll) selectAll.checked = false;
   renderOrders();
 }
-
-// Legacy function name alias
-function bulkInprogress() { bulkStatusChange(); }
 
 // ===== Init =====
 initView();

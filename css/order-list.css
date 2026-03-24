@@ -97,6 +97,14 @@
 }
 
 
+/* ===== Content Column Truncation ===== */
+.td-content {
+  max-width: 280px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* ===== Order Table ===== */
 .order-table { width: 100%; border-collapse: collapse; }
 .order-table th {
