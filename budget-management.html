@@ -21,15 +21,13 @@
     <!-- Admin Filters -->
     <div class="toolbar" id="adminToolbar">
       <div class="toolbar-filters">
-        <select class="form-select" id="filterZone" onchange="filterBudget()">
+        <select class="form-select" id="filterZone" onchange="onZoneChange()">
           <option value="">ゾーン</option>
-          <option value="100" selected>100:東日本</option>
+          <option value="100">100:東日本</option>
           <option value="200">200:西日本</option>
         </select>
         <select class="form-select" id="filterArea" onchange="onAreaChange()">
           <option value="">エリア</option>
-          <option value="101">101:北海道</option>
-          <option value="102">102:東北</option>
         </select>
         <select class="form-select" id="filterShop" onchange="filterBudget()">
           <option value="">店舗</option>
@@ -40,8 +38,8 @@
           <option value="ig">インドアゴルフ</option>
         </select>
         <select class="form-select" id="filterYear" onchange="filterBudget()">
-          <option value="2025" selected>2025年度</option>
-          <option value="2024">2024年度</option>
+          <option value="2025">2025年度</option>
+          <option value="2026" selected>2026年度</option>
         </select>
       </div>
     </div>
@@ -55,8 +53,8 @@
           <option value="ig">インドアゴルフ</option>
         </select>
         <select class="form-select" id="storeYear" onchange="filterBudget()">
-          <option value="2025" selected>2025年度</option>
-          <option value="2024">2024年度</option>
+          <option value="2025">2025年度</option>
+          <option value="2026" selected>2026年度</option>
         </select>
       </div>
     </div>
@@ -70,6 +68,7 @@
     </div>
 
     <!-- Summary Cards -->
+    <div class="summary-count" id="summaryCount"></div>
     <div class="summary-grid" id="summaryCards">
       <!-- JS renders -->
     </div>
@@ -81,7 +80,7 @@
           <tr>
             <th rowspan="2" class="col-shop sticky-col">店舗</th>
             <th colspan="4" class="group-header group-period">当期</th>
-            <th colspan="4" class="group-header group-midterm">期中</th>
+            <th colspan="4" class="group-header group-midterm" id="midtermHeader">期中</th>
             <th colspan="4" class="group-header group-monthly">当月</th>
           </tr>
           <tr>
