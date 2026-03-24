@@ -8,7 +8,7 @@
 }
 .filter-bar .form-select {
   padding: 8px 14px;
-  font-size: 13px;
+  font-size: 14px;
   padding-right: 36px;
   background-position: right 12px center;
 }
@@ -23,16 +23,16 @@
   flex: 1;
   min-width: 150px;
 }
-.summary-label { font-size: 12px; color: #94a3b8; font-weight: 600; margin-bottom: 4px; }
+.summary-label { font-size: 13px; color: #94a3b8; font-weight: 600; margin-bottom: 4px; }
 .summary-value { font-size: 20px; font-weight: 700; }
-.summary-count { font-size: 12px; color: #94a3b8; margin-top: 2px; }
+.summary-count { font-size: 13px; color: #94a3b8; margin-top: 2px; }
 
 /* ===== Procurement Table ===== */
 .proc-table { width: 100%; border-collapse: collapse; }
 .proc-table th {
   text-align: left;
   padding: 12px 16px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   color: #64748b;
   background: #f1f5f9;
@@ -41,7 +41,7 @@
 .proc-table th.right, .proc-table td.right { text-align: right; }
 .proc-table td {
   padding: 14px 16px;
-  font-size: 13px;
+  font-size: 14px;
   border-bottom: 1px solid #f1f5f9;
   vertical-align: middle;
 }
@@ -72,7 +72,7 @@
   margin-bottom: 0;
 }
 .procurement-form .form-label {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   color: #64748b;
   margin-bottom: 0;
@@ -90,7 +90,7 @@
 /* ===== Responsive ===== */
 @media (min-width: 601px) and (max-width: 1024px) {
   .summary-bar { flex-direction: row; }
-  .proc-table { font-size: 12px; }
+  .proc-table { font-size: 13px; }
   .proc-table td { padding: 10px 12px; }
 }
 @media (max-width: 600px) {

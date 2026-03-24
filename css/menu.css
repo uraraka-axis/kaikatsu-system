@@ -26,7 +26,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   color: #64748b;
   margin-bottom: 12px;
@@ -61,13 +61,13 @@
 .schedule-card.near .date-num { color: #b45309; }
 .date-sub {
   display: block;
-  font-size: 10px;
+  font-size: 12px;
   color: #94a3b8;
   margin-top: 2px;
 }
 .schedule-card-body { flex: 1; min-width: 0; }
 .schedule-card-label {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   color: #334155;
   white-space: nowrap;
@@ -75,7 +75,7 @@
   text-overflow: ellipsis;
 }
 .schedule-card-remain {
-  font-size: 11px;
+  font-size: 12px;
   color: #94a3b8;
   margin-top: 2px;
 }
@@ -84,7 +84,7 @@
 /* ===== Menu Sections ===== */
 .menu-section { margin-bottom: 28px; }
 .menu-section-title {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   color: #94a3b8;
   letter-spacing: 0.5px;
@@ -151,7 +151,7 @@
   margin-bottom: 3px;
 }
 .menu-card-desc {
-  font-size: 11px;
+  font-size: 12px;
   color: #94a3b8;
   line-height: 1.4;
   white-space: nowrap;

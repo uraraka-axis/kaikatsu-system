@@ -13,7 +13,7 @@
   background-color: #ffffff;
 }
 .unavailable-date-row { margin-bottom: 16px; }
-.unavailable-date-label { font-size: 13px; color: #64748b; margin-bottom: 6px; }
+.unavailable-date-label { font-size: 14px; color: #64748b; margin-bottom: 6px; }
 
 .date-input-wrapper { position: relative; }
 .date-input-wrapper input[type="date"] {
@@ -114,13 +114,13 @@
   border: 1px solid #e2e8f0;
   border-radius: 8px;
   margin-bottom: 8px;
-  font-size: 13px;
+  font-size: 14px;
 }
 .slot-item-info { display: flex; align-items: center; gap: 12px; }
 .slot-date { font-weight: 600; color: #1e293b; }
 .slot-time {
   color: #64748b;
-  font-size: 12px;
+  font-size: 13px;
   background-color: #f1f5f9;
   padding: 2px 8px;
   border-radius: 4px;
@@ -148,7 +148,7 @@
   background-color: #fff;
   color: #475569;
   font-family: inherit;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
@@ -166,5 +166,5 @@
   .form-grid { grid-template-columns: 1fr; gap: 0; }
   .radio-group { flex-direction: column; gap: 10px; }
   .days-grid { gap: 6px; }
-  .day-btn { padding: 8px 14px; min-width: 70px; font-size: 12px; }
+  .day-btn { padding: 8px 14px; min-width: 70px; font-size: 13px; }
 }

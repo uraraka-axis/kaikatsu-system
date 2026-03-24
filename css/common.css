@@ -33,7 +33,7 @@ body {
   border-radius: 6px;
   cursor: pointer;
   font-family: inherit;
-  font-size: 13px;
+  font-size: 14px;
   transition: all 0.2s;
 }
 .btn-logout:hover { background-color: #334155; border-color: #94a3b8; }
@@ -50,7 +50,7 @@ body {
 }
 .nav-btn {
   font-family: inherit;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   padding: 8px 20px;
   border-radius: 6px;
@@ -148,7 +148,7 @@ body {
   padding: 8px 20px;
   border-radius: 8px;
   font-family: inherit;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
@@ -176,8 +176,9 @@ body {
   display: inline-block;
   padding: 3px 10px;
   border-radius: 12px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
+  white-space: nowrap;
 }
 
 /* ===== Table Container ===== */
@@ -207,7 +208,7 @@ body {
 .upload-icon { color: #94a3b8; margin-bottom: 12px; }
 .upload-icon svg { width: 40px; height: 40px; }
 .upload-text { font-size: 14px; font-weight: 500; color: #64748b; }
-.upload-hint { font-size: 12px; color: #94a3b8; margin-top: 16px; }
+.upload-hint { font-size: 13px; color: #94a3b8; margin-top: 16px; }
 
 .photo-previews { display: flex; gap: 12px; margin-top: 12px; flex-wrap: wrap; }
 .photo-preview {
@@ -244,7 +245,7 @@ body {
   .header { padding: 0 20px; }
   .header h1 { font-size: 18px; }
   .nav { padding: 0 12px; gap: 2px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  .nav-btn { padding: 8px 14px; font-size: 12px; white-space: nowrap; }
+  .nav-btn { padding: 8px 14px; font-size: 13px; white-space: nowrap; }
   .main { padding: 24px 20px; max-width: 100%; }
   .table-container { overflow-x: auto; }
   .form-group { margin-bottom: 20px; }
@@ -255,13 +256,13 @@ body {
   .header { padding: 0 12px; height: 56px; }
   .header h1 { font-size: 16px; }
   .header-right { gap: 12px; }
-  .header-user { font-size: 12px; }
-  .btn-logout { padding: 4px 12px; font-size: 12px; }
+  .header-user { font-size: 13px; }
+  .btn-logout { padding: 4px 12px; font-size: 13px; }
   .nav { padding: 0 8px; gap: 2px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  .nav-btn { padding: 6px 12px; font-size: 11px; white-space: nowrap; }
+  .nav-btn { padding: 6px 12px; font-size: 12px; white-space: nowrap; }
   .main { padding: 16px 12px; }
   .page-title { font-size: 18px; }
-  .form-label { font-size: 13px; }
+  .form-label { font-size: 14px; }
   .form-select, .form-input { font-size: 16px; /* prevent iOS zoom */ }
   .table-container { overflow-x: auto; }
   .submit-section { justify-content: center; }

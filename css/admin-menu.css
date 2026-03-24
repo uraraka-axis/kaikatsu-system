@@ -1,7 +1,7 @@
 /* ===== Section ===== */
 .section { margin-bottom: 36px; }
 .section-title {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   color: #94a3b8;
   text-transform: uppercase;
@@ -45,7 +45,7 @@
 .master-icon { background: #f1f5f9; color: #1e293b; }
 
 .master-card-title { font-size: 15px; font-weight: 600; color: #1e293b; }
-.master-card-desc { font-size: 12px; color: #94a3b8; margin-top: 2px; }
+.master-card-desc { font-size: 13px; color: #94a3b8; margin-top: 2px; }
 
 /* ===== Upload Area ===== */
 .upload-area {
@@ -58,8 +58,8 @@
   background: #fafbfc;
 }
 .upload-area:hover { border-color: #3b82f6; background: #f0f7ff; }
-.upload-area-text { font-size: 13px; color: #64748b; }
-.upload-area-hint { font-size: 11px; color: #94a3b8; margin-top: 4px; }
+.upload-area-text { font-size: 14px; color: #64748b; }
+.upload-area-hint { font-size: 12px; color: #94a3b8; margin-top: 4px; }
 
 /* ===== Card Footer ===== */
 .master-card-footer {
@@ -71,14 +71,14 @@
   border-top: 1px solid #f1f5f9;
 }
 .footer-dates { display: flex; flex-direction: column; gap: 2px; }
-.last-updated { font-size: 11px; color: #94a3b8; }
-.scheduled-update { font-size: 11px; color: #d97706; font-weight: 500; }
+.last-updated { font-size: 12px; color: #94a3b8; }
+.scheduled-update { font-size: 12px; color: #d97706; font-weight: 500; }
 
 .btn-dl {
   padding: 6px 14px;
   border-radius: 6px;
   font-family: inherit;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
@@ -111,14 +111,14 @@
 }
 .export-filter-label {
   display: block;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   color: #64748b;
   margin-bottom: 4px;
 }
 .export-filters .form-select {
   padding: 8px 12px;
-  font-size: 13px;
+  font-size: 14px;
   padding-right: 32px;
   background-position: right 10px center;
 }
@@ -156,7 +156,7 @@
 }
 .settings-link-icon svg { width: 22px; height: 22px; }
 .settings-link-text { font-size: 15px; font-weight: 600; }
-.settings-link-desc { font-size: 12px; color: #94a3b8; }
+.settings-link-desc { font-size: 13px; color: #94a3b8; }
 
 /* ===== Responsive ===== */
 @media (min-width: 601px) and (max-width: 1024px) {

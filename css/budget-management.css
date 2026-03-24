@@ -47,11 +47,11 @@
   border-radius: 12px;
   padding: 20px;
 }
-.summary-card-label { font-size: 12px; color: #94a3b8; font-weight: 600; margin-bottom: 8px; }
+.summary-card-label { font-size: 13px; color: #94a3b8; font-weight: 600; margin-bottom: 8px; }
 .summary-card-value { font-size: 24px; font-weight: 700; }
 .summary-card-value.positive { color: #22c55e; }
 .summary-card-value.negative { color: #ef4444; }
-.summary-card-sub { font-size: 12px; color: #94a3b8; margin-top: 4px; }
+.summary-card-sub { font-size: 13px; color: #94a3b8; margin-top: 4px; }
 
 /* ===== Progress Bar ===== */
 .progress-bar {
@@ -80,7 +80,7 @@
 .budget-table { width: 100%; border-collapse: collapse; white-space: nowrap; }
 .budget-table th {
   padding: 8px 12px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   color: #64748b;
   background: #f1f5f9;
@@ -91,14 +91,14 @@
 .budget-table th.col-shop { text-align: left; min-width: 130px; }
 
 /* Group headers */
-.group-header { text-align: center !important; font-size: 12px; font-weight: 700; }
+.group-header { text-align: center !important; font-size: 13px; font-weight: 700; }
 .group-period { background: #eff6ff; color: #1d4ed8; border-bottom: 2px solid #93c5fd; }
 .group-midterm { background: #f0fdf4; color: #15803d; border-bottom: 2px solid #86efac; }
 .group-monthly { background: #fffbeb; color: #a16207; border-bottom: 2px solid #fcd34d; }
 
 .budget-table td {
   padding: 10px 12px;
-  font-size: 12px;
+  font-size: 13px;
   border-bottom: 1px solid #f1f5f9;
   text-align: right;
   font-variant-numeric: tabular-nums;
@@ -153,7 +153,7 @@
 .dept-toggles { display: flex; gap: 6px; }
 .dept-toggle {
   padding: 5px 14px;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   border: 1px solid #cbd5e1;
   border-radius: 6px;
@@ -176,7 +176,7 @@
 }
 .dept-section:last-child { margin-bottom: 0; }
 .dept-section-title {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
   color: #1e293b;
   padding: 6px 10px;
@@ -190,7 +190,7 @@
 .monthly-table { width: 100%; border-collapse: collapse; }
 .monthly-table th {
   padding: 8px 12px;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   color: #64748b;
   background: #f1f5f9;
@@ -201,7 +201,7 @@
 .monthly-table th.col-total { background: #e8edf2; }
 .monthly-table td {
   padding: 8px 12px;
-  font-size: 13px;
+  font-size: 14px;
   text-align: right;
   border-bottom: 1px solid #f1f5f9;
   font-variant-numeric: tabular-nums;
@@ -233,7 +233,7 @@
   margin-bottom: 0;
 }
 .procurement-form .form-label {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   color: #64748b;
   margin-bottom: 0;
@@ -264,7 +264,7 @@
 @media (max-width: 600px) {
   .summary-grid { grid-template-columns: 1fr 1fr; }
   .toolbar-filters { gap: 6px; }
-  .toolbar-filters .form-select { min-width: 100px; font-size: 13px; }
+  .toolbar-filters .form-select { min-width: 100px; font-size: 14px; }
   .summary-card-value { font-size: 20px; }
   .detail-content { padding: 10px; overflow-x: auto; }
   .detail-header { flex-direction: column; align-items: flex-start; }
