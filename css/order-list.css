@@ -122,11 +122,13 @@
 .order-row.parts { border-left: 4px solid #22c55e; }
 
 /* ===== Status / Type Badges ===== */
-.status-requesting { background-color: #fef3c7; color: #92400e; }
-.status-inprogress { background-color: #dbeafe; color: #1e40af; }
-.status-ordered    { background-color: #e0e7ff; color: #3730a3; }
-.status-repaired   { background-color: #fce7f3; color: #9d174d; }
-.status-completed  { background-color: #d1fae5; color: #065f46; }
+.status-requesting      { background-color: #fef3c7; color: #92400e; }
+.status-ordered         { background-color: #e8daef; color: #4a235a; }
+.status-delivering      { background-color: #cce5ff; color: #004085; }
+.status-waiting-repair  { background-color: #cce5ff; color: #004085; }
+.status-delivered       { background-color: #fce4ec; color: #880e4f; }
+.status-repaired        { background-color: #fce4ec; color: #880e4f; }
+.status-completed       { background-color: #d1fae5; color: #065f46; }
 
 .type-badge {
   display: inline-block;
