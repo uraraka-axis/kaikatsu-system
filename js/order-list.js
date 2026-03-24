@@ -562,8 +562,8 @@ function renderOrders() {
       }
     }
 
-    html += '<tr class="order-row ' + o.type + '">' +
-      '<td><input type="checkbox" class="order-check" data-id="' + o.id + '"></td>' +
+    html += '<tr class="order-row ' + o.type + '" onclick="onRowClick(event, \'' + o.id + '\')">' +
+      '<td class="td-checkbox"><input type="checkbox" class="order-check" data-id="' + o.id + '"></td>' +
       '<td><span class="type-badge ' + typeClass + '">' + typeLabel + '</span></td>' +
       '<td><strong>' + o.id + '</strong></td>';
 
@@ -1131,6 +1131,12 @@ function doSaveEditInfo(orderId) {
 }
 
 // ===== Other Actions =====
+function onRowClick(e, id) {
+  // チェックボックス列は除外
+  if (e.target.closest('.td-checkbox')) return;
+  toggleDetail(id);
+}
+
 function toggleDetail(id) {
   expandedIds[id] = !expandedIds[id];
   renderOrders();
