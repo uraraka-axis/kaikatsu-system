@@ -591,7 +591,7 @@ function renderOrders() {
       '<td>' + displayAmount + '</td>' +
       '<td><span class="status-badge ' + statusClass + '">' + statusLabel + '</span></td>' +
       '<td>' + o.date + '</td>' +
-      '<td><button class="btn-sm" onclick="toggleDetail(\'' + o.id + '\')">' + (isOpen ? '−' : '+') + '</button></td>' +
+      '<td><button class="btn-sm">' + (isOpen ? '−' : '+') + '</button></td>' +
     '</tr>';
 
     html += '<tr class="detail-panel' + (isOpen ? ' open' : '') + '" id="detail-' + o.id + '">' +

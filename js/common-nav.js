@@ -30,7 +30,7 @@
     { href: 'menu.html', label: 'メニュー' },
     { href: 'order-list.html', label: '発注一覧' },
     { href: 'budget-management.html', label: '予算管理' },
-    { href: 'procurement-history.html', label: '自店調達管理' },
+    { href: 'procurement-history.html', label: '自店調達' },
     { href: 'admin-menu.html', label: '管理メニュー' }
   ];
 

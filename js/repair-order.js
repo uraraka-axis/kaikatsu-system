@@ -152,6 +152,10 @@
     }
 
     // ===== Day Toggle =====
+    function renderDayButtons() {
+      document.querySelectorAll('.day-btn').forEach(function(btn) { btn.classList.remove('selected'); });
+    }
+
     function toggleDay(btn) {
       var day = btn.getAttribute('data-day');
       var idx = selectedDays.indexOf(day);
