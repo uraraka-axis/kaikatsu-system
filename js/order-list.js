@@ -207,6 +207,20 @@ var storeOrders = [
     ]
   },
   {
+    id: 'EQU-S01-20260224-0001', type: 'equipment', category: 'fitness', title: 'エアロバイク 他2商品',
+    amount: 324000, status: STATUS.ORDERED, date: '2026-02-24', shop: '10301',
+    equipDetails: [
+      { name: 'エアロバイク AB-300', code: 'AB-300', price: 128000, qty: 2, supplier: 'フィットネスジャパン', arrivalDate: '2026-03-10' },
+      { name: 'フロアマット（大）', code: 'FM-L01', price: 12000, qty: 4, supplier: 'フィットネスジャパン', arrivalDate: '2026-03-10' },
+      { name: '心拍計アームバンド', code: 'HR-AB1', price: 4000, qty: 5, supplier: 'スポーツ用品販売', arrivalDate: '2026-03-10' }
+    ],
+    estimateAmount: 324000, finalAmount: null, deliveryDate: '2026-03-10', repairScheduleDate: '', repairCompletedDate: '',
+    statusHistory: [
+      { status: 0, date: '2026/02/24 11:00', user: '新宿東口店', memo: '' },
+      { status: 1, date: '2026/02/27 00:00', user: 'システム（自動:締め日）', memo: '締め日により自動発注。見積金額: ¥324,000' }
+    ]
+  },
+  {
     id: 'EQU-S01-20260222-0001', type: 'equipment', category: 'fitness', title: 'バランスボール × 3',
     amount: 5400, status: STATUS.DELIVERING, date: '2026-02-22', shop: '10301',
     equipDetails: [
