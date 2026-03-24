@@ -59,9 +59,9 @@
 
       // Build table header
       var thHtml = '<tr>';
-      thHtml += '<th>申請番号</th>';
-      if (viewMode === 'admin') thHtml += '<th>店舗</th>';
-      thHtml += '<th>カテゴリ</th><th class="right">金額</th><th>理由</th><th>申請日</th><th>ステータス</th>';
+      thHtml += '<th style="white-space:nowrap">申請番号</th>';
+      if (viewMode === 'admin') thHtml += '<th style="white-space:nowrap">店舗</th>';
+      thHtml += '<th style="white-space:nowrap">カテゴリ</th><th class="right" style="white-space:nowrap">金額</th><th style="width:100%">理由</th><th style="white-space:nowrap">申請日</th><th style="white-space:nowrap">ステータス</th>';
       thHtml += '</tr>';
       document.getElementById('tableHead').innerHTML = thHtml;
 
