@@ -156,7 +156,7 @@
     <!-- Order Data Export -->
     <div class="section">
       <div class="section-title">データ出力</div>
-      <div class="master-grid">
+      <div class="export-grid">
         <div class="master-card">
           <div class="master-card-header">
             <div class="master-card-info">
@@ -167,37 +167,61 @@
           <div class="export-filters">
             <div class="export-filter-row">
               <div class="export-filter-group">
-                <label class="export-filter-label">期間</label>
-                <select class="form-select" id="exportPeriod">
-                  <option>2026年2月</option>
-                  <option>2026年1月</option>
-                  <option>2025年12月</option>
+                <label class="export-filter-label">ゾーン</label>
+                <select class="form-select" id="exportOrderZone" onchange="onOrderZoneChange()">
+                  <option value="">すべて</option>
+                  <option value="100">100:東日本</option>
+                  <option value="200">200:西日本</option>
                 </select>
               </div>
               <div class="export-filter-group">
+                <label class="export-filter-label">エリア</label>
+                <select class="form-select" id="exportOrderArea" onchange="onOrderAreaChange()">
+                  <option value="">すべて</option>
+                </select>
+              </div>
+              <div class="export-filter-group">
+                <label class="export-filter-label">店舗</label>
+                <select class="form-select" id="exportOrderShop">
+                  <option value="">すべて</option>
+                </select>
+              </div>
+            </div>
+            <div class="export-filter-row" style="margin-top:10px">
+              <div class="export-filter-group export-filter-date">
+                <label class="export-filter-label">発注日</label>
+                <div class="date-range">
+                  <input type="date" class="form-input" id="exportDateFrom">
+                  <span class="date-sep">〜</span>
+                  <input type="date" class="form-input" id="exportDateTo">
+                </div>
+              </div>
+            </div>
+            <div class="export-filter-row" style="margin-top:10px">
+              <div class="export-filter-group">
                 <label class="export-filter-label">種別</label>
                 <select class="form-select" id="exportType">
-                  <option>すべて</option>
-                  <option>修理発注</option>
-                  <option>備品発注</option>
-                  <option>部品発注</option>
+                  <option value="">すべて</option>
+                  <option value="repair">修理発注</option>
+                  <option value="equipment">備品発注</option>
+                  <option value="parts">部品発注</option>
                 </select>
               </div>
               <div class="export-filter-group">
                 <label class="export-filter-label">ステータス</label>
                 <select class="form-select" id="exportStatus">
-                  <option>すべて</option>
-                  <option>依頼中</option>
-                  <option>対応中</option>
-                  <option>発注済</option>
-                  <option>修理済</option>
-                  <option>完了</option>
+                  <option value="">すべて</option>
+                  <option value="0">依頼中</option>
+                  <option value="1">発注済</option>
+                  <option value="2">配達中/修理待ち</option>
+                  <option value="3">納品済/修理済</option>
+                  <option value="4">完了</option>
                 </select>
               </div>
             </div>
           </div>
           <div class="master-card-footer">
-            <span class="last-updated">全6件（2026年2月）</span>
+            <span></span>
             <button class="btn-dl export-btn" onclick="exportOrderData()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>Excel出力</button>
           </div>
         </div>
@@ -211,24 +235,44 @@
           <div class="export-filters">
             <div class="export-filter-row">
               <div class="export-filter-group">
-                <label class="export-filter-label">年度</label>
-                <select class="form-select" id="exportBudgetYear">
-                  <option>2025年度</option>
-                  <option>2024年度</option>
+                <label class="export-filter-label">ゾーン</label>
+                <select class="form-select" id="exportBudgetZone" onchange="onBudgetZoneChange()">
+                  <option value="">すべて</option>
+                  <option value="100">100:東日本</option>
+                  <option value="200">200:西日本</option>
                 </select>
               </div>
               <div class="export-filter-group">
-                <label class="export-filter-label">ゾーン</label>
-                <select class="form-select" id="exportBudgetZone">
-                  <option>すべて</option>
-                  <option>東日本</option>
-                  <option>西日本</option>
+                <label class="export-filter-label">エリア</label>
+                <select class="form-select" id="exportBudgetArea" onchange="onBudgetAreaChange()">
+                  <option value="">すべて</option>
+                </select>
+              </div>
+              <div class="export-filter-group">
+                <label class="export-filter-label">店舗</label>
+                <select class="form-select" id="exportBudgetShop">
+                  <option value="">すべて</option>
+                </select>
+              </div>
+              <div class="export-filter-group">
+                <label class="export-filter-label">部門</label>
+                <select class="form-select" id="exportBudgetDept">
+                  <option value="">すべて</option>
+                  <option value="fit">フィットネス</option>
+                  <option value="ig">インドアゴルフ</option>
+                </select>
+              </div>
+              <div class="export-filter-group">
+                <label class="export-filter-label">年度</label>
+                <select class="form-select" id="exportBudgetYear">
+                  <option value="2025">2025年度</option>
+                  <option value="2024">2024年度</option>
                 </select>
               </div>
             </div>
           </div>
           <div class="master-card-footer">
-            <span class="last-updated">全店舗（2025年度）</span>
+            <span></span>
             <button class="btn-dl export-btn" onclick="exportBudgetData()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>Excel出力</button>
           </div>
         </div>

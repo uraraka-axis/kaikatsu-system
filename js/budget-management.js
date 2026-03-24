@@ -137,7 +137,124 @@
     }
 
     function exportBudgetExcel() {
-      alert('Excel出力（モックアップ）\n\n現在の表示内容をExcelファイルとしてダウンロードします。');
+      var data = getFilteredData();
+      if (data.length === 0) {
+        alert('出力対象のデータがありません。');
+        return;
+      }
+
+      // Build filter description rows
+      var filterRows = [];
+      if (viewMode === 'admin') {
+        var zoneEl = document.getElementById('filterZone');
+        var areaEl = document.getElementById('filterArea');
+        var shopEl = document.getElementById('filterShop');
+        var deptEl = document.getElementById('filterDept');
+        var yearEl = document.getElementById('filterYear');
+        filterRows.push(['ゾーン', zoneEl.options[zoneEl.selectedIndex].text]);
+        filterRows.push(['エリア', areaEl.options[areaEl.selectedIndex].text]);
+        filterRows.push(['店舗', shopEl.options[shopEl.selectedIndex].text]);
+        filterRows.push(['部門', deptEl.options[deptEl.selectedIndex].text]);
+        filterRows.push(['年度', yearEl.options[yearEl.selectedIndex].text]);
+      } else {
+        var sDeptEl = document.getElementById('storeDept');
+        var sYearEl = document.getElementById('storeYear');
+        filterRows.push(['部門', sDeptEl.options[sDeptEl.selectedIndex].text]);
+        filterRows.push(['年度', sYearEl.options[sYearEl.selectedIndex].text]);
+      }
+
+      var rows = [];
+      rows.push(['予算管理データ']);
+      rows.push([]);
+      filterRows.forEach(function(f) { rows.push(['【' + f[0] + '】', f[1]]); });
+      rows.push([]);
+
+      // Header
+      rows.push([
+        '店舗',
+        '当期予算', '当期実績', '当期残高', '当期消化率(%)',
+        '期中予算', '期中実績', '期中残高', '期中消化率(%)',
+        '当月予算', '当月実績', '当月残高', '当月消化率(%)'
+      ]);
+
+      // Data rows
+      data.forEach(function(d) {
+        rows.push([
+          d.shop,
+          d.period[0], d.period[1], d.period[2], d.period[3].toFixed(1),
+          d.midterm[0], d.midterm[1], d.midterm[2], d.midterm[3].toFixed(1),
+          d.month[0], d.month[1], d.month[2], d.month[3].toFixed(1)
+        ]);
+      });
+
+      // Total row
+      if (data.length > 1) {
+        var totP = [0,0,0], totM = [0,0,0], totMo = [0,0,0];
+        data.forEach(function(d) {
+          for (var i = 0; i < 3; i++) { totP[i] += d.period[i]; totM[i] += d.midterm[i]; totMo[i] += d.month[i]; }
+        });
+        rows.push([
+          '合計',
+          totP[0], totP[1], totP[2], totP[0] > 0 ? (totP[1] / totP[0] * 100).toFixed(1) : '0.0',
+          totM[0], totM[1], totM[2], totM[0] > 0 ? (totM[1] / totM[0] * 100).toFixed(1) : '0.0',
+          totMo[0], totMo[1], totMo[2], totMo[0] > 0 ? (totMo[1] / totMo[0] * 100).toFixed(1) : '0.0'
+        ]);
+      }
+
+      // Monthly detail per store
+      rows.push([]);
+      rows.push(['===== 月別明細 =====']);
+      var monthHeaders = ['項目'];
+      fiscalMonths.forEach(function(m) { monthHeaders.push(m + '月'); });
+      monthHeaders.push('合計');
+
+      data.forEach(function(d) {
+        rows.push([]);
+        rows.push(['■ ' + d.shop]);
+        departments.forEach(function(dept) {
+          rows.push(['【' + dept.label + '】']);
+          rows.push(monthHeaders);
+          var detail = d.details[dept.key];
+          var bRow = ['予算'], aRow = ['実績'], balRow = ['残高'], rRow = ['消化率(%)'];
+          var bTot = 0, aTot = 0;
+          detail.forEach(function(cell) {
+            bRow.push(cell[0]); aRow.push(cell[1]);
+            balRow.push(cell[0] - cell[1]);
+            rRow.push(cell[0] > 0 ? (cell[1] / cell[0] * 100).toFixed(1) : '0.0');
+            bTot += cell[0]; aTot += cell[1];
+          });
+          bRow.push(bTot); aRow.push(aTot); balRow.push(bTot - aTot);
+          rRow.push(bTot > 0 ? (aTot / bTot * 100).toFixed(1) : '0.0');
+          rows.push(bRow); rows.push(aRow); rows.push(balRow); rows.push(rRow);
+        });
+      });
+
+      // Build CSV with BOM for Excel
+      var csv = '\uFEFF';
+      rows.forEach(function(row) {
+        csv += row.map(function(cell) {
+          var s = String(cell == null ? '' : cell);
+          if (s.indexOf(',') >= 0 || s.indexOf('"') >= 0 || s.indexOf('\n') >= 0) {
+            return '"' + s.replace(/"/g, '""') + '"';
+          }
+          return s;
+        }).join(',') + '\r\n';
+      });
+
+      // Download
+      var yearLabel = viewMode === 'admin'
+        ? document.getElementById('filterYear').value
+        : document.getElementById('storeYear').value;
+      var fileName = '予算管理_' + yearLabel + '年度.csv';
+      var blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
     }
 
     // ===== Init =====

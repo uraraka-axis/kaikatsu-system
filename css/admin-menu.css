@@ -122,6 +122,29 @@
   padding-right: 32px;
   background-position: right 10px center;
 }
+/* ===== Export Grid (wider cards) ===== */
+.export-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+  gap: 16px;
+}
+
+.export-filter-date { flex: 2; min-width: 240px; }
+.date-range {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: nowrap;
+}
+.date-range .form-input {
+  display: block;
+  width: auto;
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 8px 10px;
+  font-size: 13px;
+}
+.date-sep { color: #94a3b8; font-size: 14px; flex-shrink: 0; }
 .export-btn {
   background: #3b82f6;
   color: #fff;
