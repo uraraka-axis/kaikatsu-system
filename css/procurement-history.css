@@ -1,3 +1,6 @@
+/* ===== Wide Layout (table page) ===== */
+.main { max-width: 1400px; }
+
 /* ===== Filter Bar ===== */
 .filter-bar {
   display: flex;

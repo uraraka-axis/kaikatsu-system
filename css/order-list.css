@@ -1,3 +1,6 @@
+/* ===== Wide Layout (table page) ===== */
+.main { max-width: 1400px; }
+
 /* ===== Admin Filter Bar ===== */
 .admin-filter-bar {
   display: none;
