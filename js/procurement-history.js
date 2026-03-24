@@ -3,24 +3,24 @@
 
     // Store view: own store only
     var storeRequests = [
-      { id: 'REQ-2026-001', shop: '新宿東口', category: 'fitness', amount: 15000, reason: '緊急でマットを購入', date: '2026-02-26' },
-      { id: 'REQ-2026-002', shop: '新宿東口', category: 'golf', amount: 12000, reason: 'ティーが不足しているため', date: '2026-02-24' },
-      { id: 'REQ-2026-003', shop: '新宿東口', category: 'fitness', amount: 20000, reason: 'ダンベルの追加購入', date: '2026-02-22' },
-      { id: 'REQ-2026-004', shop: '新宿東口', category: 'golf', amount: 8000, reason: 'グローブの補充', date: '2026-02-20' },
-      { id: 'REQ-2026-005', shop: '新宿東口', category: 'fitness', amount: 10000, reason: '消毒スプレーの大量購入', date: '2026-02-18' },
+      { id: 'REQ-S01-20260226-0001', shop: '新宿東口', category: 'fitness', amount: 15000, reason: '緊急でマットを購入', date: '2026-02-26' },
+      { id: 'REQ-S01-20260224-0001', shop: '新宿東口', category: 'golf', amount: 12000, reason: 'ティーが不足しているため', date: '2026-02-24' },
+      { id: 'REQ-S01-20260222-0001', shop: '新宿東口', category: 'fitness', amount: 20000, reason: 'ダンベルの追加購入', date: '2026-02-22' },
+      { id: 'REQ-S01-20260220-0001', shop: '新宿東口', category: 'golf', amount: 8000, reason: 'グローブの補充', date: '2026-02-20' },
+      { id: 'REQ-S01-20260218-0001', shop: '新宿東口', category: 'fitness', amount: 10000, reason: '消毒スプレーの大量購入', date: '2026-02-18' },
     ];
 
     // Admin view: all stores
     var allRequests = [
-      { id: 'REQ-2026-001', shop: '新宿東口', category: 'fitness', amount: 15000, reason: '緊急でマットを購入', date: '2026-02-26' },
-      { id: 'REQ-2026-002', shop: '新宿東口', category: 'golf', amount: 12000, reason: 'ティーが不足しているため', date: '2026-02-24' },
-      { id: 'REQ-2026-003', shop: '新宿東口', category: 'fitness', amount: 20000, reason: 'ダンベルの追加購入', date: '2026-02-22' },
-      { id: 'REQ-2026-004', shop: '新宿東口', category: 'golf', amount: 8000, reason: 'グローブの補充', date: '2026-02-20' },
-      { id: 'REQ-2026-005', shop: '新宿東口', category: 'fitness', amount: 10000, reason: '消毒スプレーの大量購入', date: '2026-02-18' },
-      { id: 'REQ-2026-006', shop: '10101:札幌', category: 'fitness', amount: 18000, reason: 'ヨガマット追加', date: '2026-02-25' },
-      { id: 'REQ-2026-007', shop: '10101:札幌', category: 'golf', amount: 5000, reason: 'ゴルフボール補充', date: '2026-02-20' },
-      { id: 'REQ-2026-008', shop: '10102:函館', category: 'fitness', amount: 22000, reason: 'ストレッチポール購入', date: '2026-02-23' },
-      { id: 'REQ-2026-009', shop: '10201:弘前', category: 'golf', amount: 9500, reason: 'パター用グリップ交換', date: '2026-02-19' },
+      { id: 'REQ-S01-20260226-0001', shop: '新宿東口', category: 'fitness', amount: 15000, reason: '緊急でマットを購入', date: '2026-02-26' },
+      { id: 'REQ-S01-20260224-0001', shop: '新宿東口', category: 'golf', amount: 12000, reason: 'ティーが不足しているため', date: '2026-02-24' },
+      { id: 'REQ-S01-20260222-0001', shop: '新宿東口', category: 'fitness', amount: 20000, reason: 'ダンベルの追加購入', date: '2026-02-22' },
+      { id: 'REQ-S01-20260220-0001', shop: '新宿東口', category: 'golf', amount: 8000, reason: 'グローブの補充', date: '2026-02-20' },
+      { id: 'REQ-S01-20260218-0001', shop: '新宿東口', category: 'fitness', amount: 10000, reason: '消毒スプレーの大量購入', date: '2026-02-18' },
+      { id: 'REQ-S04-20260225-0001', shop: '札幌', category: 'fitness', amount: 18000, reason: 'ヨガマット追加', date: '2026-02-25' },
+      { id: 'REQ-S04-20260220-0001', shop: '札幌', category: 'golf', amount: 5000, reason: 'ゴルフボール補充', date: '2026-02-20' },
+      { id: 'REQ-S05-20260223-0001', shop: '函館', category: 'fitness', amount: 22000, reason: 'ストレッチポール購入', date: '2026-02-23' },
+      { id: 'REQ-S06-20260219-0001', shop: '仙台', category: 'golf', amount: 9500, reason: 'パター用グリップ交換', date: '2026-02-19' },
     ];
 
     function getRequests() {
