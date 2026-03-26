@@ -106,7 +106,7 @@ INSERT INTO products (id, name, code, price, supplier_id, category_code, recomme
 --   生成したハッシュ値に置き換えてください。
 -- ============================================================
 INSERT INTO users (id, login_id, password, name, role, shop_code, sort_order) VALUES
-  (1,  'admin', 'password', '商品部管理者', 'admin', NULL,    0),
+  (1,  'admin', 'password', '商品部', 'admin', NULL,    0),
   (2,  '10101', 'password', '札幌店',       'shop',  '10101', 1),
   (3,  '10102', 'password', '函館店',       'shop',  '10102', 2),
   (4,  '10103', 'password', '旭川店',       'shop',  '10103', 3),

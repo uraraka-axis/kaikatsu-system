@@ -151,16 +151,20 @@
     </div>
   </main>
   <script>
-    (function() {
-      var params = new URLSearchParams(window.location.search);
-      var isAdmin = params.get('role') === 'admin';
-      if (isAdmin) {
-        document.getElementById('orderSection').style.display = 'none';
-        document.querySelector('.header-user').textContent = '商品部';
+    // 初期状態で両セクションを非表示にし、ユーザー情報取得後に切り替え
+    document.getElementById('orderSection').style.display = 'none';
+    document.getElementById('adminSection').style.display = 'none';
+
+    window.addEventListener('userLoaded', function(e) {
+      var user = e.detail;
+      if (user.role === 'admin') {
+        // 管理者: 管理者メニューセクション表示、発注セクション非表示
+        document.getElementById('adminSection').style.display = '';
       } else {
-        document.getElementById('adminSection').style.display = 'none';
+        // 店舗ユーザー: 発注セクション表示、管理者メニューセクション非表示
+        document.getElementById('orderSection').style.display = '';
       }
-    })();
+    });
   </script>
 </body>
 </html>
