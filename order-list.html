@@ -34,23 +34,23 @@
         </div>
         <div class="filter-group">
           <span class="filter-label">店舗</span>
-          <select class="form-select" id="filterShop" onchange="renderOrders()">
+          <select class="form-select" id="filterShop" onchange="applyFilters()">
             <option value="">すべて</option>
           </select>
         </div>
         <div class="filter-group">
           <span class="filter-label">発注日</span>
           <div class="date-range">
-            <input type="date" class="form-input date-input" id="filterDateFrom" onchange="renderOrders()">
+            <input type="date" class="form-input date-input" id="filterDateFrom" onchange="applyFilters()">
             <span class="date-separator">〜</span>
-            <input type="date" class="form-input date-input" id="filterDateTo" onchange="renderOrders()">
+            <input type="date" class="form-input date-input" id="filterDateTo" onchange="applyFilters()">
           </div>
         </div>
       </div>
       <div class="admin-filter-row">
         <div class="filter-group">
           <span class="filter-label">種別</span>
-          <select class="form-select" id="adminFilterType" onchange="renderOrders()">
+          <select class="form-select" id="adminFilterType" onchange="applyFilters()">
             <option value="">すべて</option>
             <option value="repair">修理発注</option>
             <option value="equipment">備品発注</option>
@@ -59,7 +59,7 @@
         </div>
         <div class="filter-group">
           <span class="filter-label">ステータス</span>
-          <select class="form-select" id="adminFilterStatus" onchange="renderOrders()">
+          <select class="form-select" id="adminFilterStatus" onchange="applyFilters()">
             <option value="">すべて</option>
             <option value="0">依頼中</option>
             <option value="1">発注済</option>
@@ -74,18 +74,18 @@
     <!-- Store Filter Bar -->
     <div class="toolbar" id="storeFilterBar">
       <div class="toolbar-left">
-        <select class="form-select" id="filterCategory" onchange="renderOrders()">
+        <select class="form-select" id="filterCategory" onchange="applyFilters()">
           <option value="">カテゴリ</option>
           <option value="fitness">フィットネス</option>
           <option value="golf">ゴルフ</option>
         </select>
-        <select class="form-select" id="filterType" onchange="renderOrders()">
+        <select class="form-select" id="filterType" onchange="applyFilters()">
           <option value="">種別</option>
           <option value="repair">修理</option>
           <option value="equipment">備品</option>
           <option value="parts">部品</option>
         </select>
-        <select class="form-select" id="filterStatus" onchange="renderOrders()">
+        <select class="form-select" id="filterStatus" onchange="applyFilters()">
           <option value="">ステータス</option>
           <option value="0">依頼中</option>
           <option value="1">発注済</option>

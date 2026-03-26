@@ -85,6 +85,9 @@
         nav.innerHTML = html;
       }
 
+      // ユーザー情報をグローバルに保存（レース条件対策）
+      window.__currentUser = user;
+
       // メニュー画面のセクション表示切替をイベントで通知
       window.dispatchEvent(new CustomEvent('userLoaded', { detail: user }));
     })

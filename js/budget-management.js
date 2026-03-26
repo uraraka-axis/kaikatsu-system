@@ -486,8 +486,8 @@
     }
 
     // ===== Boot: wait for userLoaded event from common-nav.js =====
-    window.addEventListener('userLoaded', function(e) {
-      var user = e.detail;
+    function bootBudget(user) {
+      if (viewMode !== 'store' || storeShopCode) return; // 二重起動防止
       viewMode = user.role === 'admin' ? 'admin' : 'store';
       if (viewMode === 'store') {
         storeShopCode = user.shop_code;
@@ -496,4 +496,13 @@
       fetchMasterData(function() {
         initView();
       });
+    }
+
+    window.addEventListener('userLoaded', function(e) {
+      bootBudget(e.detail);
     });
+
+    // レース条件対策: common-nav.jsが先に完了していた場合
+    if (window.__currentUser) {
+      bootBudget(window.__currentUser);
+    }
