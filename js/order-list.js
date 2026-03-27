@@ -295,8 +295,7 @@ function formatUnavailDays(arr) {
 function renderOrders() {
   var filtered = currentOrders.slice();
 
-  // 発注日の新しい順にソート
-  filtered.sort(function(a, b) { return b.date.localeCompare(a.date); });
+  // APIの返却順（created_at DESC）を維持 — 再ソート不要
 
   var colSpan = viewMode === 'admin' ? 11 : 10;
   var tbody = document.getElementById('orderTableBody');
@@ -359,15 +358,11 @@ function getDisplayAmount(o) {
 function renderDetailContent(o) {
   var html = '';
 
-  if (viewMode === 'admin') {
-    html += '<div style="margin-bottom:12px;"><span class="detail-label">店舗</span> <span class="detail-value" style="font-weight:600;">' + o.shop_code + ':' + (o.shop_name || o.shop_code) + '</span></div>';
-  }
-
   html += '<div class="detail-two-col">';
 
   // Left: 依頼内容（読み取り専用）
   html += '<div>';
-  html += '<div class="detail-section-title store-info">店舗からの依頼内容</div>';
+  html += '<div class="detail-section-title store-info">依頼内容</div>';
 
   if (o.type === 'repair') {
     html += '<div class="detail-grid">' +

@@ -1,21 +1,37 @@
-    // Sample product data
-    var products = [
-      { id: 1, name: 'トレーニングマット', code: 'MAT-001', price: 3500, supplier: 'フィットネスジャパン', category: 'fitness', recommended: true },
-      { id: 2, name: 'ダンベル 5kg', code: 'DB-005', price: 2800, supplier: 'フィットネスジャパン', category: 'fitness', recommended: true },
-      { id: 3, name: 'バランスボール 65cm', code: 'BB-065', price: 1800, supplier: 'スポーツ用品販売', category: 'fitness', recommended: false },
-      { id: 4, name: 'ヨガブロック', code: 'YB-001', price: 1200, supplier: 'フィットネスジャパン', category: 'fitness', recommended: false },
-      { id: 5, name: 'ゴルフボール 1ダース', code: 'GB-012', price: 4200, supplier: 'ゴルフサプライ', category: 'golf', recommended: true },
-      { id: 6, name: 'ゴルフティー 100本入り', code: 'GT-100', price: 800, supplier: 'ゴルフサプライ', category: 'golf', recommended: false },
-      { id: 7, name: 'グローブ Lサイズ', code: 'GL-L01', price: 1500, supplier: 'ゴルフサプライ', category: 'golf', recommended: true },
-      { id: 8, name: 'タオル（大）10枚セット', code: 'TW-L10', price: 5600, supplier: 'リネンサービス', category: 'fitness', recommended: true },
-      { id: 9, name: '消毒スプレー 500ml', code: 'DS-500', price: 980, supplier: '衛生用品販売', category: 'fitness', recommended: false },
-      { id: 10, name: 'スコアカード 100枚', code: 'SC-100', price: 1200, supplier: 'ゴルフサプライ', category: 'golf', recommended: false },
-    ];
-
+    // ===== State =====
+    var products = [];
     var cart = {};
     var monthlyBudget = 50000;
     var cartExpanded = false;
+    var currentUser = null;
 
+    // ===== API =====
+    function fetchProducts(callback) {
+      fetch('api/products.php', { credentials: 'same-origin' })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (data.success) {
+            products = data.data.map(function(p) {
+              return {
+                id: p.id,
+                name: p.name,
+                code: p.code,
+                price: parseInt(p.price, 10),
+                supplier: p.supplier || '',
+                category: p.category,
+                recommended: parseInt(p.recommended, 10) === 1
+              };
+            });
+          }
+          if (callback) callback();
+        })
+        .catch(function(e) {
+          console.error('Failed to fetch products:', e);
+          if (callback) callback();
+        });
+    }
+
+    // ===== Filter & Render =====
     function filterProducts() {
       var cat = document.getElementById('category').value;
       var search = document.getElementById('searchInput').value.trim().toLowerCase();
@@ -99,6 +115,7 @@
 
       keys.forEach(function(id) {
         var p = products.find(function(x) { return x.id == id; });
+        if (!p) return;
         var qty = cart[id];
         var subtotal = p.price * qty;
         totalItems += qty;
@@ -119,9 +136,8 @@
       document.getElementById('cartItems').innerHTML = itemsHtml;
       document.getElementById('cartTotal').textContent = '¥' + totalPrice.toLocaleString();
 
-      // Budget check
-      var alert = document.getElementById('budgetAlert');
-      if (totalPrice > monthlyBudget) { alert.classList.add('visible'); } else { alert.classList.remove('visible'); }
+      var budgetAlert = document.getElementById('budgetAlert');
+      if (totalPrice > monthlyBudget) { budgetAlert.classList.add('visible'); } else { budgetAlert.classList.remove('visible'); }
     }
 
     function toggleCart() {
@@ -134,13 +150,72 @@
       }
     }
 
+    // ===== Submit (API) =====
     function submitOrder() {
-      var count = Object.keys(cart).length;
-      alert('備品発注を送信しました（' + count + '商品）');
-      cart = {};
-      filterProducts();
-      updateCart();
+      var keys = Object.keys(cart);
+      if (!keys.length) return;
+
+      // カテゴリを判定（カート内商品のカテゴリ）
+      var categories = {};
+      keys.forEach(function(id) {
+        var p = products.find(function(x) { return x.id == id; });
+        if (p) categories[p.category] = true;
+      });
+      var catKeys = Object.keys(categories);
+      var category = catKeys.length === 1 ? catKeys[0] : 'fitness';
+
+      var submitBtn = document.getElementById('submitBtn');
+      submitBtn.disabled = true;
+      submitBtn.textContent = '送信中...';
+
+      var items = keys.map(function(id) {
+        return { product_id: parseInt(id, 10), qty: cart[id] };
+      });
+
+      var formData = new FormData();
+      formData.append('type', 'equipment');
+      formData.append('category', category);
+      formData.append('items', JSON.stringify(items));
+
+      fetch('api/orders/create.php', {
+        method: 'POST',
+        credentials: 'same-origin',
+        body: formData
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.success) {
+          alert('備品発注を送信しました\n発注番号: ' + data.order_id);
+          cart = {};
+          filterProducts();
+          updateCart();
+        } else {
+          alert('エラー: ' + (data.error || '送信に失敗しました'));
+        }
+      })
+      .catch(function(e) {
+        console.error('Submit error:', e);
+        alert('通信エラーが発生しました');
+      })
+      .finally(function() {
+        submitBtn.disabled = false;
+        submitBtn.textContent = '発注する';
+      });
     }
 
-    // Initial render
-    filterProducts();
+    // ===== Boot =====
+    function bootEquipmentOrder(user) {
+      if (currentUser) return;
+      currentUser = user;
+      fetchProducts(function() {
+        filterProducts();
+      });
+    }
+
+    window.addEventListener('userLoaded', function(e) {
+      bootEquipmentOrder(e.detail);
+    });
+
+    if (window.__currentUser) {
+      bootEquipmentOrder(window.__currentUser);
+    }

@@ -2,12 +2,12 @@
     let unavailableSlots = [];
     let selectedDays = [];
     let photos = [];
+    let currentUser = null;
 
     // ===== Initialize =====
     document.addEventListener('DOMContentLoaded', function() {
       initDateInput();
       initHourSelects();
-      initNavigation();
     });
 
     function initDateInput() {
@@ -23,15 +23,6 @@
         startHour.innerHTML += '<option value="' + val + '">' + val + '</option>';
         endHour.innerHTML += '<option value="' + val + '">' + val + '</option>';
       }
-    }
-
-    function initNavigation() {
-      document.querySelectorAll('.nav-btn').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-          document.querySelectorAll('.nav-btn').forEach(function(b) { b.classList.remove('active'); });
-          btn.classList.add('active');
-        });
-      });
     }
 
     // ===== Calculate min date (3 business days) =====
@@ -237,9 +228,50 @@
       submitBtn.disabled = !(category && equipment && issue);
     }
 
-    // ===== Submit =====
+    // ===== Submit (API) =====
     function submitForm() {
-      alert('修理依頼を送信しました');
+      var submitBtn = document.getElementById('submitBtn');
+      submitBtn.disabled = true;
+      submitBtn.textContent = '送信中...';
+
+      var formData = new FormData();
+      formData.append('type', 'repair');
+      formData.append('category', document.getElementById('category').value);
+      formData.append('equipment_name', document.getElementById('equipmentName').value.trim());
+      formData.append('issue', document.getElementById('issueDescription').value.trim());
+      formData.append('unavail_dates', JSON.stringify(unavailableSlots));
+      formData.append('unavail_days', JSON.stringify(selectedDays));
+
+      // 写真を追加
+      photos.forEach(function(p) {
+        formData.append('photos[]', p.file);
+      });
+
+      fetch('api/orders/create.php', {
+        method: 'POST',
+        credentials: 'same-origin',
+        body: formData
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.success) {
+          alert('修理依頼を送信しました\n発注番号: ' + data.order_id);
+          resetForm();
+        } else {
+          alert('エラー: ' + (data.error || '送信に失敗しました'));
+        }
+      })
+      .catch(function(e) {
+        console.error('Submit error:', e);
+        alert('通信エラーが発生しました');
+      })
+      .finally(function() {
+        submitBtn.textContent = '修理依頼を送信';
+        updateSubmitState();
+      });
+    }
+
+    function resetForm() {
       document.getElementById('category').value = '';
       document.getElementById('equipmentName').value = '';
       document.getElementById('issueDescription').value = '';
@@ -249,5 +281,20 @@
       renderSlots();
       renderDayButtons();
       document.getElementById('photoPreviews').innerHTML = '';
+      document.getElementById('uploadArea').style.display = '';
       updateSubmitState();
+    }
+
+    // ===== Boot =====
+    function bootRepairOrder(user) {
+      if (currentUser) return;
+      currentUser = user;
+    }
+
+    window.addEventListener('userLoaded', function(e) {
+      bootRepairOrder(e.detail);
+    });
+
+    if (window.__currentUser) {
+      bootRepairOrder(window.__currentUser);
     }

@@ -106,7 +106,7 @@ if (!empty($where)) {
     $sql .= ' WHERE ' . implode(' AND ', $where);
 }
 
-$sql .= ' ORDER BY o.date DESC, o.id DESC';
+$sql .= ' ORDER BY o.created_at DESC, o.id DESC';
 
 $orders = query($sql, $params);
 
@@ -248,7 +248,7 @@ foreach ($orders as $order) {
         $item['content_label']         = $rd['equipment_name'] ?? '';
     } elseif ($orderType === 'equipment') {
         $items = $equipItems[$id] ?? [];
-        $item['equip_details'] = $items;
+        $item['equip_items'] = $items;
         // Content label: 1商品なら「商品名 × qty」、複数なら「商品名 他N商品」
         if (count($items) === 1) {
             $first = $items[0];
