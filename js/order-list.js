@@ -381,8 +381,8 @@ function renderDetailContent(o) {
       }
       html += '</div>';
     }
-    if (o.photo_count && o.photo_count > 0) {
-      html += renderPhotos(o.photo_count, '故障写真');
+    if (o.photos && o.photos.length > 0) {
+      html += renderPhotos(o.photos, '故障写真');
     }
   } else if (o.type === 'equipment') {
     if (o.equip_items && o.equip_items.length) {
@@ -399,8 +399,8 @@ function renderDetailContent(o) {
       '<div><div class="detail-label">数量</div><div class="detail-value">' + (o.quantity || 1) + '</div></div>' +
       '<div><div class="detail-label">発注理由・備考</div><div class="detail-value">' + (o.reason || '') + '</div></div>' +
     '</div>';
-    if (o.photo_count && o.photo_count > 0) {
-      html += renderPhotos(o.photo_count, '写真');
+    if (o.photos && o.photos.length > 0) {
+      html += renderPhotos(o.photos, '写真');
     }
   }
   html += '</div>';
@@ -440,11 +440,11 @@ function renderDetailContent(o) {
   return html;
 }
 
-function renderPhotos(count, label) {
-  var html = '<div class="photo-section"><div class="detail-label">' + label + '（' + count + '枚）</div><div class="photo-grid">';
-  for (var i = 0; i < count; i++) {
-    html += '<div class="photo-placeholder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg><span>写真 ' + (i + 1) + '</span></div>';
-  }
+function renderPhotos(photos, label) {
+  var html = '<div class="photo-section"><div class="detail-label">' + label + '（' + photos.length + '枚）</div><div class="photo-grid">';
+  photos.forEach(function(p, i) {
+    html += '<div class="photo-thumb"><a href="' + p.url + '" target="_blank"><img src="' + p.url + '" alt="' + (p.filename || ('写真' + (i + 1))) + '"></a></div>';
+  });
   html += '</div></div>';
   return html;
 }

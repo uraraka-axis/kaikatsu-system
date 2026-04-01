@@ -324,21 +324,15 @@
   gap: 10px;
   flex-wrap: wrap;
 }
-.photo-placeholder {
-  width: 64px;
-  height: 64px;
-  border: 1px dashed #cbd5e1;
+.photo-thumb {
+  width: 80px;
+  height: 80px;
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  background: #f8fafc;
-  color: #94a3b8;
+  overflow: hidden;
 }
-.photo-placeholder span { font-size: 12px; }
-.photo-placeholder svg { width: 20px; height: 20px; }
+.photo-thumb a { display: block; width: 100%; height: 100%; }
+.photo-thumb img { width: 100%; height: 100%; object-fit: cover; }
 
 /* ===== Modal Dialog ===== */
 .modal-overlay {

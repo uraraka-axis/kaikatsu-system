@@ -158,15 +158,18 @@ foreach ($unavailDayRows as $row) {
     $unavailDays[$row['order_id']][] = $row['day_of_week'];
 }
 
-// --- 写真数 ---
-$photoCounts = [];
-$photoSql = "SELECT order_id, COUNT(*) AS cnt
+// --- 写真 ---
+$photoData = [];
+$photoSql = "SELECT order_id, file_path, original_filename
              FROM order_photos
              WHERE order_id IN ({$placeholders})
-             GROUP BY order_id";
+             ORDER BY sort_order, id";
 $photoRows = query($photoSql, $idParams);
 foreach ($photoRows as $row) {
-    $photoCounts[$row['order_id']] = (int)$row['cnt'];
+    $photoData[$row['order_id']][] = [
+        'url'      => $row['file_path'],
+        'filename' => $row['original_filename'],
+    ];
 }
 
 // --- 備品明細 ---
@@ -244,7 +247,7 @@ foreach ($orders as $order) {
         $item['repair_completed_date'] = $rd['repair_completed_date'] ?? null;
         $item['unavail_dates']         = $unavailDates[$id] ?? [];
         $item['unavail_days']          = $unavailDays[$id] ?? [];
-        $item['photo_count']           = $photoCounts[$id] ?? 0;
+        $item['photos']                = $photoData[$id] ?? [];
         $item['content_label']         = $rd['equipment_name'] ?? '';
     } elseif ($orderType === 'equipment') {
         $items = $equipItems[$id] ?? [];
@@ -264,7 +267,7 @@ foreach ($orders as $order) {
         $item['target_equipment']  = $pd['target_equipment'] ?? '';
         $item['reason']            = $pd['reason'] ?? '';
         $item['quantity']          = $pd['quantity'] !== null ? (int)$pd['quantity'] : 1;
-        $item['photo_count']       = $photoCounts[$id] ?? 0;
+        $item['photos']            = $photoData[$id] ?? [];
         $item['content_label']     = $pd['parts_name'] ?? '';
     }
 
