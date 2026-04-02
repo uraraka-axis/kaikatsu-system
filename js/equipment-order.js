@@ -1,7 +1,7 @@
     // ===== State =====
     var products = [];
     var cart = {};
-    var monthlyBudget = 50000;
+    var budgetInfo = { budget: 0, actual: 0, remaining: 0, loaded: false };
     var cartExpanded = false;
     var currentUser = null;
 
@@ -137,7 +137,21 @@
       document.getElementById('cartTotal').textContent = '¥' + totalPrice.toLocaleString();
 
       var budgetAlert = document.getElementById('budgetAlert');
-      if (totalPrice > monthlyBudget) { budgetAlert.classList.add('visible'); } else { budgetAlert.classList.remove('visible'); }
+      if (budgetInfo.loaded && totalPrice > budgetInfo.remaining) {
+        var alertText = document.getElementById('budgetAlertText');
+        if (alertText) {
+          var over = totalPrice - budgetInfo.remaining;
+          alertText.innerHTML = '<strong>予算超過の可能性があります。</strong>' +
+            ' 当月予算: ¥' + budgetInfo.budget.toLocaleString() +
+            ' / 使用済: ¥' + budgetInfo.actual.toLocaleString() +
+            ' / 残高: ¥' + budgetInfo.remaining.toLocaleString() +
+            ' → 発注額 ¥' + totalPrice.toLocaleString() +
+            '（¥' + over.toLocaleString() + ' 超過）';
+        }
+        budgetAlert.classList.add('visible');
+      } else {
+        budgetAlert.classList.remove('visible');
+      }
     }
 
     function toggleCart() {
@@ -203,6 +217,39 @@
       });
     }
 
+    // ===== Budget =====
+    function fetchBudget() {
+      var now = new Date();
+      var month = now.getMonth() + 1;
+      var fiscalYear = month >= 4 ? now.getFullYear() : now.getFullYear() - 1;
+
+      fetch('api/budgets.php?year=' + fiscalYear + '&dept=all', { credentials: 'same-origin' })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (!data.success || !data.data || !data.data.length) return;
+          var shop = data.data[0];
+          var monthData = null;
+          if (shop.monthly) {
+            for (var i = 0; i < shop.monthly.length; i++) {
+              if (shop.monthly[i].month === month) {
+                monthData = shop.monthly[i];
+                break;
+              }
+            }
+          }
+          if (monthData) {
+            budgetInfo.budget = monthData.budget || 0;
+            budgetInfo.actual = monthData.actual || 0;
+            budgetInfo.remaining = budgetInfo.budget - budgetInfo.actual;
+            budgetInfo.loaded = true;
+            updateCart();
+          }
+        })
+        .catch(function(e) {
+          console.error('Budget fetch error:', e);
+        });
+    }
+
     // ===== Boot =====
     function bootEquipmentOrder(user) {
       if (currentUser) return;
@@ -210,6 +257,7 @@
       fetchProducts(function() {
         filterProducts();
       });
+      fetchBudget();
     }
 
     window.addEventListener('userLoaded', function(e) {
