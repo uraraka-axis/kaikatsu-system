@@ -970,7 +970,27 @@ function toggleAll(checkbox) {
 }
 
 function exportExcel() {
-  alert('Excel出力機能は現在準備中です。');
+  var params = [];
+  var type = document.getElementById('filterType');
+  var status = document.getElementById('filterStatus');
+  var dateFrom = document.getElementById('filterDateFrom');
+  var dateTo = document.getElementById('filterDateTo');
+
+  if (type && type.value) params.push('type=' + encodeURIComponent(type.value));
+  if (status && status.value) params.push('status=' + encodeURIComponent(status.value));
+  if (dateFrom && dateFrom.value) params.push('date_from=' + encodeURIComponent(dateFrom.value));
+  if (dateTo && dateTo.value) params.push('date_to=' + encodeURIComponent(dateTo.value));
+
+  if (viewMode === 'admin') {
+    var zone = document.getElementById('filterZone');
+    var area = document.getElementById('filterArea');
+    var shop = document.getElementById('filterShop');
+    if (zone && zone.value) params.push('zone=' + encodeURIComponent(zone.value));
+    if (area && area.value) params.push('area=' + encodeURIComponent(area.value));
+    if (shop && shop.value) params.push('shop=' + encodeURIComponent(shop.value));
+  }
+
+  window.location.href = 'api/export/orders.php' + (params.length ? '?' + params.join('&') : '');
 }
 
 // ===== Bulk Status Change =====
