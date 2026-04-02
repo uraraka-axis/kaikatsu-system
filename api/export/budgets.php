@@ -1,16 +1,23 @@
 <?php declare(strict_types=1);
 
 /**
- * 快活システム - 予算データCSV出力API
+ * 快活システム - 予算データExcel出力API
  *
  * GET /api/export/budgets.php?year=2026&dept=all&zone=&area=&shop=
- * - BOM付きUTF-8 CSV（Excel対応）
+ * - .xlsx形式（PhpSpreadsheet）
  * - クエリパラメータは budgets.php と同じ
  */
 
+require_once __DIR__ . '/../../vendor/autoload.php';
 require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/functions.php';
+
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
 
 requireLogin();
 requireMethod('GET');
@@ -100,19 +107,13 @@ if (!empty($shopCodes)) {
 // --- 年度月配列（4月始まり） ---
 $fiscalMonths = [4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3];
 
-// --- CSV出力 ---
-$filename = sprintf('budget_%d_%s_%s.csv', $fiscalYear, $dept, date('Ymd'));
+// --- Excel作成 ---
+$spreadsheet = new Spreadsheet();
+$sheet = $spreadsheet->getActiveSheet();
+$sheet->setTitle('予算実績');
 
-header('Content-Type: text/csv; charset=UTF-8');
-header('Content-Disposition: attachment; filename="' . $filename . '"');
-header('Cache-Control: no-cache');
-
-// BOM付きUTF-8
-$output = fopen('php://output', 'w');
-fwrite($output, "\xEF\xBB\xBF");
-
-// ヘッダ行
-$header = [
+// ヘッダ定義
+$headers = [
     '店舗コード',
     '店舗名',
     'ゾーン',
@@ -121,42 +122,110 @@ $header = [
     '部門',
 ];
 foreach ($fiscalMonths as $m) {
-    $header[] = $m . '月_予算';
-    $header[] = $m . '月_実績';
+    $headers[] = $m . '月_予算';
+    $headers[] = $m . '月_実績';
 }
-$header[] = '年間_予算合計';
-$header[] = '年間_実績合計';
+$headers[] = '年間_予算合計';
+$headers[] = '年間_実績合計';
 
-fputcsv($output, $header);
+// ヘッダ行書き込み
+$col = 1;
+foreach ($headers as $label) {
+    $sheet->setCellValue([$col, 1], $label);
+    $col++;
+}
+$lastCol = $col - 1; // 30列 (6 + 24 + 2)
+$lastColLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($lastCol);
 
-// データ行
+// ヘッダスタイル
+$headerRange = 'A1:' . $lastColLetter . '1';
+$sheet->getStyle($headerRange)->applyFromArray([
+    'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF'], 'size' => 10],
+    'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '4472C4']],
+    'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER, 'wrapText' => true],
+    'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
+]);
+$sheet->getRowDimension(1)->setRowHeight(24);
+
+// カラム幅
+$sheet->getColumnDimension('A')->setWidth(12); // 店舗コード
+$sheet->getColumnDimension('B')->setWidth(14); // 店舗名
+$sheet->getColumnDimension('C')->setWidth(10); // ゾーン
+$sheet->getColumnDimension('D')->setWidth(12); // エリア
+$sheet->getColumnDimension('E')->setWidth(10); // 年度
+$sheet->getColumnDimension('F')->setWidth(14); // 部門
+// 月次列（G〜AD: 24列）+ 合計2列
+for ($c = 7; $c <= $lastCol; $c++) {
+    $letter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($c);
+    $sheet->getColumnDimension($letter)->setWidth(12);
+}
+
+// データ行書き込み
+$rowNum = 2;
+
 foreach ($shops as $shop) {
     $code = $shop['shop_code'];
-    $row  = [
-        $shop['shop_code'],
-        $shop['shop_name'],
-        $shop['zone_name'],
-        $shop['area_name'],
-        $fiscalYear . '年度',
-        $deptLabels[$dept] ?? $dept,
-    ];
+    $col  = 1;
+
+    $sheet->setCellValue([$col++, $rowNum], $shop['shop_code']);
+    $sheet->setCellValue([$col++, $rowNum], $shop['shop_name']);
+    $sheet->setCellValue([$col++, $rowNum], $shop['zone_name']);
+    $sheet->setCellValue([$col++, $rowNum], $shop['area_name']);
+    $sheet->setCellValue([$col++, $rowNum], $fiscalYear . '年度');
+    $sheet->setCellValue([$col++, $rowNum], $deptLabels[$dept] ?? $dept);
 
     $totalBudget = 0;
     $totalActual = 0;
 
     foreach ($fiscalMonths as $m) {
         $entry = $budgetMap[$code][$m] ?? ['budget' => 0, 'actual' => 0];
-        $row[] = $entry['budget'];
-        $row[] = $entry['actual'];
+        $sheet->setCellValue([$col++, $rowNum], $entry['budget']);
+        $sheet->setCellValue([$col++, $rowNum], $entry['actual']);
         $totalBudget += $entry['budget'];
         $totalActual += $entry['actual'];
     }
 
-    $row[] = $totalBudget;
-    $row[] = $totalActual;
+    $sheet->setCellValue([$col++, $rowNum], $totalBudget);
+    $sheet->setCellValue([$col++, $rowNum], $totalActual);
 
-    fputcsv($output, $row);
+    $rowNum++;
 }
 
-fclose($output);
+// データ行スタイル（罫線）
+$lastRow = $rowNum - 1;
+if ($lastRow >= 2) {
+    $dataRange = 'A2:' . $lastColLetter . $lastRow;
+    $sheet->getStyle($dataRange)->applyFromArray([
+        'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
+        'font' => ['size' => 10],
+        'alignment' => ['vertical' => Alignment::VERTICAL_CENTER],
+    ]);
+    // 金額列は右寄せ・カンマ区切り（G列〜最終列）
+    for ($c = 7; $c <= $lastCol; $c++) {
+        $letter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($c);
+        $sheet->getStyle($letter . '2:' . $letter . $lastRow)
+              ->getNumberFormat()->setFormatCode('#,##0');
+        $sheet->getStyle($letter . '2:' . $letter . $lastRow)
+              ->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+    }
+}
+
+// オートフィルター
+$sheet->setAutoFilter('A1:' . $lastColLetter . '1');
+
+// ウィンドウ枠固定（ヘッダ行 + 左6列固定）
+$sheet->freezePane('G2');
+
+// --- 出力 ---
+$filename = sprintf('budget_%d_%s_%s.xlsx', $fiscalYear, $dept, date('Ymd'));
+
+header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+header('Content-Disposition: attachment; filename="' . $filename . '"');
+header('Cache-Control: max-age=0');
+
+$writer = new Xlsx($spreadsheet);
+$writer->save('php://output');
+
+$spreadsheet->disconnectWorksheets();
+unset($spreadsheet);
 exit;

@@ -1,3 +1,5 @@
 backup/
 docs/
 uploads/
+vendor/
+composer.phar
