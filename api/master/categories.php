@@ -15,11 +15,16 @@ requireLogin();
 requireMethod('GET');
 
 $categories = query(
-    'SELECT code, name
+    'SELECT code, name, closing_type, closing_day
      FROM categories
      WHERE is_active = 1
      ORDER BY sort_order, code'
 );
+
+foreach ($categories as &$c) {
+    $c['closing_day'] = (int)$c['closing_day'];
+}
+unset($c);
 
 jsonResponse([
     'success' => true,

@@ -43,31 +43,36 @@ function getStatusClass(status, type) {
   return (STATUS_CLASSES_BY_TYPE[type] || STATUS_CLASSES_BY_TYPE.equipment)[status] || '';
 }
 
-// ===== System Settings =====
-var systemSettings = {
-  equipmentDeadlineWeekday: 3 // 締め曜日 (0=日,1=月,2=火,3=水,4=木,5=金,6=土)
-};
+// ===== Categories Master（締めルール参照用） =====
+var categoriesMap = {}; // code -> { closing_type, closing_day }
 
 // ===== Date Helpers =====
-function getNextDeadlineDate() {
-  var deadlineDay = systemSettings.equipmentDeadlineWeekday;
+// 備品の納品予定日デフォルト値
+// カテゴリの締めルールから「次の締め日 + 1日」を返す。
+// none の場合は空文字を返し、admin に手入力させる。
+function getEquipmentDeliveryDate(order) {
+  if (!order || !order.category_code) return '';
+  var closing = categoriesMap[order.category_code];
+  if (!closing) return '';
   var today = new Date();
-  var daysUntil = (deadlineDay - today.getDay() + 7) % 7;
-  if (daysUntil === 0) daysUntil = 7;
-  var d = new Date(today);
-  d.setDate(today.getDate() + daysUntil);
-  return formatDate(d);
-}
 
-function getEquipmentDeliveryDate() {
-  var deadlineDay = systemSettings.equipmentDeadlineWeekday;
-  var today = new Date();
-  var daysUntil = (deadlineDay - today.getDay() + 7) % 7;
-  var deadlineDate = new Date(today);
-  deadlineDate.setDate(today.getDate() + daysUntil);
-  var delivery = new Date(deadlineDate);
-  delivery.setDate(delivery.getDate() + 1);
-  return formatDate(delivery);
+  if (closing.closing_type === 'monthly') {
+    var day = today.getDate();
+    var year = today.getFullYear();
+    var month = today.getMonth(); // 0-based
+    if (day > closing.closing_day) month += 1;
+    return formatDate(new Date(year, month, closing.closing_day + 1));
+  }
+
+  if (closing.closing_type === 'weekly') {
+    var currentDow = today.getDay();
+    var daysUntil = ((closing.closing_day - currentDow + 7) % 7) + 1;
+    var d = new Date(today);
+    d.setDate(today.getDate() + daysUntil);
+    return formatDate(d);
+  }
+
+  return '';
 }
 
 function formatDate(d) {
@@ -127,7 +132,7 @@ function fetchMasterData(callback) {
     return;
   }
   var done = 0;
-  var total = 3;
+  var total = 4;
 
   function checkDone() {
     done++;
@@ -156,6 +161,15 @@ function fetchMasterData(callback) {
   apiGet('api/master/shops.php')
     .then(function(data) { shops = data.data || []; checkDone(); })
     .catch(function(e) { console.error('Failed to fetch shops:', e); shops = []; checkDone(); });
+
+  apiGet('api/master/categories.php')
+    .then(function(data) {
+      (data.data || []).forEach(function(c) {
+        categoriesMap[c.code] = { closing_type: c.closing_type, closing_day: c.closing_day };
+      });
+      checkDone();
+    })
+    .catch(function(e) { console.error('Failed to fetch categories:', e); checkDone(); });
 }
 
 // ===== Fetch Orders =====
@@ -577,7 +591,7 @@ function openStatusModal(orderId, action) {
       order.equip_items.forEach(function(d) { total += Number(d.price) * Number(d.qty); });
       setTimeout(function() {
         document.getElementById('modalAmount').value = total;
-        document.getElementById('modalDate').value = getEquipmentDeliveryDate();
+        document.getElementById('modalDate').value = getEquipmentDeliveryDate(order);
       }, 0);
     }
 

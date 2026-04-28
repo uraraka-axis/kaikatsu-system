@@ -268,3 +268,90 @@ body {
   .submit-section { justify-content: center; }
   .btn-submit { width: 100%; }
 }
+
+/* ===== Notify Modal (shared) ===== */
+.notify-overlay {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.35);
+  z-index: 2000;
+  align-items: center;
+  justify-content: center;
+}
+.notify-overlay.open {
+  display: flex;
+}
+.notify-dialog {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+  width: 420px;
+  max-width: 90vw;
+  text-align: center;
+  animation: notifySlideIn 0.25s ease;
+  overflow: hidden;
+  border-top: 4px solid transparent;
+}
+.notify-dialog.success { border-top-color: #3b82f6; }
+.notify-dialog.warning { border-top-color: #d97706; }
+@keyframes notifySlideIn {
+  from { opacity: 0; transform: translateY(-20px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.notify-title {
+  font-family: 'Inter', 'Noto Sans JP', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 24px 24px 0;
+}
+.notify-body {
+  font-family: 'Inter', 'Noto Sans JP', sans-serif;
+  font-size: 14px;
+  color: #475569;
+  margin: 10px 24px 0;
+  line-height: 1.7;
+}
+.notify-body .notify-order-id {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 4px 12px;
+  background: #f1f5f9;
+  border-radius: 6px;
+  font-family: 'Inter', monospace;
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+  letter-spacing: 0.3px;
+}
+.notify-body .notify-warning {
+  display: block;
+  margin-top: 12px;
+  padding: 10px 14px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #92400e;
+  line-height: 1.6;
+  text-align: left;
+}
+.notify-footer {
+  padding: 20px 24px 24px;
+}
+.notify-footer .btn-notify {
+  padding: 10px 32px;
+  border-radius: 8px;
+  font-family: 'Inter', 'Noto Sans JP', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+  color: #fff;
+  background: #3b82f6;
+}
+.notify-footer .btn-notify:hover { background: #2563eb; }
+.notify-dialog.warning .btn-notify { background: #d97706; }
+.notify-dialog.warning .btn-notify:hover { background: #b45309; }

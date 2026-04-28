@@ -210,11 +210,11 @@ document.addEventListener('DOMContentLoaded', function() {
     var reason = reasonInput.value.trim();
 
     if (!amount || amount <= 0) {
-      alert('金額を正しく入力してください');
+      showNotify('error', '入力エラー', '金額を正しく入力してください。');
       return;
     }
     if (!reason) {
-      alert('理由を入力してください');
+      showNotify('error', '入力エラー', '理由を入力してください。');
       return;
     }
 
@@ -241,10 +241,11 @@ document.addEventListener('DOMContentLoaded', function() {
         submitBtn.textContent = '申請する';
         if (!data) return;
         if (!data.success) {
-          alert(data.error || '申請に失敗しました');
+          showNotify('error', '申請エラー', data.error || '申請に失敗しました');
           return;
         }
-        alert('自店調達を申請しました（' + data.data.id + '）');
+        showNotify('success', '自店調達を申請しました',
+          '申請番号: <span class="notify-order-id">' + data.data.id + '</span>');
         amountInput.value = '';
         reasonInput.value = '';
         loadData();
@@ -253,7 +254,7 @@ document.addEventListener('DOMContentLoaded', function() {
         submitBtn.disabled = false;
         submitBtn.textContent = '申請する';
         console.error('申請エラー:', err);
-        alert('通信エラーが発生しました');
+        showNotify('error', '通信エラー', 'サーバーとの通信に失敗しました。<br>ネットワーク接続を確認してください。');
       });
   };
 

@@ -205,7 +205,7 @@ ALTER TABLE procurement_requests MODIFY created_by INT NULL COMMENT '作成者�
 -- ------------------------------------------------------------
 ALTER TABLE budgets MODIFY id INT NOT NULL AUTO_INCREMENT COMMENT 'ID';
 ALTER TABLE budgets MODIFY shop_code VARCHAR(5) NOT NULL COMMENT '店舗コード';
-ALTER TABLE budgets MODIFY fiscal_year INT NOT NULL COMMENT '年度（2026 = 2025年4月〜2026年3月）';
+ALTER TABLE budgets MODIFY fiscal_year INT NOT NULL COMMENT '年度（2026 = 2026年4月〜2027年3月）';
 ALTER TABLE budgets MODIFY month TINYINT NOT NULL COMMENT '月（1〜12）※暦月';
 ALTER TABLE budgets MODIFY department ENUM('all','fit','ig') NOT NULL DEFAULT 'all' COMMENT '部門（all=全体, fit=フィットネス, ig=インドアゴルフ）';
 ALTER TABLE budgets MODIFY budget_amount INT NOT NULL DEFAULT 0 COMMENT '予算額';

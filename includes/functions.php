@@ -116,7 +116,8 @@ function formatCurrency(?int $amount): string
 
 /**
  * 現在の年度を取得（4月始まり）
- * 例: 2026年3月 → 2026年度（2025年4月〜2026年3月）
+ * 例: 2026年4月 → 2026年度（2026年4月〜2027年3月）
+ *     2027年3月 → 2026年度（2026年4月〜2027年3月）
  *
  * @param string|null $date 基準日（Y-m-d形式、nullなら今日）
  * @return int 年度
@@ -127,8 +128,8 @@ function getCurrentFiscalYear(?string $date = null): int
     $year = (int)$dt->format('Y');
     $month = (int)$dt->format('n');
 
-    // 4月以降は翌年度（年度ラベル = 翌年）、1〜3月は当年度（年度ラベル = 当年）
-    return $month >= 4 ? $year + 1 : $year;
+    // 4月以降は当年が年度、1〜3月は前年が年度
+    return $month >= 4 ? $year : $year - 1;
 }
 
 /**

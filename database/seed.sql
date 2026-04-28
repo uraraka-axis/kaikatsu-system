@@ -48,9 +48,12 @@ INSERT INTO shops (code, name, short_code, area_code, sort_order) VALUES
 -- ============================================================
 -- 4. categories（カテゴリマスタ）
 -- ============================================================
-INSERT INTO categories (code, name, sort_order) VALUES
-  ('fitness', 'フィットネス', 1),
-  ('golf',    'インドアゴルフ', 2);
+-- closing_day:
+--   monthly → 日(1-31)
+--   weekly  → 曜日(0=日,1=月,2=火,3=水,4=木,5=金,6=土)
+INSERT INTO categories (code, name, closing_type, closing_day, sort_order) VALUES
+  ('fitness', 'フィットネス',     'monthly', 8, 1),
+  ('golf',    'インドアゴルフ',   'weekly',  2, 2);
 
 -- ============================================================
 -- 5. shop_categories（店舗×カテゴリ）
@@ -122,7 +125,8 @@ INSERT INTO users (id, login_id, password, name, role, shop_code, sort_order) VA
 -- ============================================================
 -- 9. system_settings
 -- schema.sql で投入済みのためスキップ
--- （equipment_deadline_weekday = 3）
+-- （fiscal_start_month = 4）
+-- ※ 備品発注の締めルールは categories.closing_type / closing_day で管理
 -- ============================================================
 
 -- ============================================================

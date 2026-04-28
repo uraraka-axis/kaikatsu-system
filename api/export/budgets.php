@@ -109,6 +109,7 @@ $fiscalMonths = [4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3];
 
 // --- Excel作成 ---
 $spreadsheet = new Spreadsheet();
+$spreadsheet->getDefaultStyle()->getFont()->setName('Meiryo UI');
 $sheet = $spreadsheet->getActiveSheet();
 $sheet->setTitle('予算実績');
 
@@ -147,18 +148,7 @@ $sheet->getStyle($headerRange)->applyFromArray([
 ]);
 $sheet->getRowDimension(1)->setRowHeight(24);
 
-// カラム幅
-$sheet->getColumnDimension('A')->setWidth(12); // 店舗コード
-$sheet->getColumnDimension('B')->setWidth(14); // 店舗名
-$sheet->getColumnDimension('C')->setWidth(10); // ゾーン
-$sheet->getColumnDimension('D')->setWidth(12); // エリア
-$sheet->getColumnDimension('E')->setWidth(10); // 年度
-$sheet->getColumnDimension('F')->setWidth(14); // 部門
-// 月次列（G〜AD: 24列）+ 合計2列
-for ($c = 7; $c <= $lastCol; $c++) {
-    $letter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($c);
-    $sheet->getColumnDimension($letter)->setWidth(12);
-}
+// カラム幅（データ書き込み後に自動調整）
 
 // データ行書き込み
 $rowNum = 2;
@@ -210,11 +200,17 @@ if ($lastRow >= 2) {
     }
 }
 
-// オートフィルター
-$sheet->setAutoFilter('A1:' . $lastColLetter . '1');
+// カラム幅自動調整
+for ($c = 1; $c <= $lastCol; $c++) {
+    $letter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($c);
+    $sheet->getColumnDimension($letter)->setAutoSize(true);
+}
 
 // ウィンドウ枠固定（ヘッダ行 + 左6列固定）
 $sheet->freezePane('G2');
+
+// アクティブセルをA1に設定
+$sheet->setSelectedCell('A1');
 
 // --- 出力 ---
 $filename = sprintf('budget_%d_%s_%s.xlsx', $fiscalYear, $dept, date('Ymd'));

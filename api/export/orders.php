@@ -165,6 +165,7 @@ if (!empty($orders)) {
 
 // --- Excel作成 ---
 $spreadsheet = new Spreadsheet();
+$spreadsheet->getDefaultStyle()->getFont()->setName('Meiryo UI');
 $sheet = $spreadsheet->getActiveSheet();
 $sheet->setTitle('発注一覧');
 
@@ -205,15 +206,7 @@ $sheet->getStyle($headerRange)->applyFromArray([
 ]);
 $sheet->getRowDimension(1)->setRowHeight(24);
 
-// カラム幅
-$colWidths = [
-    'A' => 28, 'B' => 6, 'C' => 14, 'D' => 16, 'E' => 12, 'F' => 14,
-    'G' => 12, 'H' => 12, 'I' => 12, 'J' => 12, 'K' => 12, 'L' => 28,
-    'M' => 6, 'N' => 10, 'O' => 12, 'P' => 18, 'Q' => 40, 'R' => 18,
-];
-foreach ($colWidths as $col => $w) {
-    $sheet->getColumnDimension($col)->setWidth($w);
-}
+// カラム幅（データ書き込み後に自動調整）
 
 // --- 共通カラム生成 ---
 function orderBaseCols(array $order, array $typeLabels, array $categoryLabels, array $statusLabels): array
@@ -322,11 +315,16 @@ if ($lastRow >= 2) {
           ->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 }
 
-// オートフィルター
-$sheet->setAutoFilter('A1:R1');
+// カラム幅自動調整
+foreach (range('A', 'R') as $col) {
+    $sheet->getColumnDimension($col)->setAutoSize(true);
+}
 
 // ウィンドウ枠固定（ヘッダ行）
 $sheet->freezePane('A2');
+
+// アクティブセルをA1に設定
+$sheet->setSelectedCell('A1');
 
 // --- 出力 ---
 $filename = 'orders_' . date('Ymd') . '.xlsx';

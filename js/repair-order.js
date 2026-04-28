@@ -255,15 +255,16 @@
       .then(function(r) { return r.json(); })
       .then(function(data) {
         if (data.success) {
-          alert('修理依頼を送信しました\n発注番号: ' + data.order_id);
+          showNotify('success', '修理依頼を送信しました',
+            '発注番号: <span class="notify-order-id">' + data.order_id + '</span>');
           resetForm();
         } else {
-          alert('エラー: ' + (data.error || '送信に失敗しました'));
+          showNotify('error', '送信エラー', data.error || '送信に失敗しました');
         }
       })
       .catch(function(e) {
         console.error('Submit error:', e);
-        alert('通信エラーが発生しました');
+        showNotify('error', '通信エラー', 'サーバーとの通信に失敗しました。<br>ネットワーク接続を確認してください。');
       })
       .finally(function() {
         submitBtn.textContent = '修理依頼を送信';

@@ -73,15 +73,19 @@ CREATE TABLE shops (
 -- categories: カテゴリマスタ（フィットネス・インドアゴルフ等）
 -- ------------------------------------------------------------
 CREATE TABLE categories (
-  code        VARCHAR(20)  NOT NULL COMMENT 'カテゴリコード（fitness, golf 等）',
-  name        VARCHAR(50)  NOT NULL COMMENT 'カテゴリ名',
-  is_active   BOOLEAN      NOT NULL DEFAULT TRUE  COMMENT '有効フラグ',
-  sort_order  INT          NOT NULL DEFAULT 0     COMMENT '表示順',
-  created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  code          VARCHAR(20)  NOT NULL COMMENT 'カテゴリコード（fitness, golf 等）',
+  name          VARCHAR(50)  NOT NULL COMMENT 'カテゴリ名',
+  closing_type  ENUM('none','monthly','weekly') NOT NULL DEFAULT 'none'
+                COMMENT '締めタイプ（none=都度, monthly=月次, weekly=週次）',
+  closing_day   TINYINT      NOT NULL DEFAULT 0
+                COMMENT '月次=日(1-31), 週次=曜日(0=日,1=月,2=火,3=水,4=木,5=金,6=土)',
+  is_active     BOOLEAN      NOT NULL DEFAULT TRUE  COMMENT '有効フラグ',
+  sort_order    INT          NOT NULL DEFAULT 0     COMMENT '表示順',
+  created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (code)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
-  COMMENT='カテゴリマスタ';
+  COMMENT='カテゴリマスタ（備品発注の締めルールを保持）';
 
 -- ------------------------------------------------------------
 -- shop_categories: 店舗×カテゴリ中間テーブル（多対多）
@@ -426,7 +430,7 @@ CREATE TABLE procurement_requests (
 CREATE TABLE budgets (
   id             INT          NOT NULL AUTO_INCREMENT COMMENT 'ID',
   shop_code      VARCHAR(5)   NOT NULL COMMENT '店舗コード',
-  fiscal_year    INT          NOT NULL COMMENT '年度（2026 = 2025年4月〜2026年3月）',
+  fiscal_year    INT          NOT NULL COMMENT '年度（2026 = 2026年4月〜2027年3月）',
   month          TINYINT      NOT NULL COMMENT '月（1〜12）※暦月',
   department     ENUM('all','fit','ig') NOT NULL DEFAULT 'all' COMMENT '部門（all=全体, fit=フィットネス, ig=インドアゴルフ）',
   budget_amount  INT          NOT NULL DEFAULT 0 COMMENT '予算額',
@@ -492,6 +496,7 @@ CREATE TABLE master_scheduled_changes (
 -- 初期データ投入
 -- ============================================================
 
--- システム設定: 備品発注の締め曜日（初期値: 水曜日=3）
+-- システム設定: 期の開始月（初期値: 4月）
 INSERT INTO system_settings (`key`, value, description)
-VALUES ('equipment_deadline_weekday', '3', '備品発注の締め曜日（0=日, 1=月, 2=火, 3=水, 4=木, 5=金, 6=土）');
+VALUES ('fiscal_start_month', '4', '期の開始月（1-12）');
+-- 備品発注の締めルールは categories.closing_type / closing_day で管理（カテゴリ別）

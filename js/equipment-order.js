@@ -1,9 +1,18 @@
     // ===== State =====
     var products = [];
     var cart = {};
-    var budgetInfo = { budget: 0, actual: 0, remaining: 0, loaded: false };
+    var categoriesMap = {}; // code → { closing_type, closing_day }
+    var budgetInfo = {
+      budget: 0,
+      actual: 0,
+      remaining: 0,
+      loaded: false,
+      category: null,
+      monthLabel: '',
+    };
     var cartExpanded = false;
     var currentUser = null;
+    var budgetFetching = false;
 
     // ===== API =====
     function fetchProducts(callback) {
@@ -27,6 +36,26 @@
         })
         .catch(function(e) {
           console.error('Failed to fetch products:', e);
+          if (callback) callback();
+        });
+    }
+
+    function fetchCategories(callback) {
+      fetch('api/master/categories.php', { credentials: 'same-origin' })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (data.success && Array.isArray(data.data)) {
+            data.data.forEach(function(c) {
+              categoriesMap[c.code] = {
+                closing_type: c.closing_type || 'none',
+                closing_day: parseInt(c.closing_day, 10) || 0,
+              };
+            });
+          }
+          if (callback) callback();
+        })
+        .catch(function(e) {
+          console.error('Failed to fetch categories:', e);
           if (callback) callback();
         });
     }
@@ -136,16 +165,26 @@
       document.getElementById('cartItems').innerHTML = itemsHtml;
       document.getElementById('cartTotal').textContent = '¥' + totalPrice.toLocaleString();
 
+      // カテゴリに応じた予算情報を取得（カテゴリ変更時のみ再フェッチ）
+      var cartCat = determineCartCategory();
+      if (cartCat && (!budgetInfo.loaded || budgetInfo.category !== cartCat)) {
+        if (!budgetFetching) {
+          fetchBudgetForCategory(cartCat);
+        }
+      }
+
+      // 予算アラート表示
       var budgetAlert = document.getElementById('budgetAlert');
       if (budgetInfo.loaded && totalPrice > budgetInfo.remaining) {
         var alertText = document.getElementById('budgetAlertText');
         if (alertText) {
           var over = totalPrice - budgetInfo.remaining;
+          var label = budgetInfo.monthLabel || '当月';
           alertText.innerHTML = '<strong>予算超過の可能性があります。</strong>' +
-            ' 当月予算: ¥' + budgetInfo.budget.toLocaleString() +
-            ' / 使用済: ¥' + budgetInfo.actual.toLocaleString() +
-            ' / 残高: ¥' + budgetInfo.remaining.toLocaleString() +
-            ' → 発注額 ¥' + totalPrice.toLocaleString() +
+            ' ' + label + '予算: ¥' + budgetInfo.budget.toLocaleString() +
+            ' / ' + label + '実績: ¥' + budgetInfo.actual.toLocaleString() +
+            ' / ' + label + '残高: ¥' + budgetInfo.remaining.toLocaleString() +
+            ' / 今回発注予定額 ¥' + totalPrice.toLocaleString() +
             '（¥' + over.toLocaleString() + ' 超過）';
         }
         budgetAlert.classList.add('visible');
@@ -170,13 +209,7 @@
       if (!keys.length) return;
 
       // カテゴリを判定（カート内商品のカテゴリ）
-      var categories = {};
-      keys.forEach(function(id) {
-        var p = products.find(function(x) { return x.id == id; });
-        if (p) categories[p.category] = true;
-      });
-      var catKeys = Object.keys(categories);
-      var category = catKeys.length === 1 ? catKeys[0] : 'fitness';
+      var category = determineCartCategory() || 'fitness';
 
       var submitBtn = document.getElementById('submitBtn');
       submitBtn.disabled = true;
@@ -199,17 +232,45 @@
       .then(function(r) { return r.json(); })
       .then(function(data) {
         if (data.success) {
-          alert('備品発注を送信しました\n発注番号: ' + data.order_id);
+          var bodyHtml = '発注番号: <span class="notify-order-id">' + data.order_id + '</span>';
+          if (budgetInfo.loaded) {
+            var totalPrice = 0;
+            Object.keys(cart).forEach(function(id) {
+              var p = products.find(function(x) { return x.id == id; });
+              if (p) totalPrice += p.price * cart[id];
+            });
+            if (totalPrice > budgetInfo.remaining) {
+              var over = totalPrice - budgetInfo.remaining;
+              var label = budgetInfo.monthLabel || '当月';
+              bodyHtml += '<span class="notify-warning">' +
+                '<strong>⚠ 予算超過の可能性があります</strong><br>' +
+                label + '予算: ¥' + budgetInfo.budget.toLocaleString() +
+                ' / ' + label + '実績: ¥' + budgetInfo.actual.toLocaleString() +
+                ' / ' + label + '残高: ¥' + budgetInfo.remaining.toLocaleString() +
+                '<br>今回発注予定額 ¥' + totalPrice.toLocaleString() +
+                '（¥' + over.toLocaleString() + ' 超過）</span>';
+              showNotify('warning', '備品発注を送信しました', bodyHtml);
+            } else {
+              showNotify('success', '備品発注を送信しました', bodyHtml);
+            }
+          } else {
+            showNotify('success', '備品発注を送信しました', bodyHtml);
+          }
           cart = {};
+          // カート空 → 予算情報リセット（次回追加時に再フェッチ）
+          budgetInfo.loaded = false;
+          budgetInfo.category = null;
           filterProducts();
           updateCart();
+          // 送信後、現在のカテゴリに応じて再取得（実績反映のため）
+          // 現状はカートが空になるためフェッチしない。次回カート操作時に取得される。
         } else {
-          alert('エラー: ' + (data.error || '送信に失敗しました'));
+          showNotify('error', '送信エラー', data.error || '送信に失敗しました');
         }
       })
       .catch(function(e) {
         console.error('Submit error:', e);
-        alert('通信エラーが発生しました');
+        showNotify('error', '通信エラー', 'サーバーとの通信に失敗しました。<br>ネットワーク接続を確認してください。');
       })
       .finally(function() {
         submitBtn.disabled = false;
@@ -217,36 +278,100 @@
       });
     }
 
-    // ===== Budget =====
-    function fetchBudget() {
-      var now = new Date();
-      var month = now.getMonth() + 1;
-      var fiscalYear = month >= 4 ? now.getFullYear() : now.getFullYear() - 1;
+    // ===== Cart category & Budget =====
+    function determineCartCategory() {
+      var keys = Object.keys(cart);
+      if (!keys.length) return null;
+      var cats = {};
+      keys.forEach(function(id) {
+        var p = products.find(function(x) { return x.id == id; });
+        if (p) cats[p.category] = true;
+      });
+      var catKeys = Object.keys(cats);
+      if (catKeys.length === 0) return null;
+      return catKeys[0]; // カート内が単一カテゴリ前提（複数の場合は最初を使用）
+    }
 
-      fetch('api/budgets.php?year=' + fiscalYear + '&dept=all', { credentials: 'same-origin' })
-        .then(function(r) { return r.json(); })
+    /**
+     * 発注日とカテゴリの締めルールから「計上月」となる Date を返す。
+     * - monthly: today.day <= closing_day なら当月、超えたら翌月1日
+     * - weekly:  次の closing_day(曜日) の翌日
+     * - none:    今日
+     */
+    function computeSettlementDate(orderDate, closingType, closingDay) {
+      var d = new Date(orderDate.getTime());
+      if (closingType === 'monthly') {
+        var day = d.getDate();
+        if (day <= closingDay) {
+          return d;
+        }
+        return new Date(d.getFullYear(), d.getMonth() + 1, 1);
+      }
+      if (closingType === 'weekly') {
+        var currentDow = d.getDay(); // 0=日 .. 6=土
+        var daysUntil = ((closingDay - currentDow + 7) % 7) + 1;
+        var nd = new Date(d.getTime());
+        nd.setDate(d.getDate() + daysUntil);
+        return nd;
+      }
+      return d; // none
+    }
+
+    function categoryToDept(category) {
+      if (category === 'fitness') return 'fit';
+      if (category === 'golf') return 'ig';
+      return null;
+    }
+
+    function fetchBudgetForCategory(category) {
+      var closing = categoriesMap[category];
+      var dept = categoryToDept(category);
+      if (!closing || !dept) {
+        budgetInfo.loaded = false;
+        return;
+      }
+
+      var settlement = computeSettlementDate(new Date(), closing.closing_type, closing.closing_day);
+      var settlementMonth = settlement.getMonth() + 1;
+      var settlementYear  = settlement.getFullYear();
+      var fiscalYear      = settlementMonth >= 4 ? settlementYear : settlementYear - 1;
+
+      budgetFetching = true;
+      fetch('api/budgets.php?year=' + fiscalYear + '&dept=' + dept, { credentials: 'same-origin' })
+        .then(function(r) {
+          if (r.status === 401) {
+            window.location.href = 'login.html';
+            return null;
+          }
+          return r.json();
+        })
         .then(function(data) {
-          if (!data.success || !data.data || !data.data.length) return;
+          if (!data || !data.success || !data.data || !data.data.length) return;
           var shop = data.data[0];
           var monthData = null;
           if (shop.monthly) {
             for (var i = 0; i < shop.monthly.length; i++) {
-              if (shop.monthly[i].month === month) {
+              if (shop.monthly[i].month === settlementMonth) {
                 monthData = shop.monthly[i];
                 break;
               }
             }
           }
           if (monthData) {
-            budgetInfo.budget = monthData.budget || 0;
-            budgetInfo.actual = monthData.actual || 0;
-            budgetInfo.remaining = budgetInfo.budget - budgetInfo.actual;
-            budgetInfo.loaded = true;
+            budgetInfo.budget     = monthData.budget || 0;
+            budgetInfo.actual     = monthData.actual || 0;
+            budgetInfo.remaining  = budgetInfo.budget - budgetInfo.actual;
+            budgetInfo.loaded     = true;
+            budgetInfo.category   = category;
+            budgetInfo.monthLabel = settlementMonth + '月度';
             updateCart();
           }
         })
         .catch(function(e) {
           console.error('Budget fetch error:', e);
+        })
+        .finally(function() {
+          budgetFetching = false;
         });
     }
 
@@ -254,10 +379,11 @@
     function bootEquipmentOrder(user) {
       if (currentUser) return;
       currentUser = user;
-      fetchProducts(function() {
-        filterProducts();
+      fetchCategories(function() {
+        fetchProducts(function() {
+          filterProducts();
+        });
       });
-      fetchBudget();
     }
 
     window.addEventListener('userLoaded', function(e) {

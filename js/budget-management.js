@@ -23,11 +23,11 @@
     }
 
     // Fiscal month index (0=Apr .. 11=Mar), -1 if not in that FY
-    // 年度ラベル: 2026年度 = 2025年4月〜2026年3月
+    // 年度ラベル: 2026年度 = 2026年4月〜2027年3月
     function getFiscalMonthIndex(fy) {
       var now = new Date(), y = now.getFullYear(), m = now.getMonth() + 1;
-      if (m >= 4 && y == fy - 1) return m - 4;
-      if (m < 4 && y == fy) return m + 8;
+      if (m >= 4 && y == fy) return m - 4;
+      if (m < 4 && y == fy + 1) return m + 8;
       return -1;
     }
 
@@ -67,13 +67,45 @@
     var budgetData = [];
 
     // ===== API: Fetch master data =====
+    // ===== Fiscal Year dropdown (dynamic from API) =====
+    function fetchFiscalYears(callback) {
+      fetch('api/budgets.php?action=years', { credentials: 'same-origin' })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          var years = (data.success && data.data) ? data.data : [];
+          populateYearSelects(years);
+          if (callback) callback();
+        })
+        .catch(function(e) {
+          console.error('Failed to fetch fiscal years:', e);
+          if (callback) callback();
+        });
+    }
+
+    function populateYearSelects(years) {
+      var now = new Date();
+      var currentFY = now.getMonth() + 1 >= 4 ? now.getFullYear() : now.getFullYear() - 1;
+      var selects = [
+        document.getElementById('filterYear'),
+        document.getElementById('storeYear')
+      ];
+      selects.forEach(function(sel) {
+        if (!sel) return;
+        sel.innerHTML = '';
+        years.forEach(function(y) {
+          var opt = document.createElement('option');
+          opt.value = y;
+          opt.textContent = y + '年度';
+          if (y === currentFY) opt.selected = true;
+          sel.appendChild(opt);
+        });
+      });
+    }
+
     function fetchMasterData(callback) {
-      if (viewMode !== 'admin') {
-        callback();
-        return;
-      }
+      // 年度ドロップダウンは全ユーザーで必要
       var done = 0;
-      var total = 3;
+      var total = viewMode === 'admin' ? 4 : 1;
       var zones = [], areas = [], shops = [];
 
       function checkDone() {
@@ -102,20 +134,24 @@
         callback();
       }
 
-      fetch('api/master/zones.php', { credentials: 'same-origin' })
-        .then(function(r) { return r.json(); })
-        .then(function(data) { zones = data.data || []; checkDone(); })
-        .catch(function(e) { console.error('Failed to fetch zones:', e); zones = []; checkDone(); });
+      fetchFiscalYears(checkDone);
 
-      fetch('api/master/areas.php', { credentials: 'same-origin' })
-        .then(function(r) { return r.json(); })
-        .then(function(data) { areas = data.data || []; checkDone(); })
-        .catch(function(e) { console.error('Failed to fetch areas:', e); areas = []; checkDone(); });
+      if (viewMode === 'admin') {
+        fetch('api/master/zones.php', { credentials: 'same-origin' })
+          .then(function(r) { return r.json(); })
+          .then(function(data) { zones = data.data || []; checkDone(); })
+          .catch(function(e) { console.error('Failed to fetch zones:', e); zones = []; checkDone(); });
 
-      fetch('api/master/shops.php', { credentials: 'same-origin' })
-        .then(function(r) { return r.json(); })
-        .then(function(data) { shops = data.data || []; checkDone(); })
-        .catch(function(e) { console.error('Failed to fetch shops:', e); shops = []; checkDone(); });
+        fetch('api/master/areas.php', { credentials: 'same-origin' })
+          .then(function(r) { return r.json(); })
+          .then(function(data) { areas = data.data || []; checkDone(); })
+          .catch(function(e) { console.error('Failed to fetch areas:', e); areas = []; checkDone(); });
+
+        fetch('api/master/shops.php', { credentials: 'same-origin' })
+          .then(function(r) { return r.json(); })
+          .then(function(data) { shops = data.data || []; checkDone(); })
+          .catch(function(e) { console.error('Failed to fetch shops:', e); shops = []; checkDone(); });
+      }
     }
 
     // ===== API: Fetch budget data =====

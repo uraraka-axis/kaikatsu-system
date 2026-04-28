@@ -1,5 +1,5 @@
-/* ===== Main Override (narrower) ===== */
-.main { max-width: 800px; }
+/* ===== Main Override (テーブルがあるためフォーム用1200pxに合わせる) ===== */
+.main { max-width: 1200px; }
 
 /* ===== Back Link ===== */
 .back-link {
@@ -33,20 +33,60 @@
 .form-row { display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap; }
 .form-row .form-group { flex: 1; min-width: 140px; }
 
-/* ===== Category List ===== */
-.category-list { margin-bottom: 16px; }
-.category-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 14px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  margin-bottom: 8px;
+/* ===== Category Table ===== */
+.category-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  margin-bottom: 16px;
+  font-size: 14px;
 }
-.category-item-name { font-size: 14px; font-weight: 500; }
-.category-item-code { font-size: 13px; color: #94a3b8; margin-left: 12px; }
+.category-table thead th {
+  background: #f8fafc;
+  color: #475569;
+  font-weight: 600;
+  font-size: 13px;
+  text-align: left;
+  padding: 10px 14px;
+  border-bottom: 1px solid #e2e8f0;
+  white-space: nowrap;
+}
+.category-table tbody td {
+  padding: 10px 14px;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+}
+.category-table tbody tr:last-child td { border-bottom: none; }
+.category-table .col-action { width: 40px; text-align: center; }
+
+.category-table .cat-input,
+.category-table .cat-select {
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 13px;
+  background: #fff;
+  box-sizing: border-box;
+}
+.category-table .cat-input:focus,
+.category-table .cat-select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+.category-table .cat-input[disabled],
+.category-table .cat-select[disabled] {
+  background: #f1f5f9;
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
+.category-table .col-name { min-width: 180px; }
+.category-table .col-code { width: 140px; }
+.category-table .col-type { width: 140px; }
+.category-table .col-day  { width: 160px; }
 
 .btn-icon {
   background: none;
