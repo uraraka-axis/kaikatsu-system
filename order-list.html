@@ -4,16 +4,18 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>発注一覧画面</title>
+  <style>html.auth-pending body{visibility:hidden}</style>
+  <script>document.documentElement.classList.add('auth-pending');</script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/common.css">
+  <link rel="stylesheet" href="css/common.css?v=20260521">
   <link rel="stylesheet" href="css/order-list.css">
 </head>
 <body>
   <header class="header" data-title="発注一覧画面"></header>
   <nav class="nav" data-active="order-list.html"></nav>
-  <script src="js/common-nav.js"></script>
+  <script src="js/common-nav.js?v=20260521"></script>
   <main class="main">
     <!-- Admin Filter Bar -->
     <div class="admin-filter-bar" id="adminFilterBar">
@@ -49,6 +51,14 @@
       </div>
       <div class="admin-filter-row">
         <div class="filter-group">
+          <span class="filter-label">カテゴリ</span>
+          <select class="form-select" id="adminFilterCategory" onchange="applyFilters()">
+            <option value="">すべて</option>
+            <option value="fitness">フィットネス</option>
+            <option value="golf">ゴルフ</option>
+          </select>
+        </div>
+        <div class="filter-group">
           <span class="filter-label">種別</span>
           <select class="form-select" id="adminFilterType" onchange="applyFilters()">
             <option value="">すべて</option>
@@ -67,6 +77,12 @@
             <option value="3">納品済/修理済</option>
             <option value="4">完了</option>
           </select>
+        </div>
+        <div class="filter-group">
+          <button type="button" class="btn-action btn-primary" onclick="applyFilters()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            検索
+          </button>
         </div>
       </div>
     </div>
@@ -93,6 +109,10 @@
           <option value="3">納品済/修理済</option>
           <option value="4">完了</option>
         </select>
+        <button type="button" class="btn-action btn-primary" onclick="applyFilters()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          検索
+        </button>
       </div>
     </div>
 
@@ -122,18 +142,33 @@
         <thead id="orderTableHead">
           <tr>
             <th style="width:40px"><input type="checkbox" id="selectAll" onchange="toggleAll(this)"></th>
-            <th>発注番号</th>
+            <th>発注日</th>
             <th>種別</th>
+            <th>発注番号</th>
             <th>カテゴリ</th>
             <th>内容</th>
             <th>金額</th>
             <th>ステータス</th>
-            <th>発注日</th>
             <th style="width:60px">詳細</th>
           </tr>
         </thead>
         <tbody id="orderTableBody"></tbody>
       </table>
+    </div>
+
+    <!-- Pagination -->
+    <div class="pagination-bar" id="paginationBar">
+      <div class="pagination-info" id="paginationInfo"></div>
+      <div class="pagination-controls">
+        <label class="pagination-label">1ページの件数</label>
+        <select class="form-select" id="pageSizeSelect" onchange="onPageSizeChange()">
+          <option value="20">20件</option>
+          <option value="50">50件</option>
+          <option value="100">100件</option>
+          <option value="all">すべて</option>
+        </select>
+        <button type="button" class="btn-action btn-secondary" id="showMoreBtn" onclick="showMoreOrders()" style="display:none">次を表示</button>
+      </div>
     </div>
   </main>
 
@@ -146,6 +181,6 @@
     </div>
   </div>
 
-  <script src="js/order-list.js"></script>
+  <script src="js/order-list.js?v=20260521"></script>
 </body>
 </html>

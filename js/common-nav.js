@@ -1,3 +1,25 @@
+// ===== Loading オーバーレイ（全画面共通） =====
+window.showLoading = function(text) {
+  var overlay = document.getElementById('__loadingOverlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = '__loadingOverlay';
+    overlay.className = 'loading-overlay';
+    overlay.innerHTML = '<div class="loading-box">' +
+                          '<div class="loading-spinner"></div>' +
+                          '<div class="loading-text">読み込み中…</div>' +
+                        '</div>';
+    document.body.appendChild(overlay);
+  }
+  var txtEl = overlay.querySelector('.loading-text');
+  if (txtEl) txtEl.textContent = text || '読み込み中…';
+  overlay.classList.add('visible');
+};
+window.hideLoading = function() {
+  var overlay = document.getElementById('__loadingOverlay');
+  if (overlay) overlay.classList.remove('visible');
+};
+
 (function() {
   // ログインページではナビを構築しない
   if (window.location.pathname.indexOf('login.html') !== -1) return;
@@ -39,6 +61,12 @@
       var logoutBtn = document.getElementById('logoutBtn');
       if (logoutBtn) {
         logoutBtn.addEventListener('click', function() {
+          // ログアウト時、画面別の検索条件・選択状態をクリア
+          try {
+            sessionStorage.removeItem('filters:order-list');
+            sessionStorage.removeItem('filters:equipment-order');
+            sessionStorage.removeItem('filters:budget-management');
+          } catch (e) {}
           fetch('api/logout.php', {
             method: 'POST',
             credentials: 'same-origin'
@@ -77,7 +105,8 @@
         navItems.forEach(function(item) {
           var isActive = item.href === activePage;
           if (isActive) {
-            html += '<button class="nav-btn active">' + item.label + '</button>';
+            // 現在ページのボタン押下時はページ再読込（再表示要望対応）
+            html += '<button class="nav-btn active" onclick="location.reload()">' + item.label + '</button>';
           } else {
             html += '<button class="nav-btn" onclick="location.href=\'' + item.href + '\'">' + item.label + '</button>';
           }
@@ -90,9 +119,12 @@
 
       // メニュー画面のセクション表示切替をイベントで通知
       window.dispatchEvent(new CustomEvent('userLoaded', { detail: user }));
+
+      // 認証チェック完了: コンテンツを表示
+      document.documentElement.classList.remove('auth-pending');
     })
     .catch(function() {
-      // API通信エラー → ログインページへ
+      // API通信エラー → ログインページへ（bodyは隠したまま遷移）
       window.location.href = 'login.html';
     });
 })();

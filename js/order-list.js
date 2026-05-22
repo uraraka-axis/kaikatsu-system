@@ -109,6 +109,27 @@ function getShopName(code) {
 // ===== Order Data (populated from API) =====
 var currentOrders = [];
 var expandedIds = {};
+var selectedIds = {}; // 一括ステータス変更用チェック状態（再描画で消えないよう保持）
+
+// ===== Pagination state =====
+var PAGE_SIZE_STORAGE_KEY = 'pagesize:order-list';
+var defaultPageSize = 20;
+var pageSize = defaultPageSize; // 1ページの表示件数（数値 or 'all'）
+var displayLimit = defaultPageSize; // 現在表示している件数（次を表示で増加）
+
+function loadPageSize() {
+  try {
+    var stored = sessionStorage.getItem(PAGE_SIZE_STORAGE_KEY);
+    if (stored === null) return;
+    if (stored === 'all') { pageSize = 'all'; return; }
+    var n = parseInt(stored, 10);
+    if (n > 0) pageSize = n;
+  } catch (e) {}
+}
+
+function savePageSize() {
+  try { sessionStorage.setItem(PAGE_SIZE_STORAGE_KEY, String(pageSize)); } catch (e) {}
+}
 
 // ===== API Helpers =====
 function apiGet(url) {
@@ -145,8 +166,7 @@ function fetchMasterData(callback) {
         zoneSelect.innerHTML += '<option value="' + z.zone_code + '">' + z.zone_code + ':' + z.zone_name + '</option>';
       });
     }
-    // Initialize area/shop selects
-    onZoneChange();
+    // area/shop の初期化は initView の restoreFilters 内で行う（applyFiltersの二重発火防止）
     callback();
   }
 
@@ -177,6 +197,7 @@ function fetchOrders(callback) {
   var params = [];
 
   if (viewMode === 'admin') {
+    var catFilterAdmin = document.getElementById('adminFilterCategory').value;
     var typeFilter = document.getElementById('adminFilterType').value;
     var statusFilter = document.getElementById('adminFilterStatus').value;
     var shopFilter = document.getElementById('filterShop').value;
@@ -185,6 +206,7 @@ function fetchOrders(callback) {
     var dateFrom = document.getElementById('filterDateFrom').value;
     var dateTo = document.getElementById('filterDateTo').value;
 
+    if (catFilterAdmin) params.push('category=' + encodeURIComponent(catFilterAdmin));
     if (typeFilter) params.push('type=' + encodeURIComponent(typeFilter));
     if (statusFilter !== '') params.push('status=' + encodeURIComponent(statusFilter));
     if (shopFilter) params.push('shop=' + encodeURIComponent(shopFilter));
@@ -204,6 +226,7 @@ function fetchOrders(callback) {
 
   var url = 'api/orders.php' + (params.length ? '?' + params.join('&') : '');
 
+  if (typeof window.showLoading === 'function') window.showLoading('発注一覧を読み込み中…');
   apiGet(url)
     .then(function(data) {
       currentOrders = data.data || [];
@@ -213,7 +236,56 @@ function fetchOrders(callback) {
       console.error('Failed to fetch orders:', e);
       currentOrders = [];
       if (callback) callback();
+    })
+    .finally(function() {
+      if (typeof window.hideLoading === 'function') window.hideLoading();
     });
+}
+
+// ===== 検索条件の保存/復元（同タブ内のみ保持） =====
+var FILTER_STORAGE_KEY = 'filters:order-list';
+var FILTER_FIELDS_ADMIN = ['adminFilterCategory', 'adminFilterType', 'adminFilterStatus',
+                            'filterShop', 'filterZone', 'filterArea', 'filterDateFrom', 'filterDateTo'];
+var FILTER_FIELDS_STORE = ['filterCategory', 'filterType', 'filterStatus'];
+var isInitializing = true; // 初期化中は saveFilters を抑止（空値での上書きを防ぐ）
+
+function saveFilters() {
+  if (isInitializing) return;
+  var fields = viewMode === 'admin' ? FILTER_FIELDS_ADMIN : FILTER_FIELDS_STORE;
+  var state = {};
+  fields.forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el && !el.disabled) state[id] = el.value;
+  });
+  try { sessionStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
+}
+
+function restoreFilters() {
+  var raw;
+  try { raw = sessionStorage.getItem(FILTER_STORAGE_KEY); } catch (e) { /* fall through to init dropdowns */ }
+  var state;
+  try { state = raw ? JSON.parse(raw) : {}; } catch (e) { state = {}; }
+
+  // adminの場合、zone→area→shop の順に値を設定しながらカスケード初期化
+  if (viewMode === 'admin') {
+    var zoneEl = document.getElementById('filterZone');
+    if (zoneEl) zoneEl.value = state.filterZone || '';
+    onZoneChange(); // area選択肢を再生成（applyFiltersはisInitializingで抑止）
+
+    var areaEl = document.getElementById('filterArea');
+    if (areaEl) areaEl.value = state.filterArea || '';
+    onAreaChange(); // shop選択肢を再生成
+
+    var shopEl = document.getElementById('filterShop');
+    if (shopEl && state.filterShop) shopEl.value = state.filterShop;
+  }
+
+  // その他のフィルタ（カスケード非依存）
+  Object.keys(state).forEach(function(id) {
+    if (id === 'filterZone' || id === 'filterArea' || id === 'filterShop') return;
+    var el = document.getElementById(id);
+    if (el && !el.disabled) el.value = state[id];
+  });
 }
 
 // ===== Init =====
@@ -223,6 +295,11 @@ function initView() {
   document.getElementById('adminFilterBar').style.display = viewMode === 'admin' ? 'block' : 'none';
   document.getElementById('adminActionBar').style.display = viewMode === 'admin' ? 'flex' : 'none';
   renderTableHeader();
+  loadPageSize();
+  displayLimit = (pageSize === 'all') ? Number.MAX_SAFE_INTEGER : pageSize;
+  restoreFilters();
+  // 初期化完了：以降の applyFilters → saveFilters はユーザー操作によるもの
+  isInitializing = false;
   fetchOrders(function() {
     renderOrders();
   });
@@ -234,14 +311,14 @@ function renderTableHeader() {
   if (viewMode === 'admin') {
     thead.innerHTML = '<tr>' +
       '<th style="width:40px"><input type="checkbox" id="selectAll" onchange="toggleAll(this)"></th>' +
-      '<th>種別</th><th>発注番号</th><th>店舗</th><th>カテゴリ</th><th>内容</th>' +
-      '<th>発注数</th><th>金額</th><th>ステータス</th><th>発注日</th>' +
+      '<th>発注日</th><th>種別</th><th>発注番号</th><th>店舗</th><th>カテゴリ</th><th>内容</th>' +
+      '<th>発注数</th><th>金額</th><th>ステータス</th>' +
       '<th style="width:60px">詳細</th></tr>';
   } else {
     thead.innerHTML = '<tr>' +
       '<th style="width:40px"><input type="checkbox" id="selectAll" onchange="toggleAll(this)"></th>' +
-      '<th>種別</th><th>発注番号</th><th>カテゴリ</th><th>内容</th>' +
-      '<th>発注数</th><th>金額</th><th>ステータス</th><th>発注日</th>' +
+      '<th>発注日</th><th>種別</th><th>発注番号</th><th>カテゴリ</th><th>内容</th>' +
+      '<th>発注数</th><th>金額</th><th>ステータス</th>' +
       '<th style="width:60px">詳細</th></tr>';
   }
 }
@@ -274,6 +351,10 @@ function onAreaChange() {
 
 // ===== Apply Filters (fetch from API and re-render) =====
 function applyFilters() {
+  if (isInitializing) return; // 初期化中の二重発火を防ぐ
+  saveFilters();
+  // フィルタ変更時は表示件数をリセット
+  displayLimit = (pageSize === 'all') ? Number.MAX_SAFE_INTEGER : pageSize;
   fetchOrders(function() {
     renderOrders();
   });
@@ -310,13 +391,23 @@ function formatUnavailDays(arr) {
 function renderOrders() {
   var filtered = currentOrders.slice();
 
-  // APIの返却順（created_at DESC）を維持 — 再ソート不要
+  // APIの返却順（date DESC）を維持 — 再ソート不要
+
+  // 表示件数のスライス
+  var sliced;
+  if (pageSize === 'all') {
+    sliced = filtered;
+    displayLimit = filtered.length;
+  } else {
+    displayLimit = Math.min(displayLimit, filtered.length);
+    sliced = filtered.slice(0, displayLimit);
+  }
 
   var colSpan = viewMode === 'admin' ? 11 : 10;
   var tbody = document.getElementById('orderTableBody');
   var html = '';
 
-  filtered.forEach(function(o) {
+  sliced.forEach(function(o) {
     var typeClass = 'type-' + o.type;
     var typeLabel = o.type === 'repair' ? '修理' : o.type === 'equipment' ? '備品' : '部品';
     var statusClass = getStatusClass(o.status, o.type);
@@ -331,8 +422,10 @@ function renderOrders() {
       orderCount = o.equip_items.length;
     }
 
+    var checkedAttr = selectedIds[o.id] ? ' checked' : '';
     html += '<tr class="order-row ' + o.type + '" onclick="onRowClick(event, \'' + o.id + '\')">' +
-      '<td class="td-checkbox"><input type="checkbox" class="order-check" data-id="' + o.id + '"></td>' +
+      '<td class="td-checkbox"><input type="checkbox" class="order-check" data-id="' + o.id + '" onchange="onCheckChange(this)"' + checkedAttr + '></td>' +
+      '<td>' + o.date + '</td>' +
       '<td><span class="type-badge ' + typeClass + '">' + typeLabel + '</span></td>' +
       '<td><strong>' + o.id + '</strong></td>';
 
@@ -345,7 +438,6 @@ function renderOrders() {
       '<td>' + orderCount + '</td>' +
       '<td>' + displayAmount + '</td>' +
       '<td><span class="status-badge ' + statusClass + '">' + statusLabel + '</span></td>' +
-      '<td>' + o.date + '</td>' +
       '<td><button class="btn-sm">' + (isOpen ? '−' : '+') + '</button></td>' +
     '</tr>';
 
@@ -360,6 +452,54 @@ function renderOrders() {
   }
 
   tbody.innerHTML = html;
+  renderPagination(filtered.length);
+}
+
+// ===== Pagination UI =====
+function renderPagination(totalCount) {
+  var info = document.getElementById('paginationInfo');
+  var btn  = document.getElementById('showMoreBtn');
+  var sel  = document.getElementById('pageSizeSelect');
+  if (!info || !btn || !sel) return;
+
+  // セレクトの初期値同期
+  sel.value = pageSize === 'all' ? 'all' : String(pageSize);
+
+  if (totalCount === 0) {
+    info.textContent = '';
+    btn.style.display = 'none';
+    return;
+  }
+
+  var shown = pageSize === 'all' ? totalCount : Math.min(displayLimit, totalCount);
+  info.textContent = '全 ' + totalCount + ' 件中 ' + shown + ' 件表示中';
+
+  if (pageSize === 'all' || shown >= totalCount) {
+    btn.style.display = 'none';
+  } else {
+    btn.style.display = '';
+    var nextCount = Math.min(totalCount - shown, pageSize);
+    btn.textContent = '次を表示（' + nextCount + '件）';
+  }
+}
+
+function showMoreOrders() {
+  if (pageSize === 'all') return;
+  displayLimit += pageSize;
+  renderOrders();
+}
+
+function onPageSizeChange() {
+  var sel = document.getElementById('pageSizeSelect');
+  if (!sel) return;
+  if (sel.value === 'all') {
+    pageSize = 'all';
+  } else {
+    pageSize = parseInt(sel.value, 10) || defaultPageSize;
+    displayLimit = pageSize;
+  }
+  savePageSize();
+  renderOrders();
 }
 
 function getDisplayAmount(o) {
@@ -458,7 +598,13 @@ function renderDetailContent(o) {
 function renderPhotos(photos, label) {
   var html = '<div class="photo-section"><div class="detail-label">' + label + '（' + photos.length + '枚）</div><div class="photo-grid">';
   photos.forEach(function(p, i) {
-    html += '<div class="photo-thumb"><a href="' + p.url + '" target="_blank"><img src="' + p.url + '" alt="' + (p.filename || ('写真' + (i + 1))) + '"></a></div>';
+    // loading="lazy" + decoding="async" でビューポート外画像の遅延読込（C-26軽量化）
+    // サムネイルAPI (size=thumb) で縮小版を取得 / クリック時のリンクは原寸版
+    var thumbUrl = p.url + (p.url.indexOf('?') >= 0 ? '&' : '?') + 'size=thumb';
+    html += '<div class="photo-thumb">' +
+              '<a href="' + p.url + '" target="_blank">' +
+                '<img src="' + thumbUrl + '" alt="' + (p.filename || ('写真' + (i + 1))) + '" loading="lazy" decoding="async">' +
+              '</a></div>';
   });
   html += '</div></div>';
   return html;
@@ -933,15 +1079,24 @@ function doSaveEditInfo(orderId) {
 
   var fields = getEditableFields(order);
   var body = { order_id: orderId };
+  var validationError = null;
 
   fields.forEach(function(f) {
+    if (validationError) return;
     var el = document.getElementById('editField_' + f.key);
     if (!el) return;
     if (f.type === 'number') {
-      var val = parseInt(el.value);
-      if (!isNaN(val) && val > 0) {
-        body[f.key] = val;
+      var rawVal = el.value.trim();
+      if (rawVal === '') {
+        // 空欄はスキップ（変更しない）
+        return;
       }
+      var val = parseInt(rawVal, 10);
+      if (isNaN(val) || val <= 0) {
+        validationError = f.label + 'は1以上の数値を入力してください';
+        return;
+      }
+      body[f.key] = val;
     } else if (f.type === 'date') {
       body[f.key] = el.value || '';
     } else if (f.type === 'textarea') {
@@ -952,6 +1107,11 @@ function doSaveEditInfo(orderId) {
       }
     }
   });
+
+  if (validationError) {
+    alert(validationError);
+    return;
+  }
 
   apiPost('api/orders/update-info.php', body)
     .then(function(data) {
@@ -980,7 +1140,24 @@ function toggleDetail(id) {
 }
 
 function toggleAll(checkbox) {
-  document.querySelectorAll('.order-check').forEach(function(cb) { cb.checked = checkbox.checked; });
+  document.querySelectorAll('.order-check').forEach(function(cb) {
+    cb.checked = checkbox.checked;
+    var id = cb.getAttribute('data-id');
+    if (checkbox.checked) {
+      selectedIds[id] = true;
+    } else {
+      delete selectedIds[id];
+    }
+  });
+}
+
+function onCheckChange(checkbox) {
+  var id = checkbox.getAttribute('data-id');
+  if (checkbox.checked) {
+    selectedIds[id] = true;
+  } else {
+    delete selectedIds[id];
+  }
 }
 
 function exportExcel() {
@@ -1009,14 +1186,16 @@ function exportExcel() {
 
 // ===== Bulk Status Change =====
 function getCheckedOrderIds() {
-  var ids = [];
-  document.querySelectorAll('.order-check:checked').forEach(function(cb) { ids.push(cb.dataset.id); });
-  return ids;
+  return Object.keys(selectedIds);
 }
 
 function getCheckedOrders() {
   var ids = getCheckedOrderIds();
   return currentOrders.filter(function(o) { return ids.indexOf(o.id) >= 0; });
+}
+
+function clearSelection() {
+  selectedIds = {};
 }
 
 function bulkStatusChange() {
@@ -1128,6 +1307,7 @@ function doBulkStatusChange() {
       closeModal();
       var selectAll = document.getElementById('selectAll');
       if (selectAll) selectAll.checked = false;
+      clearSelection();
       fetchOrders(function() { renderOrders(); });
     })
     .catch(function(e) {
@@ -1141,6 +1321,25 @@ function bootOrderList(user) {
   if (currentUser) return; // 二重起動防止
   currentUser = user;
   viewMode = currentUser.role === 'admin' ? 'admin' : 'store';
+
+  // 店舗ユーザーが単一カテゴリのみ取り扱う場合、カテゴリ選択を絞り込み＋固定
+  if (viewMode === 'store' && Array.isArray(user.categories)) {
+    var filterCategoryEl = document.getElementById('filterCategory');
+    if (filterCategoryEl) {
+      // ドロップダウンの選択肢を取扱カテゴリのみに絞る
+      var opts = '<option value="">カテゴリ</option>';
+      user.categories.forEach(function(c) {
+        opts += '<option value="' + c.code + '">' + c.name + '</option>';
+      });
+      filterCategoryEl.innerHTML = opts;
+
+      // 単一カテゴリの場合は自動選択＋ロック（操作不可）
+      if (user.categories.length === 1) {
+        filterCategoryEl.value = user.categories[0].code;
+        filterCategoryEl.disabled = true;
+      }
+    }
+  }
 
   fetchMasterData(function() {
     initView();

@@ -30,12 +30,22 @@ $zoneCode   = $_GET['zone'] ?? '';
 $areaCode   = $_GET['area'] ?? '';
 $shopCode   = $_GET['shop'] ?? '';
 
-// 部門バリデーション
-if (!in_array($dept, ['all', 'fit', 'ig'], true)) {
-    jsonError('不正な部門パラメータです');
+// 複数選択された店舗（チェックボックスでの選択）
+$selectedShops = [];
+if (isset($_GET['shops']) && is_array($_GET['shops'])) {
+    foreach ($_GET['shops'] as $code) {
+        if (is_string($code) && preg_match('/^[A-Za-z0-9_-]{1,32}$/', $code)) {
+            $selectedShops[] = $code;
+        }
+    }
 }
 
-// 部門ラベル
+// カテゴリバリデーション
+if (!in_array($dept, ['all', 'fit', 'ig'], true)) {
+    jsonError('不正なカテゴリパラメータです');
+}
+
+// カテゴリラベル
 $deptLabels = [
     'all' => '全体',
     'fit' => 'フィットネス',
@@ -47,6 +57,7 @@ if ($user['role'] !== 'admin') {
     $shopCode = $user['shop_code'];
     $zoneCode = '';
     $areaCode = '';
+    $selectedShops = []; // 店舗ユーザーは複数選択不可
 }
 
 // --- 対象店舗を取得 ---
@@ -58,17 +69,28 @@ $shopSql    = 'SELECT s.code AS shop_code, s.name AS shop_name, s.area_code,
                WHERE s.is_active = 1';
 $shopParams = [];
 
-if ($shopCode !== '') {
-    $shopSql .= ' AND s.code = :shop_code';
-    $shopParams[':shop_code'] = $shopCode;
-}
-if ($areaCode !== '') {
-    $shopSql .= ' AND s.area_code = :area_code';
-    $shopParams[':area_code'] = $areaCode;
-}
-if ($zoneCode !== '') {
-    $shopSql .= ' AND a.zone_code = :zone_code';
-    $shopParams[':zone_code'] = $zoneCode;
+if (!empty($selectedShops)) {
+    // 個別選択された店舗のみ（フィルタは無視）
+    $placeholders = [];
+    foreach ($selectedShops as $i => $sc) {
+        $key = ':selsc' . $i;
+        $placeholders[] = $key;
+        $shopParams[$key] = $sc;
+    }
+    $shopSql .= ' AND s.code IN (' . implode(',', $placeholders) . ')';
+} else {
+    if ($shopCode !== '') {
+        $shopSql .= ' AND s.code = :shop_code';
+        $shopParams[':shop_code'] = $shopCode;
+    }
+    if ($areaCode !== '') {
+        $shopSql .= ' AND s.area_code = :area_code';
+        $shopParams[':area_code'] = $areaCode;
+    }
+    if ($zoneCode !== '') {
+        $shopSql .= ' AND a.zone_code = :zone_code';
+        $shopParams[':zone_code'] = $zoneCode;
+    }
 }
 
 $shopSql .= ' ORDER BY s.sort_order, s.code';
@@ -120,7 +142,7 @@ $headers = [
     'ゾーン',
     'エリア',
     '年度',
-    '部門',
+    'カテゴリ',
 ];
 foreach ($fiscalMonths as $m) {
     $headers[] = $m . '月_予算';

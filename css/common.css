@@ -1,6 +1,46 @@
 /* ===== Reset ===== */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
+/* ===== 認証チェック完了までコンテンツを非表示にする（フラッシュ防止） ===== */
+/* HTML側で <script>document.documentElement.classList.add('auth-pending');</script> を <head> に置く */
+html.auth-pending body { visibility: hidden; }
+
+/* ===== Loading オーバーレイ（一覧再取得時等の表示） ===== */
+.loading-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.6);
+  z-index: 200;
+  align-items: center;
+  justify-content: center;
+}
+.loading-overlay.visible { display: flex; }
+.loading-overlay .loading-box {
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 16px 28px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.1);
+}
+.loading-overlay .loading-spinner {
+  width: 20px;
+  height: 20px;
+  border: 3px solid #cbd5e1;
+  border-top-color: #1e293b;
+  border-radius: 50%;
+  animation: kk-spin 0.8s linear infinite;
+}
+.loading-overlay .loading-text {
+  font-size: 14px;
+  color: #1e293b;
+  font-weight: 500;
+}
+@keyframes kk-spin { to { transform: rotate(360deg); } }
+
 /* ===== Base Typography ===== */
 body {
   font-family: 'Inter', 'Noto Sans JP', sans-serif;
@@ -20,6 +60,9 @@ body {
   align-items: center;
   justify-content: space-between;
   height: 64px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
 .header h1 { font-size: 20px; font-weight: 700; letter-spacing: 0.5px; }
 .header-right { display: flex; align-items: center; gap: 20px; }
@@ -45,6 +88,9 @@ body {
   display: flex;
   align-items: center;
   gap: 4px;
+  position: sticky;
+  top: 64px; /* header height */
+  z-index: 99;
   height: 48px;
   border-bottom: 1px solid #cbd5e1;
 }
@@ -205,9 +251,18 @@ body {
   background-color: #fff;
 }
 .photo-upload-area:hover { border-color: #3b82f6; background-color: #f0f7ff; }
+.photo-upload-area.dragover { border-color: #3b82f6; background-color: #dbeafe; border-style: solid; }
+.photo-upload-area.disabled {
+  cursor: not-allowed;
+  background-color: #f1f5f9;
+  border-color: #cbd5e1;
+  opacity: 0.6;
+}
+.photo-upload-area.disabled:hover { border-color: #cbd5e1; background-color: #f1f5f9; }
 .upload-icon { color: #94a3b8; margin-bottom: 12px; }
 .upload-icon svg { width: 40px; height: 40px; }
 .upload-text { font-size: 14px; font-weight: 500; color: #64748b; }
+.upload-subtext { font-size: 12px; color: #94a3b8; margin-top: 4px; }
 .upload-hint { font-size: 13px; color: #94a3b8; margin-top: 16px; }
 
 .photo-previews { display: flex; gap: 12px; margin-top: 12px; flex-wrap: wrap; }

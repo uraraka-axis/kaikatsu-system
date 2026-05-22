@@ -125,6 +125,7 @@ document.addEventListener('DOMContentLoaded', function() {
       populateShopFilter();
     }
 
+    if (typeof window.showLoading === 'function') window.showLoading('自店調達申請を読み込み中…');
     fetch('api/procurement.php?' + params, { credentials: 'same-origin' })
       .then(function(r) {
         if (r.status === 401) { location.href = 'login.html'; return; }
@@ -145,6 +146,9 @@ document.addEventListener('DOMContentLoaded', function() {
       })
       .catch(function(err) {
         console.error('データ取得エラー:', err);
+      })
+      .finally(function() {
+        if (typeof window.hideLoading === 'function') window.hideLoading();
       });
   }
 

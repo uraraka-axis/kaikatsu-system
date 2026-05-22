@@ -10,6 +10,53 @@
       { key: 'ig',  label: 'インドアゴルフ' }
     ];
 
+    // ===== Excel出力対象選択（admin only） =====
+    var selectedShops = {}; // shop_code -> true
+
+    window.onBudgetCheckChange = function(checkbox) {
+      var code = checkbox.getAttribute('data-shop-code');
+      if (checkbox.checked) selectedShops[code] = true;
+      else delete selectedShops[code];
+      updateBudgetSelectAllState();
+    };
+
+    window.toggleAllBudget = function(checkbox) {
+      document.querySelectorAll('.budget-row-check').forEach(function(cb) {
+        cb.checked = checkbox.checked;
+        var code = cb.getAttribute('data-shop-code');
+        if (checkbox.checked) selectedShops[code] = true;
+        else delete selectedShops[code];
+      });
+    };
+
+    function updateBudgetSelectAllState() {
+      var selectAll = document.getElementById('budgetSelectAll');
+      if (!selectAll) return;
+      var all = document.querySelectorAll('.budget-row-check');
+      var checked = document.querySelectorAll('.budget-row-check:checked');
+      selectAll.checked = all.length > 0 && all.length === checked.length;
+      selectAll.indeterminate = checked.length > 0 && checked.length < all.length;
+    }
+
+    // ===== Pagination state =====
+    var BUDGET_PAGE_SIZE_KEY = 'pagesize:budget-management';
+    var defaultBudgetPageSize = 'all'; // 予算管理は店舗数が限定的なため初期値は全件
+    var budgetPageSize = defaultBudgetPageSize;
+    var budgetDisplayLimit = Number.MAX_SAFE_INTEGER;
+
+    function loadBudgetPageSize() {
+      try {
+        var stored = sessionStorage.getItem(BUDGET_PAGE_SIZE_KEY);
+        if (stored === null) return;
+        if (stored === 'all') { budgetPageSize = 'all'; return; }
+        var n = parseInt(stored, 10);
+        if (n > 0) budgetPageSize = n;
+      } catch (e) {}
+    }
+    function saveBudgetPageSize() {
+      try { sessionStorage.setItem(BUDGET_PAGE_SIZE_KEY, String(budgetPageSize)); } catch (e) {}
+    }
+
     // ===== Zone / Area / Shop master (populated from API) =====
     var areasByZone = {};
     var shopsByArea = {};
@@ -160,6 +207,12 @@
       var depts = ['all', 'fit', 'ig'];
       var results = {};
       var done = 0;
+      if (typeof window.showLoading === 'function') window.showLoading('予算データを読み込み中…');
+
+      function finishedAll() {
+        if (typeof window.hideLoading === 'function') window.hideLoading();
+        buildBudgetData(results, year, callback);
+      }
 
       depts.forEach(function(dept) {
         var params = 'year=' + encodeURIComponent(year) + '&dept=' + encodeURIComponent(dept);
@@ -179,13 +232,13 @@
           .then(function(data) {
             results[dept] = data.data || [];
             done++;
-            if (done === 3) buildBudgetData(results, year, callback);
+            if (done === 3) finishedAll();
           })
           .catch(function(e) {
             console.error('Failed to fetch budgets (dept=' + dept + '):', e);
             results[dept] = [];
             done++;
-            if (done === 3) buildBudgetData(results, year, callback);
+            if (done === 3) finishedAll();
           });
       });
     }
@@ -311,7 +364,38 @@
       filterBudget();
     }
 
+    // ===== 検索条件保存/復元（同タブ内） =====
+    var BUDGET_FILTER_KEY = 'filters:budget-management';
+    var BUDGET_FILTER_IDS_ADMIN = ['filterZone', 'filterArea', 'filterShop', 'filterDept', 'filterYear'];
+    var BUDGET_FILTER_IDS_STORE = ['storeDept', 'storeYear'];
+    var isBudgetInitializing = true; // 初期化中は saveBudgetFilters を抑止
+
+    function saveBudgetFilters() {
+      if (isBudgetInitializing) return;
+      var ids = viewMode === 'admin' ? BUDGET_FILTER_IDS_ADMIN : BUDGET_FILTER_IDS_STORE;
+      var state = {};
+      ids.forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el && !el.disabled) state[id] = el.value;
+      });
+      try { sessionStorage.setItem(BUDGET_FILTER_KEY, JSON.stringify(state)); } catch (e) {}
+    }
+    function restoreBudgetFilters() {
+      var raw;
+      try { raw = sessionStorage.getItem(BUDGET_FILTER_KEY); } catch (e) { return; }
+      if (!raw) return;
+      var state;
+      try { state = JSON.parse(raw); } catch (e) { return; }
+      Object.keys(state).forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el && !el.disabled) el.value = state[id];
+      });
+    }
+
     function filterBudget() {
+      saveBudgetFilters();
+      // フィルタ変更時は表示件数をリセット
+      budgetDisplayLimit = (budgetPageSize === 'all') ? Number.MAX_SAFE_INTEGER : budgetPageSize;
       fetchBudgetData(function() {
         renderSummary();
         renderTable();
@@ -370,13 +454,33 @@
     // ===== Table =====
     function renderTable() {
       var data = getFilteredRows();
+      var totalCount = data.length;
+
+      // 表示件数のスライス
+      var sliced;
+      if (budgetPageSize === 'all') {
+        sliced = data;
+        budgetDisplayLimit = totalCount;
+      } else {
+        budgetDisplayLimit = Math.min(budgetDisplayLimit, totalCount);
+        sliced = data.slice(0, budgetDisplayLimit);
+      }
+
       var year = getSelectedYear();
       var dept = getSelectedDept();
       var tbody = document.getElementById('budgetTableBody');
       var html = '';
 
-      data.forEach(function(d, idx) {
+      var detailColspan = viewMode === 'admin' ? 14 : 13;
+
+      sliced.forEach(function(d, idx) {
         html += '<tr class="budget-row" onclick="toggleDetail(' + idx + ')" id="row-' + idx + '">';
+        if (viewMode === 'admin') {
+          var checked = selectedShops[d.shopCode] ? ' checked' : '';
+          html += '<td class="budget-check-cell" onclick="event.stopPropagation()">' +
+            '<input type="checkbox" class="budget-row-check" data-shop-code="' + d.shopCode + '" onchange="onBudgetCheckChange(this)"' + checked + '>' +
+          '</td>';
+        }
         html += '<td><div class="shop-cell"><svg class="expand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>' + d.shop + '</div></td>';
         html += numCells(d.period);
         html += numCells(d.midterm);
@@ -384,7 +488,7 @@
         html += '</tr>';
 
         // Detail row
-        html += '<tr class="detail-row" id="detail-' + idx + '"><td colspan="13"><div class="detail-content">';
+        html += '<tr class="detail-row" id="detail-' + idx + '"><td colspan="' + detailColspan + '"><div class="detail-content">';
         html += '<div class="detail-header"><div class="detail-title">' + year + '年度 月別明細 — ' + d.shop + '</div>';
         html += '<div class="dept-toggles">';
         departments.forEach(function(dp) {
@@ -402,7 +506,7 @@
         html += '</div></td></tr>';
       });
 
-      // Total row
+      // Total row（フィルタ後の全件で合計を算出）
       if (data.length > 1) {
         var totP = [0,0,0,0], totM = [0,0,0,0], totMo = [0,0,0,0];
         data.forEach(function(d) {
@@ -411,13 +515,62 @@
         totP[3] = totP[0] > 0 ? (totP[1] / totP[0] * 100) : 0;
         totM[3] = totM[0] > 0 ? (totM[1] / totM[0] * 100) : 0;
         totMo[3] = totMo[0] > 0 ? (totMo[1] / totMo[0] * 100) : 0;
-        html += '<tr class="total-row"><td>合計</td>';
+        html += '<tr class="total-row">';
+        if (viewMode === 'admin') html += '<td></td>';
+        html += '<td>合計</td>';
         html += numCells(totP) + numCells(totM) + numCells(totMo);
         html += '</tr>';
       }
 
       tbody.innerHTML = html;
+      renderBudgetPagination(totalCount);
     }
+
+    // ===== Pagination UI =====
+    function renderBudgetPagination(totalCount) {
+      var info = document.getElementById('budgetPaginationInfo');
+      var btn  = document.getElementById('budgetShowMoreBtn');
+      var sel  = document.getElementById('budgetPageSizeSelect');
+      if (!info || !btn || !sel) return;
+
+      sel.value = budgetPageSize === 'all' ? 'all' : String(budgetPageSize);
+
+      if (totalCount === 0) {
+        info.textContent = '';
+        btn.style.display = 'none';
+        return;
+      }
+
+      var shown = budgetPageSize === 'all' ? totalCount : Math.min(budgetDisplayLimit, totalCount);
+      info.textContent = '全 ' + totalCount + ' 店舗中 ' + shown + ' 店舗表示中';
+
+      if (budgetPageSize === 'all' || shown >= totalCount) {
+        btn.style.display = 'none';
+      } else {
+        btn.style.display = '';
+        var nextCount = Math.min(totalCount - shown, budgetPageSize);
+        btn.textContent = '次を表示（' + nextCount + '店舗）';
+      }
+    }
+
+    window.showMoreBudgetRows = function() {
+      if (budgetPageSize === 'all') return;
+      budgetDisplayLimit += budgetPageSize;
+      renderTable();
+    };
+
+    window.onBudgetPageSizeChange = function() {
+      var sel = document.getElementById('budgetPageSizeSelect');
+      if (!sel) return;
+      if (sel.value === 'all') {
+        budgetPageSize = 'all';
+      } else {
+        budgetPageSize = parseInt(sel.value, 10) || 20;
+        budgetDisplayLimit = budgetPageSize;
+      }
+      saveBudgetPageSize();
+      renderTable();
+    };
 
     function numCells(arr) {
       var budget = arr[0], actual = arr[1], balance = arr[2], rate = arr[3];
@@ -498,12 +651,21 @@
       var dept = getSelectedDept();
       var params = 'year=' + encodeURIComponent(year) + '&dept=' + encodeURIComponent(dept);
       if (viewMode === 'admin') {
-        var zone = document.getElementById('filterZone').value;
-        var area = document.getElementById('filterArea').value;
-        var shop = document.getElementById('filterShop').value;
-        if (zone) params += '&zone=' + encodeURIComponent(zone);
-        if (area) params += '&area=' + encodeURIComponent(area);
-        if (shop) params += '&shop=' + encodeURIComponent(shop);
+        var selectedCodes = Object.keys(selectedShops);
+        if (selectedCodes.length > 0) {
+          // チェックボックスで個別選択された店舗を優先（フィルタは無視）
+          selectedCodes.forEach(function(code) {
+            params += '&shops[]=' + encodeURIComponent(code);
+          });
+        } else {
+          // 未選択時はフィルタ条件で出力
+          var zone = document.getElementById('filterZone').value;
+          var area = document.getElementById('filterArea').value;
+          var shop = document.getElementById('filterShop').value;
+          if (zone) params += '&zone=' + encodeURIComponent(zone);
+          if (area) params += '&area=' + encodeURIComponent(area);
+          if (shop) params += '&shop=' + encodeURIComponent(shop);
+        }
       }
       window.location.href = 'api/export/budgets.php?' + params;
     }
@@ -513,12 +675,47 @@
       document.getElementById('adminToolbar').style.display = viewMode === 'admin' ? '' : 'none';
       document.getElementById('storeToolbar').style.display = viewMode === 'store' ? '' : 'none';
 
+      // Excel出力対象選択チェックボックス列はadminのみ
+      var checkCol = document.querySelector('.budget-check-col');
+      if (checkCol) checkCol.style.display = viewMode === 'admin' ? '' : 'none';
+
       var desc = document.getElementById('pageDesc');
       if (viewMode === 'store') {
         desc.textContent = '自店の予算・実績・消化状況を確認できます。行をクリックすると月別明細を表示します。';
       }
 
+      loadBudgetPageSize();
+      budgetDisplayLimit = (budgetPageSize === 'all') ? Number.MAX_SAFE_INTEGER : budgetPageSize;
+      restoreBudgetFilters();
+      restoreSummaryCollapse();
+      isBudgetInitializing = false; // 初期化完了
       filterBudget();
+    }
+
+    // ===== サマリー折りたたみ =====
+    var SUMMARY_COLLAPSE_KEY = 'budget:summary-collapsed';
+    window.toggleSummary = function() {
+      var section = document.querySelector('.summary-section');
+      var label = document.getElementById('summaryToggleLabel');
+      var btn = document.getElementById('summaryToggleBtn');
+      if (!section) return;
+      var nowCollapsed = !section.classList.contains('collapsed');
+      section.classList.toggle('collapsed', nowCollapsed);
+      if (label) label.textContent = nowCollapsed ? 'サマリーを表示' : 'サマリーを隠す';
+      if (btn) btn.setAttribute('aria-expanded', String(!nowCollapsed));
+      try { sessionStorage.setItem(SUMMARY_COLLAPSE_KEY, nowCollapsed ? '1' : '0'); } catch (e) {}
+    };
+
+    function restoreSummaryCollapse() {
+      var collapsed;
+      try { collapsed = sessionStorage.getItem(SUMMARY_COLLAPSE_KEY) === '1'; } catch (e) { collapsed = false; }
+      if (!collapsed) return;
+      var section = document.querySelector('.summary-section');
+      var label = document.getElementById('summaryToggleLabel');
+      var btn = document.getElementById('summaryToggleBtn');
+      if (section) section.classList.add('collapsed');
+      if (label) label.textContent = 'サマリーを表示';
+      if (btn) btn.setAttribute('aria-expanded', 'false');
     }
 
     // ===== Boot: wait for userLoaded event from common-nav.js =====

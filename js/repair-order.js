@@ -168,17 +168,45 @@
     function handlePhotoUpload(e) {
       var files = e.target.files;
       if (!files) return;
+      addPhotoFiles(files);
+      e.target.value = '';
+    }
 
+    function addPhotoFiles(files) {
       var remaining = 3 - photos.length;
+      var allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
       for (var i = 0; i < Math.min(files.length, remaining); i++) {
         var file = files[i];
+        if (allowed.indexOf(file.type) < 0) continue;
         var url = URL.createObjectURL(file);
         photos.push({ id: Date.now() + '-' + i, url: url, file: file });
       }
-
       renderPhotos();
-      e.target.value = '';
     }
+
+    // ===== ドラッグ＆ドロップ対応 =====
+    document.addEventListener('DOMContentLoaded', function() {
+      var area = document.getElementById('uploadArea');
+      if (!area) return;
+      ['dragenter', 'dragover'].forEach(function(ev) {
+        area.addEventListener(ev, function(e) {
+          e.preventDefault(); e.stopPropagation();
+          if (photos.length >= 3) return;
+          area.classList.add('dragover');
+        });
+      });
+      ['dragleave', 'drop'].forEach(function(ev) {
+        area.addEventListener(ev, function(e) {
+          e.preventDefault(); e.stopPropagation();
+          area.classList.remove('dragover');
+        });
+      });
+      area.addEventListener('drop', function(e) {
+        if (photos.length >= 3) return;
+        var files = e.dataTransfer && e.dataTransfer.files;
+        if (files && files.length > 0) addPhotoFiles(files);
+      });
+    });
 
     function removePhoto(id) {
       photos = photos.filter(function(p) {
@@ -194,11 +222,18 @@
     function renderPhotos() {
       var container = document.getElementById('photoPreviews');
       var uploadArea = document.getElementById('uploadArea');
+      var uploadText = document.getElementById('uploadText');
+      var uploadSubtext = document.getElementById('uploadSubtext');
 
+      // 3枚到達時は領域を残しつつ無効化（C-9,16: 突然消えるのを防ぐ）
       if (photos.length >= 3) {
-        uploadArea.style.display = 'none';
+        uploadArea.classList.add('disabled');
+        if (uploadText) uploadText.textContent = '写真は最大3枚まで';
+        if (uploadSubtext) uploadSubtext.textContent = '×ボタンで削除すると追加できます';
       } else {
-        uploadArea.style.display = '';
+        uploadArea.classList.remove('disabled');
+        if (uploadText) uploadText.textContent = 'クリックまたはドラッグ＆ドロップで写真を追加';
+        if (uploadSubtext) uploadSubtext.textContent = '残り' + (3 - photos.length) + '枚 追加可能（JPEG / PNG / GIF / WebP）';
       }
 
       if (photos.length === 0) {
@@ -282,7 +317,7 @@
       renderSlots();
       renderDayButtons();
       document.getElementById('photoPreviews').innerHTML = '';
-      document.getElementById('uploadArea').style.display = '';
+      renderPhotos(); // uploadArea のテキストを初期状態に戻す
       updateSubmitState();
     }
 

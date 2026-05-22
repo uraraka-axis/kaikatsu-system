@@ -4,10 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ログイン - 発注管理・予算管理システム</title>
+  <style>html.auth-pending body{visibility:hidden}</style>
+  <script>document.documentElement.classList.add('auth-pending');</script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/common.css">
+  <link rel="stylesheet" href="css/common.css?v=20260521">
   <link rel="stylesheet" href="css/login.css">
 </head>
 <body>
@@ -42,16 +44,23 @@
   </div>
 
   <script>
-    // ログイン済みならメニュー画面へリダイレクト
+    // 認証状態をチェック: ログイン済みならメニューへ、未ログインならフォーム表示
     fetch('api/me.php', { credentials: 'same-origin' })
       .then(function(res) { return res.json(); })
       .then(function(data) {
         if (data.success) {
+          // 既にログイン中 → メニュー画面へ（bodyは隠したまま遷移）
           window.location.href = 'menu.html';
+        } else {
+          // 未ログイン → ログインフォーム表示
+          document.documentElement.classList.remove('auth-pending');
         }
       })
-      .catch(function() { /* 未ログインまたはエラー: そのまま表示 */ });
+      .catch(function() {
+        // 通信エラー: フォームは表示する
+        document.documentElement.classList.remove('auth-pending');
+      });
   </script>
-  <script src="js/login.js"></script>
+  <script src="js/login.js?v=20260521"></script>
 </body>
 </html>

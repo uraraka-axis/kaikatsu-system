@@ -42,17 +42,34 @@ function login(string $loginId, string $password): ?array
         return null;
     }
 
+    // 店舗ユーザーの場合、所属店舗の取り扱いカテゴリを取得
+    $categories = [];
+    if ($user['shop_code'] !== null) {
+        $rows = query(
+            'SELECT c.code, c.name
+               FROM shop_categories sc
+               JOIN categories c ON sc.category_code = c.code
+              WHERE sc.shop_code = :shop_code AND c.is_active = 1
+              ORDER BY c.sort_order, c.code',
+            [':shop_code' => $user['shop_code']]
+        );
+        foreach ($rows as $r) {
+            $categories[] = ['code' => $r['code'], 'name' => $r['name']];
+        }
+    }
+
     // セッションにユーザー情報を保存
     startSession();
     session_regenerate_id(true);
 
     $_SESSION['user'] = [
-        'id'        => $user['id'],
-        'login_id'  => $user['login_id'],
-        'name'      => $user['name'],
-        'role'      => $user['role'],
-        'shop_code' => $user['shop_code'],
-        'shop_name' => $user['shop_name'],
+        'id'         => $user['id'],
+        'login_id'   => $user['login_id'],
+        'name'       => $user['name'],
+        'role'       => $user['role'],
+        'shop_code'  => $user['shop_code'],
+        'shop_name'  => $user['shop_name'],
+        'categories' => $categories, // 店舗ユーザーの取り扱いカテゴリ。admin は空配列
     ];
 
     return $_SESSION['user'];

@@ -4,15 +4,17 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>メニュー画面</title>
+  <style>html.auth-pending body{visibility:hidden}</style>
+  <script>document.documentElement.classList.add('auth-pending');</script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/common.css">
+  <link rel="stylesheet" href="css/common.css?v=20260521">
   <link rel="stylesheet" href="css/menu.css">
 </head>
 <body>
   <header class="header" data-title="メニュー画面"></header>
-  <script src="js/common-nav.js"></script>
+  <script src="js/common-nav.js?v=20260521"></script>
 
   <main class="main">
     <div class="menu-container">
@@ -21,43 +23,14 @@
         <p>操作するメニューを選択してください</p>
       </div>
 
-      <!-- スケジュール通知 -->
+      <!-- スケジュール通知（動的生成） -->
       <div class="schedule-section">
         <div class="schedule-header">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-          3月のスケジュール
+          <span id="scheduleHeaderText">スケジュール</span>
         </div>
-        <div class="schedule-grid">
-          <div class="schedule-card near">
-            <div class="schedule-card-date">
-              <span class="date-num">5</span>
-              <span class="date-sub">3月 (水)</span>
-            </div>
-            <div class="schedule-card-body">
-              <div class="schedule-card-label">備品発注 次回締切</div>
-              <div class="schedule-card-remain near">あと5日</div>
-            </div>
-          </div>
-          <div class="schedule-card">
-            <div class="schedule-card-date">
-              <span class="date-num">25</span>
-              <span class="date-sub">3月 (火)</span>
-            </div>
-            <div class="schedule-card-body">
-              <div class="schedule-card-label">月次予算 締め</div>
-              <div class="schedule-card-remain">あと25日</div>
-            </div>
-          </div>
-          <div class="schedule-card">
-            <div class="schedule-card-date">
-              <span class="date-num">31</span>
-              <span class="date-sub">3月 (月)</span>
-            </div>
-            <div class="schedule-card-body">
-              <div class="schedule-card-label">年度末 決算</div>
-              <div class="schedule-card-remain">あと31日</div>
-            </div>
-          </div>
+        <div class="schedule-grid" id="scheduleGrid">
+          <!-- JSで動的生成 -->
         </div>
       </div>
 
@@ -165,6 +138,140 @@
         document.getElementById('orderSection').style.display = '';
       }
     });
+
+    // ===== スケジュール動的生成 =====
+    // categoriesテーブルの締めルールから次回備品締切を算出し、
+    // 月次予算締め・年度末決算と合わせて直近3件を表示する
+    (function buildSchedule() {
+      var WDAY_JP = ['日', '月', '火', '水', '木', '金', '土'];
+      var today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      // 月末日（暦月）
+      function lastDayOfMonth(y, m) {
+        return new Date(y, m + 1, 0).getDate();
+      }
+
+      // 次回 monthly 締め: 当月のclosing_day以降が締日。過ぎていれば翌月。
+      function nextMonthlyClosing(closingDay) {
+        var y = today.getFullYear();
+        var m = today.getMonth();
+        var d = Math.min(closingDay, lastDayOfMonth(y, m));
+        var candidate = new Date(y, m, d);
+        if (candidate < today) {
+          m += 1;
+          if (m > 11) { m = 0; y += 1; }
+          d = Math.min(closingDay, lastDayOfMonth(y, m));
+          candidate = new Date(y, m, d);
+        }
+        return candidate;
+      }
+
+      // 次回 weekly 締め: 指定曜日(0=日〜6=土)。今日含む7日以内の最初の該当日。
+      function nextWeeklyClosing(closingDow) {
+        var dow = today.getDay();
+        var diff = (closingDow - dow + 7) % 7;
+        if (diff === 0) diff = 7; // 今日と同じ曜日でも次の週
+        var d = new Date(today);
+        d.setDate(d.getDate() + diff);
+        return d;
+      }
+
+      // 次回 月末（月次予算締め）
+      function nextMonthEnd() {
+        var y = today.getFullYear();
+        var m = today.getMonth();
+        var last = lastDayOfMonth(y, m);
+        var candidate = new Date(y, m, last);
+        if (candidate < today) {
+          m += 1;
+          if (m > 11) { m = 0; y += 1; }
+          candidate = new Date(y, m, lastDayOfMonth(y, m));
+        }
+        return candidate;
+      }
+
+      // 次回 年度末（3/31）
+      function nextFiscalYearEnd() {
+        var y = today.getFullYear();
+        var candidate = new Date(y, 2, 31); // 3月=index 2
+        if (candidate < today) candidate = new Date(y + 1, 2, 31);
+        return candidate;
+      }
+
+      function diffDays(future) {
+        return Math.round((future - today) / 86400000);
+      }
+
+      function formatDate(d) {
+        return {
+          dateNum: d.getDate(),
+          monthSub: (d.getMonth() + 1) + '月 (' + WDAY_JP[d.getDay()] + ')'
+        };
+      }
+
+      function renderSchedule(items) {
+        var grid = document.getElementById('scheduleGrid');
+        if (!grid) return;
+        var html = '';
+        items.slice(0, 3).forEach(function(it) {
+          var f = formatDate(it.date);
+          var remain = diffDays(it.date);
+          var nearClass = remain <= 7 ? ' near' : '';
+          html += '<div class="schedule-card' + nearClass + '">' +
+                    '<div class="schedule-card-date">' +
+                      '<span class="date-num">' + f.dateNum + '</span>' +
+                      '<span class="date-sub">' + f.monthSub + '</span>' +
+                    '</div>' +
+                    '<div class="schedule-card-body">' +
+                      '<div class="schedule-card-label">' + it.label + '</div>' +
+                      '<div class="schedule-card-remain' + nearClass + '">あと' + remain + '日</div>' +
+                    '</div>' +
+                  '</div>';
+        });
+        grid.innerHTML = html;
+
+        // ヘッダ用テキスト: 直近予定の月
+        var headerEl = document.getElementById('scheduleHeaderText');
+        if (headerEl && items.length > 0) {
+          headerEl.textContent = (items[0].date.getMonth() + 1) + '月のスケジュール';
+        }
+      }
+
+      // カテゴリ取得→締切算出
+      fetch('api/master/categories.php', { credentials: 'same-origin' })
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+          var items = [];
+          if (data && data.success && Array.isArray(data.data)) {
+            data.data.forEach(function(c) {
+              if (c.closing_type === 'monthly') {
+                items.push({
+                  label: c.name + '備品 次回締切',
+                  date: nextMonthlyClosing(c.closing_day)
+                });
+              } else if (c.closing_type === 'weekly') {
+                items.push({
+                  label: c.name + '備品 次回締切',
+                  date: nextWeeklyClosing(c.closing_day)
+                });
+              }
+            });
+          }
+          items.push({ label: '月次予算 締め', date: nextMonthEnd() });
+          items.push({ label: '年度末 決算',  date: nextFiscalYearEnd() });
+          items.sort(function(a, b) { return a.date - b.date; });
+          renderSchedule(items);
+        })
+        .catch(function() {
+          // API失敗時は月末・年度末のみ表示
+          var items = [
+            { label: '月次予算 締め', date: nextMonthEnd() },
+            { label: '年度末 決算',  date: nextFiscalYearEnd() }
+          ];
+          renderSchedule(items);
+        });
+    })();
   </script>
 </body>
 </html>

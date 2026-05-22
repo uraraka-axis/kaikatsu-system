@@ -3,3 +3,10 @@ docs/
 uploads/
 vendor/
 composer.phar
+
+# 作業バックアップファイル（.bak_YYYYMMDD / .bak2_YYYYMMDD 等）
+*.bak*
+
+# 一時テストスクリプト
+_tmp_*.php
+_tmp_*.xlsx

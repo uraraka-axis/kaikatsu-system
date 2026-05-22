@@ -16,11 +16,19 @@
 
     function handlePhotoUpload(e) {
       var files = e.target.files; if (!files) return;
+      addPhotoFiles(files);
+      e.target.value = '';
+    }
+
+    function addPhotoFiles(files) {
       var remaining = 3 - photos.length;
+      var allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
       for (var i = 0; i < Math.min(files.length, remaining); i++) {
-        photos.push({ id: Date.now() + '-' + i, url: URL.createObjectURL(files[i]), file: files[i] });
+        var file = files[i];
+        if (allowed.indexOf(file.type) < 0) continue;
+        photos.push({ id: Date.now() + '-' + i, url: URL.createObjectURL(file), file: file });
       }
-      renderPhotos(); e.target.value = '';
+      renderPhotos();
     }
 
     function removePhoto(id) {
@@ -30,12 +38,49 @@
 
     function renderPhotos() {
       var container = document.getElementById('photoPreviews');
-      document.getElementById('uploadArea').style.display = photos.length >= 3 ? 'none' : '';
+      var uploadArea = document.getElementById('uploadArea');
+      var uploadText = document.getElementById('uploadText');
+      var uploadSubtext = document.getElementById('uploadSubtext');
+
+      if (photos.length >= 3) {
+        uploadArea.classList.add('disabled');
+        if (uploadText) uploadText.textContent = '写真は最大3枚まで';
+        if (uploadSubtext) uploadSubtext.textContent = '×ボタンで削除すると追加できます';
+      } else {
+        uploadArea.classList.remove('disabled');
+        if (uploadText) uploadText.textContent = 'クリックまたはドラッグ＆ドロップで写真を追加';
+        if (uploadSubtext) uploadSubtext.textContent = '残り' + (3 - photos.length) + '枚 追加可能（JPEG / PNG / GIF / WebP）';
+      }
+
       if (!photos.length) { container.innerHTML = ''; return; }
       container.innerHTML = photos.map(function(p) {
         return '<div class="photo-preview"><img src="' + p.url + '" alt="部品写真"><button type="button" class="photo-remove" onclick="removePhoto(\'' + p.id + '\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button></div>';
       }).join('');
     }
+
+    // ===== ドラッグ＆ドロップ対応 =====
+    document.addEventListener('DOMContentLoaded', function() {
+      var area = document.getElementById('uploadArea');
+      if (!area) return;
+      ['dragenter', 'dragover'].forEach(function(ev) {
+        area.addEventListener(ev, function(e) {
+          e.preventDefault(); e.stopPropagation();
+          if (photos.length >= 3) return;
+          area.classList.add('dragover');
+        });
+      });
+      ['dragleave', 'drop'].forEach(function(ev) {
+        area.addEventListener(ev, function(e) {
+          e.preventDefault(); e.stopPropagation();
+          area.classList.remove('dragover');
+        });
+      });
+      area.addEventListener('drop', function(e) {
+        if (photos.length >= 3) return;
+        var files = e.dataTransfer && e.dataTransfer.files;
+        if (files && files.length > 0) addPhotoFiles(files);
+      });
+    });
 
     // ===== Submit (API) =====
     function submitForm() {
@@ -88,7 +133,7 @@
       document.getElementById('orderReason').value = '';
       photos = [];
       document.getElementById('photoPreviews').innerHTML = '';
-      document.getElementById('uploadArea').style.display = '';
+      renderPhotos(); // uploadArea のテキストを初期状態に戻す
       updateSubmitState();
     }
 

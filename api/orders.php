@@ -106,7 +106,7 @@ if (!empty($where)) {
     $sql .= ' WHERE ' . implode(' AND ', $where);
 }
 
-$sql .= ' ORDER BY o.created_at DESC, o.id DESC';
+$sql .= ' ORDER BY o.date DESC, o.created_at DESC, o.id DESC';
 
 $orders = query($sql, $params);
 
@@ -159,15 +159,16 @@ foreach ($unavailDayRows as $row) {
 }
 
 // --- 写真 ---
+// セキュリティ: file_path を直接返さず、api/photo.php?id={photo_id} 経由のURLに変換
 $photoData = [];
-$photoSql = "SELECT order_id, file_path, original_filename
+$photoSql = "SELECT id, order_id, original_filename
              FROM order_photos
              WHERE order_id IN ({$placeholders})
              ORDER BY sort_order, id";
 $photoRows = query($photoSql, $idParams);
 foreach ($photoRows as $row) {
     $photoData[$row['order_id']][] = [
-        'url'      => $row['file_path'],
+        'url'      => BASE_URL . '/api/photo.php?id=' . (int)$row['id'],
         'filename' => $row['original_filename'],
     ];
 }

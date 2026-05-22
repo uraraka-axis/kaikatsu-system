@@ -58,9 +58,13 @@ switch ($action) {
         if ($estimateAmount === null || $estimateAmount === '') {
             jsonError('見積金額は必須です');
         }
+        $estimateAmount = filter_var($estimateAmount, FILTER_VALIDATE_INT);
+        if ($estimateAmount === false || $estimateAmount <= 0) {
+            jsonError('見積金額は1以上の数値を入力してください');
+        }
         $newStatus = 1;
         $updateCols[] = 'estimate_amount = :estimate_amount';
-        $updateVals[':estimate_amount'] = (int)$estimateAmount;
+        $updateVals[':estimate_amount'] = $estimateAmount;
 
         // delivery_date (equipment/parts) or repair_schedule_date (repair)
         if ($orderType === 'repair') {
@@ -151,14 +155,22 @@ switch ($action) {
             if ($finalAmount === null || $finalAmount === '') {
                 jsonError('修理発注の最終金額は必須です');
             }
+            $finalAmount = filter_var($finalAmount, FILTER_VALIDATE_INT);
+            if ($finalAmount === false || $finalAmount <= 0) {
+                jsonError('最終金額は1以上の数値を入力してください');
+            }
             $updateCols[] = 'final_amount = :final_amount';
-            $updateVals[':final_amount'] = (int)$finalAmount;
+            $updateVals[':final_amount'] = $finalAmount;
         } else {
             // equipment/parts: use final_amount if provided, else estimate_amount
             $finalAmount = $input['final_amount'] ?? null;
             if ($finalAmount !== null && $finalAmount !== '') {
+                $finalAmount = filter_var($finalAmount, FILTER_VALIDATE_INT);
+                if ($finalAmount === false || $finalAmount <= 0) {
+                    jsonError('最終金額は1以上の数値を入力してください');
+                }
                 $updateCols[] = 'final_amount = :final_amount';
-                $updateVals[':final_amount'] = (int)$finalAmount;
+                $updateVals[':final_amount'] = $finalAmount;
             } else {
                 $updateCols[] = 'final_amount = estimate_amount';
             }

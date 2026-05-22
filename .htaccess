@@ -1,0 +1,29 @@
+# 快活フロンティア 発注管理システム
+# Apacheルート用 .htaccess
+
+# ディレクトリ一覧表示禁止
+Options -Indexes
+
+# デフォルトドキュメント（インデックスファイル）の指定
+DirectoryIndex login.html
+
+# 機密ファイル・ディレクトリへのアクセス拒否
+<FilesMatch "^(composer\.(json|lock|phar)|\.gitignore|\.env|HANDOVER\.md|backend-spec\.md|README\.md)$">
+    Require all denied
+</FilesMatch>
+
+# .git, database, includes, setup, vendor, docs ディレクトリへのアクセス拒否
+RedirectMatch 403 ^/kaikatsu-system/\.git(/|$)
+RedirectMatch 403 ^/kaikatsu-system/database(/|$)
+RedirectMatch 403 ^/kaikatsu-system/includes(/|$)
+RedirectMatch 403 ^/kaikatsu-system/setup(/|$)
+RedirectMatch 403 ^/kaikatsu-system/vendor(/|$)
+RedirectMatch 403 ^/kaikatsu-system/docs(/|$)
+RedirectMatch 403 ^/kaikatsu-system/backup(/|$)
+
+# HTMLは認証ガード・フラッシュ防止の更新を確実に反映するため毎回サーバー確認
+<FilesMatch "\.html$">
+    Header set Cache-Control "no-cache, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires "0"
+</FilesMatch>

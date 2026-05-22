@@ -60,8 +60,31 @@
         });
     }
 
+    // ===== 検索条件保存/復元（同タブ内） =====
+    var EQ_FILTER_KEY = 'filters:equipment-order';
+    function saveEquipFilters() {
+      var catEl = document.getElementById('category');
+      var srcEl = document.getElementById('searchInput');
+      var state = {};
+      if (catEl && !catEl.disabled) state.category = catEl.value;
+      if (srcEl) state.search = srcEl.value;
+      try { sessionStorage.setItem(EQ_FILTER_KEY, JSON.stringify(state)); } catch (e) {}
+    }
+    function restoreEquipFilters() {
+      var raw;
+      try { raw = sessionStorage.getItem(EQ_FILTER_KEY); } catch (e) { return; }
+      if (!raw) return;
+      var state;
+      try { state = JSON.parse(raw); } catch (e) { return; }
+      var catEl = document.getElementById('category');
+      var srcEl = document.getElementById('searchInput');
+      if (catEl && !catEl.disabled && state.category != null) catEl.value = state.category;
+      if (srcEl && state.search != null) srcEl.value = state.search;
+    }
+
     // ===== Filter & Render =====
     function filterProducts() {
+      saveEquipFilters();
       var cat = document.getElementById('category').value;
       var search = document.getElementById('searchInput').value.trim().toLowerCase();
       search = search.replace(/[\uff01-\uff5e]/g, function(c) {
@@ -379,8 +402,26 @@
     function bootEquipmentOrder(user) {
       if (currentUser) return;
       currentUser = user;
+
+      // 取扱カテゴリでドロップダウンを絞り込み＋単一カテゴリの場合は自動選択＋ロック
+      if (Array.isArray(user.categories) && user.categories.length > 0) {
+        var catSel = document.getElementById('category');
+        if (catSel) {
+          var opts = '<option value="">すべて</option>';
+          user.categories.forEach(function(c) {
+            opts += '<option value="' + c.code + '">' + c.name + '</option>';
+          });
+          catSel.innerHTML = opts;
+          if (user.categories.length === 1) {
+            catSel.value = user.categories[0].code;
+            catSel.disabled = true;
+          }
+        }
+      }
+
       fetchCategories(function() {
         fetchProducts(function() {
+          restoreEquipFilters();
           filterProducts();
         });
       });

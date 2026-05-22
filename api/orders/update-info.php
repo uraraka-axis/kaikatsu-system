@@ -53,6 +53,22 @@ if ($user['role'] === 'admin') {
     jsonError('権限がありません', 403);
 }
 
+// --- 金額バリデーション（estimate_amount / final_amount は1以上の整数） ---
+if (isset($input['estimate_amount'])) {
+    $est = filter_var($input['estimate_amount'], FILTER_VALIDATE_INT);
+    if ($est === false || $est <= 0) {
+        jsonError('見積金額は1以上の数値を入力してください');
+    }
+    $input['estimate_amount'] = $est;
+}
+if (isset($input['final_amount'])) {
+    $fin = filter_var($input['final_amount'], FILTER_VALIDATE_INT);
+    if ($fin === false || $fin <= 0) {
+        jsonError('最終金額は1以上の数値を入力してください');
+    }
+    $input['final_amount'] = $fin;
+}
+
 // --- 更新処理 ---
 try {
     beginTransaction();
