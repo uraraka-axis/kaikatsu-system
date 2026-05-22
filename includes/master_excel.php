@@ -386,6 +386,117 @@ function checkFkBlocks(array $deleteRows, string $keyField, array $fkChecks): ar
     return ['warnings' => $warnings, 'blocked' => $blocked];
 }
 
+/**
+ * アップロード値にFK参照があれば、参照先テーブルに存在するか検証
+ * （例: areas.zone_code は zones.code に存在しなければエラー）
+ *
+ * @param array $rows validateAndNormalize 後の rows
+ * @param array $columns カラム定義（headerをエラー表示に使用）
+ * @param array $fkRefs [{field, ref_table, ref_column}]
+ * @param array $headerMap field => header
+ * @return array エラーリスト
+ */
+function checkFkReferences(array $rows, array $fkRefs, array $headerMap): array
+{
+    $errors = [];
+
+    // 参照先テーブルの値を1回だけキャッシュ
+    $refCache = [];
+    foreach ($fkRefs as $fk) {
+        $cacheKey = $fk['ref_table'] . '.' . $fk['ref_column'];
+        if (!isset($refCache[$cacheKey])) {
+            $rs = query("SELECT `{$fk['ref_column']}` AS k FROM `{$fk['ref_table']}`");
+            $refCache[$cacheKey] = array_column($rs, 'k');
+        }
+    }
+
+    foreach ($rows as $row) {
+        $rowNum = $row['__row_num'] ?? 0;
+        foreach ($fkRefs as $fk) {
+            $val = $row[$fk['field']] ?? null;
+            if ($val === null || $val === '') continue; // NULL/空は別途必須チェックでカバー
+            $cacheKey = $fk['ref_table'] . '.' . $fk['ref_column'];
+            if (!in_array((string)$val, array_map('strval', $refCache[$cacheKey]), true)) {
+                $header = $headerMap[$fk['field']] ?? $fk['field'];
+                $errors[] = [
+                    'row'     => $rowNum,
+                    'column'  => $header,
+                    'value'   => (string)$val,
+                    'message' => "{$fk['ref_table']} に存在しないコードです",
+                ];
+            }
+        }
+    }
+
+    return $errors;
+}
+
+/**
+ * ユニーク制約チェック（PK 以外のユニーク列が重複していないかを確認）
+ *
+ *  - アップロードファイル内での重複（同じ short_code が複数行に存在）
+ *  - 既存DB との衝突（自分の PK 以外の行と同じユニーク値）
+ *
+ * @param array $rows         validateAndNormalize 通過済みの行（__row_num 付き）
+ * @param array $uniqueFields ['short_code', 'login_id'] のような単一列ユニーク制約のフィールド名
+ * @param string $table       テーブル名
+ * @param string $keyField    PK列名（自分自身と衝突したと誤判定しないため）
+ * @param array $headerMap    field => header の対応表（エラーメッセージ用）
+ * @return array エラー配列
+ */
+function checkUniqueFields(array $rows, array $uniqueFields, string $table, string $keyField, array $headerMap): array
+{
+    $errors = [];
+    if (empty($uniqueFields)) return $errors;
+
+    // 1) アップロードファイル内での重複検出
+    foreach ($uniqueFields as $field) {
+        $seen = []; // value => first row_num
+        foreach ($rows as $row) {
+            $val = $row[$field] ?? null;
+            if ($val === null || $val === '') continue;
+            $val = (string)$val;
+            $rowNum = $row['__row_num'] ?? 0;
+            if (isset($seen[$val])) {
+                $errors[] = [
+                    'row'     => $rowNum,
+                    'column'  => $headerMap[$field] ?? $field,
+                    'value'   => $val,
+                    'message' => "ファイル内で重複しています（{$seen[$val]}行目と同じ値）",
+                ];
+            } else {
+                $seen[$val] = $rowNum;
+            }
+        }
+    }
+
+    // 2) 既存 DB との衝突検出（自分の PK 以外で同じユニーク値を持つレコードが存在するか）
+    foreach ($uniqueFields as $field) {
+        $existing = query("SELECT `{$keyField}` AS k, `{$field}` AS v FROM `{$table}` WHERE `{$field}` IS NOT NULL");
+        $existingMap = []; // value => key
+        foreach ($existing as $rec) {
+            if ($rec['v'] === null || $rec['v'] === '') continue;
+            $existingMap[(string)$rec['v']] = (string)$rec['k'];
+        }
+        foreach ($rows as $row) {
+            $val = $row[$field] ?? null;
+            if ($val === null || $val === '') continue;
+            $val = (string)$val;
+            $myKey = (string)($row[$keyField] ?? '');
+            if (isset($existingMap[$val]) && $existingMap[$val] !== $myKey) {
+                $errors[] = [
+                    'row'     => $row['__row_num'] ?? 0,
+                    'column'  => $headerMap[$field] ?? $field,
+                    'value'   => $val,
+                    'message' => "他のレコード（{$keyField}={$existingMap[$val]}）で既に使用されている値です",
+                ];
+            }
+        }
+    }
+
+    return $errors;
+}
+
 // ============================================================
 // 6. 差分適用 + 監査ログ
 // ============================================================
@@ -750,7 +861,35 @@ function handleMasterUpload(array $config, bool $dryRun): array
         ]);
         $errors = $validated['errors'];
 
-        // 2b) 追加バリデーション
+        // 2b) FK参照チェック（アップロードデータ内のFK値が参照先に存在するか）
+        if (!empty($config['fk_checks_on_upload'])) {
+            $headerMap = [];
+            foreach ($config['columns'] as $c) {
+                $headerMap[$c['field']] = $c['header'];
+            }
+            $fkErrors = checkFkReferences($validated['rows'], $config['fk_checks_on_upload'], $headerMap);
+            $errors = array_merge($errors, $fkErrors);
+        }
+
+        // 2c) ユニーク制約チェック（unique_fields 設定があれば）
+        if (!empty($config['unique_fields'])) {
+            if (!isset($headerMap)) {
+                $headerMap = [];
+                foreach ($config['columns'] as $c) {
+                    $headerMap[$c['field']] = $c['header'];
+                }
+            }
+            $uniqErrors = checkUniqueFields(
+                $validated['rows'],
+                $config['unique_fields'],
+                $config['table'],
+                $config['key_field'],
+                $headerMap
+            );
+            $errors = array_merge($errors, $uniqErrors);
+        }
+
+        // 2d) 追加バリデーション（カスタムコールバック）
         if (isset($config['validate_extra']) && is_callable($config['validate_extra'])) {
             $extraErrors = $config['validate_extra']($validated['rows']);
             $errors = array_merge($errors, $extraErrors);
