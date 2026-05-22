@@ -368,15 +368,19 @@ function checkFkBlocks(array $deleteRows, string $keyField, array $fkChecks): ar
     $blocked = false;
 
     foreach ($deleteRows as $row) {
-        $key = $row[$keyField];
+        $displayKey = $row[$keyField]; // 表示用は常にビジネスキー
         foreach ($fkChecks as $check) {
+            // 参照側カラムが PK ではなく別の列（例: products.supplier_id → suppliers.id）を参照している場合は via_key で実際の値を取り出す
+            $matchKey = isset($check['via_key']) ? ($row[$check['via_key']] ?? null) : $displayKey;
+            if ($matchKey === null || $matchKey === '') continue;
+
             $sql = "SELECT COUNT(*) AS c FROM `{$check['table']}` WHERE `{$check['column']}` = :k";
-            $r = getOne($sql, [':k' => $key]);
+            $r = getOne($sql, [':k' => $matchKey]);
             $count = (int)($r['c'] ?? 0);
             if ($count > 0) {
                 $warnings[] = [
-                    'key'     => $key,
-                    'message' => "{$key} は {$check['label']}({$check['table']}) で {$count}件参照されているため削除できません",
+                    'key'     => $displayKey,
+                    'message' => "{$displayKey} は {$check['label']}({$check['table']}) で {$count}件参照されているため削除できません",
                 ];
                 $blocked = true;
             }
@@ -861,6 +865,11 @@ function handleMasterUpload(array $config, bool $dryRun): array
         ]);
         $errors = $validated['errors'];
 
+        // 2a-post) 行の前処理（preprocess_rows）: マスク値の正規化、条件付き値の調整等を最初に適用
+        if (isset($config['preprocess_rows']) && is_callable($config['preprocess_rows'])) {
+            $validated['rows'] = $config['preprocess_rows']($validated['rows']);
+        }
+
         // 2b) FK参照チェック（アップロードデータ内のFK値が参照先に存在するか）
         if (!empty($config['fk_checks_on_upload'])) {
             $headerMap = [];
@@ -905,8 +914,12 @@ function handleMasterUpload(array $config, bool $dryRun): array
 
         // 3) 現状取得
         $selectFields = array_column($config['columns'], 'field');
-        // 自動フィールドも取得対象
-        $selectFields = array_unique(array_merge($selectFields));
+        // fk_checks_on_delete で via_key 指定があれば、その列も取得対象に追加（例: suppliers の id）
+        foreach ($config['fk_checks_on_delete'] ?? [] as $fk) {
+            if (!empty($fk['via_key']) && !in_array($fk['via_key'], $selectFields, true)) {
+                $selectFields[] = $fk['via_key'];
+            }
+        }
         $existing = fetchCurrentRecords($config['table'], $config['key_field'], $selectFields);
 
         // 4) 差分検出

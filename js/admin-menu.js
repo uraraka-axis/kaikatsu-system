@@ -132,7 +132,7 @@
 
     // ===== Master Upload / Download =====
     // 実装済みマスタ（バックエンドAPI存在）
-    var IMPLEMENTED_MASTERS = ['zone', 'area', 'shop']; // 実装が進むごとに追記
+    var IMPLEMENTED_MASTERS = ['zone', 'area', 'shop', 'supplier', 'user']; // 実装が進むごとに追記
 
     // 各マスタの API パス
     function masterApiPath(type, kind) {
