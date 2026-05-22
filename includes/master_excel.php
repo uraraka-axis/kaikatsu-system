@@ -1,0 +1,861 @@
+<?php declare(strict_types=1);
+
+/**
+ * 快活システム - マスタCRUD（Excelアップロード方式）共通基盤
+ *
+ * master-crud-spec.md 参照
+ *
+ * 各マスタAPI (api/admin/master/{type}.php) はこのファイルから以下を呼び出す:
+ *   - parseUploadedXlsx()   : 1) Excel解析
+ *   - validateAndNormalize(): 2) バリデーション
+ *   - fetchCurrentRecords() : 3) DB現状取得
+ *   - computeDiff()         : 4) 差分検出
+ *   - checkFkBlocks()       : 5) 削除可否チェック
+ *   - applyDiff()           : 6) 適用+監査ログ
+ *
+ * ダウンロードAPI (api/export/master/{type}.php) は:
+ *   - generateMasterXlsx()  : 現状の.xlsx出力
+ */
+
+require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/functions.php';
+
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+
+// ============================================================
+// 1. Excel解析
+// ============================================================
+
+/**
+ * アップロードされた .xlsx ファイルを解析して連想配列の配列を返す
+ *
+ * @param string $filePath 一時保管されたファイルパス
+ * @param array<int,array{field:string,header:string}> $columns 期待列定義
+ * @return array{rows: array<int,array<string,mixed>>, errors: array<int,array>}
+ *         rows[i] = ['__row_num' => 2, 'code' => '100', 'name' => '東日本', ...]
+ *         errors = ヘッダ不整合等の致命的エラー（あれば rows は空）
+ */
+function parseUploadedXlsx(string $filePath, array $columns): array
+{
+    try {
+        $spreadsheet = IOFactory::load($filePath);
+    } catch (Throwable $e) {
+        return [
+            'rows'   => [],
+            'errors' => [['row' => 0, 'column' => '', 'value' => '', 'message' => 'Excelファイルが読み込めません: ' . $e->getMessage()]],
+        ];
+    }
+
+    $sheet = $spreadsheet->getActiveSheet();
+    $highest = $sheet->getHighestRowAndColumn();
+    $maxCol = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($highest['column']);
+
+    // 1行目: ヘッダ検証
+    $expectedHeaders = array_column($columns, 'header');
+    $actualHeaders = [];
+    for ($c = 1; $c <= count($expectedHeaders); $c++) {
+        $val = $sheet->getCell([$c, 1])->getValue();
+        $actualHeaders[] = is_string($val) ? trim($val) : '';
+    }
+    if ($actualHeaders !== $expectedHeaders) {
+        $expected = implode(' / ', $expectedHeaders);
+        $actual = implode(' / ', $actualHeaders);
+        return [
+            'rows'   => [],
+            'errors' => [[
+                'row'     => 1,
+                'column'  => '',
+                'value'   => $actual,
+                'message' => "ヘッダ行が期待値と異なります。期待値: [{$expected}] / 実際: [{$actual}]",
+            ]],
+        ];
+    }
+
+    // 2行目以降: データ取得
+    $rows = [];
+    $highestRow = $highest['row'];
+    for ($r = 2; $r <= $highestRow; $r++) {
+        $row = ['__row_num' => $r];
+        $allEmpty = true;
+        foreach ($columns as $i => $col) {
+            $val = $sheet->getCell([$i + 1, $r])->getValue();
+            if ($val !== null && $val !== '') {
+                $allEmpty = false;
+            }
+            // 数値型でも文字列で受け取れるよう、明示的にstring化はしない（バリデーションで型変換）
+            $row[$col['field']] = $val;
+        }
+        if (!$allEmpty) {
+            $rows[] = $row;
+        }
+    }
+
+    $spreadsheet->disconnectWorksheets();
+    unset($spreadsheet);
+
+    return ['rows' => $rows, 'errors' => []];
+}
+
+// ============================================================
+// 2. バリデーション + 正規化
+// ============================================================
+
+/**
+ * パース済み行をフィールド定義に沿ってバリデーション & 正規化
+ *
+ * @param array<int,array<string,mixed>> $rows
+ * @param array<int,array> $columns
+ * @param array $extraRules 追加ルール
+ *   - 'enums' => ['field' => ['allowed' => ['shop','admin']]]  ENUM チェック
+ *   - 'pattern' は columns 側に書く
+ * @return array{rows: array, errors: array}
+ */
+function validateAndNormalize(array $rows, array $columns, array $extraRules = []): array
+{
+    $errors = [];
+    $normalized = [];
+    $keyField = $extraRules['key_field'] ?? null;
+    $seenKeys = [];
+
+    foreach ($rows as $row) {
+        $rowNum = $row['__row_num'];
+        $normalizedRow = ['__row_num' => $rowNum];
+
+        foreach ($columns as $col) {
+            $field = $col['field'];
+            $header = $col['header'];
+            $type = $col['type'] ?? 'string';
+            $required = $col['required'] ?? false;
+            $rawVal = $row[$field] ?? null;
+
+            // 共通: trim
+            if (is_string($rawVal)) {
+                $rawVal = trim($rawVal);
+            }
+
+            // 必須チェック
+            $isEmpty = ($rawVal === null || $rawVal === '');
+            if ($required && $isEmpty) {
+                $errors[] = ['row' => $rowNum, 'column' => $header, 'value' => '', 'message' => '必須項目です'];
+                $normalizedRow[$field] = null;
+                continue;
+            }
+            if (!$required && $isEmpty) {
+                $normalizedRow[$field] = null;
+                continue;
+            }
+
+            // 型変換
+            $converted = null;
+            switch ($type) {
+                case 'string':
+                    $converted = is_string($rawVal) ? $rawVal : (string)$rawVal;
+                    $max = $col['max_length'] ?? null;
+                    if ($max !== null && mb_strlen($converted) > $max) {
+                        $errors[] = ['row' => $rowNum, 'column' => $header, 'value' => $converted, 'message' => "{$max}文字以内で指定してください"];
+                        $normalizedRow[$field] = $converted;
+                        continue 2;
+                    }
+                    if (isset($col['pattern']) && !preg_match($col['pattern'], $converted)) {
+                        $msg = $col['pattern_msg'] ?? '形式が不正です';
+                        $errors[] = ['row' => $rowNum, 'column' => $header, 'value' => $converted, 'message' => $msg];
+                        $normalizedRow[$field] = $converted;
+                        continue 2;
+                    }
+                    break;
+
+                case 'int':
+                    if (is_int($rawVal) || is_float($rawVal)) {
+                        $converted = (int)$rawVal;
+                    } elseif (is_string($rawVal) && preg_match('/^-?\d+$/', $rawVal)) {
+                        $converted = (int)$rawVal;
+                    } else {
+                        $errors[] = ['row' => $rowNum, 'column' => $header, 'value' => (string)$rawVal, 'message' => '整数で指定してください'];
+                        $normalizedRow[$field] = $rawVal;
+                        continue 2;
+                    }
+                    if (isset($col['min']) && $converted < $col['min']) {
+                        $errors[] = ['row' => $rowNum, 'column' => $header, 'value' => (string)$converted, 'message' => "{$col['min']}以上で指定してください"];
+                    }
+                    if (isset($col['max']) && $converted > $col['max']) {
+                        $errors[] = ['row' => $rowNum, 'column' => $header, 'value' => (string)$converted, 'message' => "{$col['max']}以下で指定してください"];
+                    }
+                    break;
+
+                case 'bool':
+                    $converted = normalizeBool($rawVal);
+                    if ($converted === null) {
+                        $errors[] = ['row' => $rowNum, 'column' => $header, 'value' => (string)$rawVal, 'message' => 'TRUE / FALSE で指定してください'];
+                        $normalizedRow[$field] = $rawVal;
+                        continue 2;
+                    }
+                    break;
+
+                case 'enum':
+                    $allowed = $col['allowed'] ?? [];
+                    $converted = is_string($rawVal) ? $rawVal : (string)$rawVal;
+                    if (!in_array($converted, $allowed, true)) {
+                        $errors[] = ['row' => $rowNum, 'column' => $header, 'value' => $converted, 'message' => '許可された値: ' . implode(' / ', $allowed)];
+                    }
+                    break;
+
+                default:
+                    $converted = $rawVal;
+            }
+
+            $normalizedRow[$field] = $converted;
+        }
+
+        // 主キー重複チェック（Excel内）
+        if ($keyField && isset($normalizedRow[$keyField]) && $normalizedRow[$keyField] !== null) {
+            $key = (string)$normalizedRow[$keyField];
+            if (isset($seenKeys[$key])) {
+                $errors[] = ['row' => $rowNum, 'column' => '', 'value' => $key, 'message' => "Excel内で {$keyField} '{$key}' が重複しています（{$seenKeys[$key]}行目と)"];
+            } else {
+                $seenKeys[$key] = $rowNum;
+            }
+        }
+
+        $normalized[] = $normalizedRow;
+    }
+
+    return ['rows' => $normalized, 'errors' => $errors];
+}
+
+/**
+ * 真偽値の正規化（TRUE/FALSE/1/0/true/false 等を受け入れる）
+ * @return int|null 1/0 or null（不正値）
+ */
+function normalizeBool($val): ?int
+{
+    if (is_bool($val)) return $val ? 1 : 0;
+    if (is_int($val) || is_float($val)) {
+        $n = (int)$val;
+        if ($n === 1) return 1;
+        if ($n === 0) return 0;
+        return null;
+    }
+    if (is_string($val)) {
+        $s = strtolower(trim($val));
+        if (in_array($s, ['true', '1', 'yes', 'y', '有効', '○', 'o'], true)) return 1;
+        if (in_array($s, ['false', '0', 'no', 'n', '無効', '×', 'x'], true)) return 0;
+    }
+    return null;
+}
+
+// ============================================================
+// 3. DB現状取得
+// ============================================================
+
+/**
+ * テーブルの現状を取得（key_field で連想配列化）
+ *
+ * @return array<string,array> [key => row]
+ */
+function fetchCurrentRecords(string $table, string $keyField, array $selectFields): array
+{
+    $cols = implode(', ', array_map(fn($f) => "`{$f}`", $selectFields));
+    $sql = "SELECT {$cols} FROM `{$table}`";
+    $rows = query($sql);
+
+    $indexed = [];
+    foreach ($rows as $row) {
+        $key = (string)$row[$keyField];
+        $indexed[$key] = $row;
+    }
+    return $indexed;
+}
+
+// ============================================================
+// 4. 差分検出
+// ============================================================
+
+/**
+ * Excelデータと現状DBを比較して insert/update/delete を出す
+ *
+ * @param array $newRows  validateAndNormalize 後の rows
+ * @param array $existing key_field でインデックスされた現状
+ * @param string $keyField マッチングキーのフィールド名
+ * @param array $compareFields 比較対象フィールド（key_field 含む）
+ * @param array $opts オプション
+ *   - 'skip_fields_if_blank' => ['password'] 空欄ならスキップ（更新しない）
+ * @return array{insert: array, update: array, delete: array}
+ */
+function computeDiff(array $newRows, array $existing, string $keyField, array $compareFields, array $opts = []): array
+{
+    $skipBlank = $opts['skip_fields_if_blank'] ?? [];
+
+    $insert = [];
+    $update = [];
+    $delete = [];
+    $seenKeys = [];
+
+    foreach ($newRows as $row) {
+        if (!isset($row[$keyField]) || $row[$keyField] === null) continue;
+        $key = (string)$row[$keyField];
+        $seenKeys[$key] = true;
+
+        if (!isset($existing[$key])) {
+            // 新規
+            $clean = $row;
+            unset($clean['__row_num']);
+            $insert[] = $clean;
+        } else {
+            // 既存: 差分検出
+            $before = $existing[$key];
+            $after = $before; // ベースは既存値
+            $changed = [];
+
+            foreach ($compareFields as $f) {
+                if (!array_key_exists($f, $row)) continue;
+                $newVal = $row[$f];
+                // 空欄スキップ対象なら現状維持
+                if (in_array($f, $skipBlank, true) && ($newVal === null || $newVal === '')) {
+                    continue;
+                }
+                $oldVal = $before[$f] ?? null;
+                // 比較用に文字列化（DBはMySQL経由でstringになるため）
+                $oldNorm = is_bool($oldVal) ? (int)$oldVal : $oldVal;
+                $newNorm = is_bool($newVal) ? (int)$newVal : $newVal;
+                if ((string)$oldNorm !== (string)$newNorm) {
+                    $after[$f] = $newVal;
+                    $changed[] = $f;
+                }
+            }
+
+            if (!empty($changed)) {
+                $update[] = [
+                    'key'             => $key,
+                    'before'          => $before,
+                    'after'           => $after,
+                    'changed_fields'  => $changed,
+                ];
+            }
+        }
+    }
+
+    // 削除候補: 既存にあって Excel にないもの
+    foreach ($existing as $key => $row) {
+        if (!isset($seenKeys[$key])) {
+            $delete[] = $row;
+        }
+    }
+
+    return ['insert' => $insert, 'update' => $update, 'delete' => $delete];
+}
+
+// ============================================================
+// 5. FK制約による削除可否チェック
+// ============================================================
+
+/**
+ * 削除候補レコードがFK参照されていないかチェック
+ *
+ * @param array $deleteRows
+ * @param string $keyField
+ * @param array $fkChecks [{table, column, label}]
+ * @return array{warnings: array, blocked: bool}
+ */
+function checkFkBlocks(array $deleteRows, string $keyField, array $fkChecks): array
+{
+    $warnings = [];
+    $blocked = false;
+
+    foreach ($deleteRows as $row) {
+        $key = $row[$keyField];
+        foreach ($fkChecks as $check) {
+            $sql = "SELECT COUNT(*) AS c FROM `{$check['table']}` WHERE `{$check['column']}` = :k";
+            $r = getOne($sql, [':k' => $key]);
+            $count = (int)($r['c'] ?? 0);
+            if ($count > 0) {
+                $warnings[] = [
+                    'key'     => $key,
+                    'message' => "{$key} は {$check['label']}({$check['table']}) で {$count}件参照されているため削除できません",
+                ];
+                $blocked = true;
+            }
+        }
+    }
+
+    return ['warnings' => $warnings, 'blocked' => $blocked];
+}
+
+// ============================================================
+// 6. 差分適用 + 監査ログ
+// ============================================================
+
+/**
+ * 差分をトランザクションで適用し、監査ログに記録
+ *
+ * @param string $table テーブル名
+ * @param string $keyField マッチングキー
+ * @param array $diff computeDiff の戻り値
+ * @param string $uploadFilename ログ用ファイル名
+ * @param int|null $userId 変更者ユーザーID
+ * @param array $opts
+ *   - 'mask_fields' => ['password'] ログ書き込み時にマスクするフィールド
+ *   - 'auto_fields' => insert/update時にDB側で自動設定するフィールド（例: ['created_at','updated_at']）
+ *   - 'transform' => callable(array $row, string $op): array  保存前の最終変換（password→hash等）
+ * @return array{batch_id: string, applied: int}
+ */
+function applyDiff(string $table, string $keyField, array $diff, string $uploadFilename, ?int $userId, array $opts = []): array
+{
+    $batchId = generateUuid();
+    $maskFields = $opts['mask_fields'] ?? [];
+    $autoFields = $opts['auto_fields'] ?? ['created_at', 'updated_at'];
+    $transform = $opts['transform'] ?? null;
+
+    $applied = 0;
+
+    beginTransaction();
+    try {
+        // INSERT
+        foreach ($diff['insert'] as $row) {
+            $saveRow = $transform ? $transform($row, 'insert') : $row;
+            $cols = [];
+            $vals = [];
+            $params = [];
+            foreach ($saveRow as $f => $v) {
+                if (in_array($f, $autoFields, true)) continue;
+                $cols[] = "`{$f}`";
+                $vals[] = ":{$f}";
+                $params[":{$f}"] = $v;
+            }
+            $sql = "INSERT INTO `{$table}` (" . implode(',', $cols) . ") VALUES (" . implode(',', $vals) . ")";
+            execute($sql, $params);
+
+            logMasterChange($table, 'insert', (string)$row[$keyField], [
+                'after' => maskRow($row, $maskFields),
+            ], $userId, $uploadFilename, $batchId);
+            $applied++;
+        }
+
+        // UPDATE
+        foreach ($diff['update'] as $entry) {
+            $key = $entry['key'];
+            $after = $entry['after'];
+            $changedFields = $entry['changed_fields'];
+            $saveRow = $transform ? $transform($after, 'update') : $after;
+
+            $sets = [];
+            $params = [':_key' => $key];
+            foreach ($saveRow as $f => $v) {
+                if ($f === $keyField) continue; // PKは更新しない
+                if (in_array($f, $autoFields, true)) continue;
+                // 変更されたフィールドだけ更新
+                if (!in_array($f, $changedFields, true)) continue;
+                $sets[] = "`{$f}` = :{$f}";
+                $params[":{$f}"] = $v;
+            }
+            if (empty($sets)) {
+                // 変更点がauto_fieldsだけだった場合スキップ
+                continue;
+            }
+            $sql = "UPDATE `{$table}` SET " . implode(',', $sets) . " WHERE `{$keyField}` = :_key";
+            execute($sql, $params);
+
+            logMasterChange($table, 'update', $key, [
+                'before'         => maskRow($entry['before'], $maskFields),
+                'after'          => maskRow($after, $maskFields),
+                'changed_fields' => $changedFields,
+            ], $userId, $uploadFilename, $batchId);
+            $applied++;
+        }
+
+        // DELETE
+        foreach ($diff['delete'] as $row) {
+            $key = $row[$keyField];
+            execute("DELETE FROM `{$table}` WHERE `{$keyField}` = :k", [':k' => $key]);
+
+            logMasterChange($table, 'delete', (string)$key, [
+                'before' => maskRow($row, $maskFields),
+            ], $userId, $uploadFilename, $batchId);
+            $applied++;
+        }
+
+        commit();
+    } catch (Throwable $e) {
+        rollback();
+        throw $e;
+    }
+
+    return ['batch_id' => $batchId, 'applied' => $applied];
+}
+
+/**
+ * master_change_log への1行記録
+ */
+function logMasterChange(string $table, string $operation, string $recordKey, array $changeData, ?int $userId, string $filename, string $batchId): void
+{
+    execute(
+        "INSERT INTO master_change_log
+           (target_table, operation, record_key, change_data, changed_by_id, upload_filename, upload_batch_id)
+         VALUES
+           (:t, :op, :rk, :cd, :uid, :fn, :bid)",
+        [
+            ':t'   => $table,
+            ':op'  => $operation,
+            ':rk'  => $recordKey,
+            ':cd'  => json_encode($changeData, JSON_UNESCAPED_UNICODE),
+            ':uid' => $userId,
+            ':fn'  => $filename,
+            ':bid' => $batchId,
+        ]
+    );
+}
+
+/**
+ * 指定フィールドをマスクしたコピーを返す
+ */
+function maskRow(array $row, array $maskFields): array
+{
+    foreach ($maskFields as $f) {
+        if (array_key_exists($f, $row)) {
+            $row[$f] = '********';
+        }
+    }
+    return $row;
+}
+
+// ============================================================
+// 7. ダウンロード用 .xlsx 生成
+// ============================================================
+
+/**
+ * 現状の.xlsx ファイルを生成してダウンロード送出
+ *
+ * @param array $columns
+ * @param array $rows
+ * @param string $filename
+ * @param array $opts
+ *   - 'mask_fields' => ['password'] ダウンロード時にマスクするフィールド
+ *   - 'transform' => callable(array $row): array  出力前の変換
+ */
+function generateMasterXlsx(array $columns, array $rows, string $filename, array $opts = []): void
+{
+    $maskFields = $opts['mask_fields'] ?? [];
+    $transform = $opts['transform'] ?? null;
+
+    $spreadsheet = new Spreadsheet();
+    $spreadsheet->getDefaultStyle()->getFont()->setName('Meiryo UI');
+    $sheet = $spreadsheet->getActiveSheet();
+    $sheet->setTitle('マスタ');
+
+    // ヘッダ
+    $col = 1;
+    foreach ($columns as $c) {
+        $sheet->setCellValue([$col, 1], $c['header']);
+        $col++;
+    }
+    $lastCol = $col - 1;
+    $lastColLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($lastCol);
+
+    $sheet->getStyle('A1:' . $lastColLetter . '1')->applyFromArray([
+        'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF'], 'size' => 10],
+        'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '4472C4']],
+        'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER, 'wrapText' => true],
+        'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
+    ]);
+    $sheet->getRowDimension(1)->setRowHeight(24);
+
+    // データ
+    $rowNum = 2;
+    foreach ($rows as $row) {
+        $output = $transform ? $transform($row) : $row;
+        $output = maskRow($output, $maskFields);
+
+        $col = 1;
+        foreach ($columns as $c) {
+            $field = $c['field'];
+            $type = $c['type'] ?? 'string';
+            $val = $output[$field] ?? null;
+
+            // 型ごとの整形
+            if ($type === 'bool') {
+                $val = ($val === 1 || $val === true || $val === '1') ? 'TRUE' : 'FALSE';
+            }
+
+            $sheet->setCellValue([$col, $rowNum], $val);
+            $col++;
+        }
+        $rowNum++;
+    }
+
+    $lastRow = $rowNum - 1;
+    if ($lastRow >= 2) {
+        $sheet->getStyle('A2:' . $lastColLetter . $lastRow)->applyFromArray([
+            'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
+            'font' => ['size' => 10],
+            'alignment' => ['vertical' => Alignment::VERTICAL_CENTER],
+        ]);
+    }
+
+    // 列幅自動調整
+    for ($c = 1; $c <= $lastCol; $c++) {
+        $letter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($c);
+        $sheet->getColumnDimension($letter)->setAutoSize(true);
+    }
+
+    $sheet->freezePane('A2');
+
+    // 出力
+    header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    header('Content-Disposition: attachment; filename="' . $filename . '"');
+    header('Cache-Control: max-age=0');
+
+    $writer = new Xlsx($spreadsheet);
+    $writer->save('php://output');
+
+    $spreadsheet->disconnectWorksheets();
+    unset($spreadsheet);
+}
+
+// ============================================================
+// 8. アップロードファイル保管
+// ============================================================
+
+/**
+ * アップロードされたファイルを一時保管ディレクトリに保存
+ *
+ * @return array{path: string, original_name: string}
+ */
+function saveUploadedFile(array $fileEntry, int $userId, string $type): array
+{
+    if (!isset($fileEntry['tmp_name']) || !is_uploaded_file($fileEntry['tmp_name'])) {
+        throw new RuntimeException('アップロードファイルが不正です');
+    }
+    if (($fileEntry['error'] ?? UPLOAD_ERR_OK) !== UPLOAD_ERR_OK) {
+        throw new RuntimeException('アップロードエラー: code=' . $fileEntry['error']);
+    }
+    // サイズチェック（10MB）
+    $maxSize = 10 * 1024 * 1024;
+    if (($fileEntry['size'] ?? 0) > $maxSize) {
+        throw new RuntimeException('ファイルサイズが上限(10MB)を超えています');
+    }
+    // 拡張子チェック
+    $origName = $fileEntry['name'] ?? 'upload.xlsx';
+    $ext = strtolower(pathinfo($origName, PATHINFO_EXTENSION));
+    if ($ext !== 'xlsx') {
+        throw new RuntimeException('.xlsx形式のファイルをアップロードしてください');
+    }
+    // MIME 確認（誤検知あるため緩め: 拡張子優先）
+    $mime = mime_content_type($fileEntry['tmp_name']) ?: '';
+    $allowedMimes = [
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'application/zip',          // xlsx は zip 形式
+        'application/octet-stream', // 一部環境
+    ];
+    if ($mime !== '' && !in_array($mime, $allowedMimes, true)) {
+        throw new RuntimeException('Excelファイル(.xlsx)以外はアップロードできません');
+    }
+
+    // 保存先
+    $tempDir = __DIR__ . '/../uploads/master/temp';
+    if (!is_dir($tempDir)) {
+        if (!mkdir($tempDir, 0775, true) && !is_dir($tempDir)) {
+            throw new RuntimeException('一時ディレクトリを作成できません: ' . $tempDir);
+        }
+    }
+    $savedName = sprintf('%d_%s_%s.xlsx', $userId, $type, date('Ymd_His'));
+    $savedPath = $tempDir . '/' . $savedName;
+    if (!move_uploaded_file($fileEntry['tmp_name'], $savedPath)) {
+        throw new RuntimeException('ファイル保存に失敗しました');
+    }
+
+    // 1時間以上前の temp ファイルを掃除（best-effort）
+    cleanupOldTempFiles($tempDir, 3600);
+
+    return ['path' => $savedPath, 'original_name' => $origName];
+}
+
+function cleanupOldTempFiles(string $dir, int $maxAgeSec): void
+{
+    $cutoff = time() - $maxAgeSec;
+    $files = @scandir($dir) ?: [];
+    foreach ($files as $f) {
+        if ($f === '.' || $f === '..') continue;
+        $path = $dir . '/' . $f;
+        if (is_file($path) && @filemtime($path) < $cutoff) {
+            @unlink($path);
+        }
+    }
+}
+
+// ============================================================
+// 9. ユーティリティ
+// ============================================================
+
+/**
+ * RFC 4122 v4 UUID 生成
+ */
+function generateUuid(): string
+{
+    $data = random_bytes(16);
+    $data[6] = chr((ord($data[6]) & 0x0f) | 0x40); // v4
+    $data[8] = chr((ord($data[8]) & 0x3f) | 0x80); // variant
+    return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($data), 4));
+}
+
+/**
+ * 標準的なアップロード処理を実行するヘルパー
+ * 各 api/admin/master/{type}.php から呼ぶ
+ *
+ * @param array $config マスタ設定
+ *   - 'table' => 'zones'
+ *   - 'key_field' => 'code'
+ *   - 'label' => 'ゾーンマスタ'
+ *   - 'columns' => [...]
+ *   - 'fk_checks_on_delete' => [...]
+ *   - 'mask_fields' => []
+ *   - 'transform' => callable
+ *   - 'validate_extra' => callable($rows): array $errors  追加バリデーション
+ */
+function handleMasterUpload(array $config, bool $dryRun): array
+{
+    $user = getCurrentUser();
+    $userId = $user['id'] ?? null;
+
+    // アップロードファイル取得・保存
+    if (!isset($_FILES['file'])) {
+        jsonError('ファイルが添付されていません', 400);
+    }
+    try {
+        $saved = saveUploadedFile($_FILES['file'], (int)$userId, $config['table']);
+    } catch (Throwable $e) {
+        jsonError($e->getMessage(), 400);
+    }
+    $filePath = $saved['path'];
+    $origName = $saved['original_name'];
+
+    try {
+        // 1) パース
+        $parsed = parseUploadedXlsx($filePath, $config['columns']);
+        if (!empty($parsed['errors'])) {
+            return [
+                'success' => false,
+                'error'   => 'Excelファイルにエラーがあります',
+                'data'    => ['errors' => $parsed['errors']],
+            ];
+        }
+
+        // 2) バリデーション
+        $validated = validateAndNormalize($parsed['rows'], $config['columns'], [
+            'key_field' => $config['key_field'],
+        ]);
+        $errors = $validated['errors'];
+
+        // 2b) 追加バリデーション
+        if (isset($config['validate_extra']) && is_callable($config['validate_extra'])) {
+            $extraErrors = $config['validate_extra']($validated['rows']);
+            $errors = array_merge($errors, $extraErrors);
+        }
+
+        if (!empty($errors)) {
+            return [
+                'success' => false,
+                'error'   => 'Excelファイルにエラーが ' . count($errors) . ' 件あります',
+                'data'    => ['errors' => $errors],
+            ];
+        }
+
+        // 3) 現状取得
+        $selectFields = array_column($config['columns'], 'field');
+        // 自動フィールドも取得対象
+        $selectFields = array_unique(array_merge($selectFields));
+        $existing = fetchCurrentRecords($config['table'], $config['key_field'], $selectFields);
+
+        // 4) 差分検出
+        $compareFields = array_column($config['columns'], 'field');
+        $diff = computeDiff(
+            $validated['rows'],
+            $existing,
+            $config['key_field'],
+            $compareFields,
+            ['skip_fields_if_blank' => $config['skip_fields_if_blank'] ?? []]
+        );
+
+        // 5) FK削除可否
+        $warnings = [];
+        $blocked = false;
+        if (!empty($config['fk_checks_on_delete'])) {
+            $check = checkFkBlocks($diff['delete'], $config['key_field'], $config['fk_checks_on_delete']);
+            $warnings = $check['warnings'];
+            $blocked = $check['blocked'];
+        }
+
+        $summary = [
+            'insert' => count($diff['insert']),
+            'update' => count($diff['update']),
+            'delete' => count($diff['delete']),
+            'total'  => count($diff['insert']) + count($diff['update']) + count($diff['delete']),
+        ];
+
+        if ($dryRun) {
+            return [
+                'success' => !$blocked,
+                'error'   => $blocked ? '削除できないレコードがあります' : null,
+                'data'    => [
+                    'summary'  => $summary,
+                    'errors'   => [],
+                    'warnings' => $warnings,
+                    'diff'     => $diff,
+                ],
+            ];
+        }
+
+        // 確定実行
+        if ($blocked) {
+            return [
+                'success' => false,
+                'error'   => '削除できないレコードがあるため適用できません',
+                'data'    => ['warnings' => $warnings],
+            ];
+        }
+
+        $applied = applyDiff(
+            $config['table'],
+            $config['key_field'],
+            $diff,
+            $origName,
+            $userId,
+            [
+                'mask_fields' => $config['mask_fields'] ?? [],
+                'transform'   => $config['transform'] ?? null,
+            ]
+        );
+
+        return [
+            'success' => true,
+            'data'    => [
+                'summary'  => $summary,
+                'batch_id' => $applied['batch_id'],
+            ],
+        ];
+    } finally {
+        // 一時ファイルを削除
+        if (file_exists($filePath)) {
+            @unlink($filePath);
+        }
+    }
+}
+
+/**
+ * ダウンロード処理ヘルパー
+ */
+function handleMasterDownload(array $config): void
+{
+    $sql = "SELECT * FROM `{$config['table']}` ORDER BY sort_order, `{$config['key_field']}`";
+    $rows = query($sql);
+
+    $filename = sprintf('%s_master_%s.xlsx', $config['table'], date('Ymd'));
+    generateMasterXlsx($config['columns'], $rows, $filename, [
+        'mask_fields' => $config['mask_fields_on_download'] ?? [],
+        'transform'   => $config['transform_on_download'] ?? null,
+    ]);
+}

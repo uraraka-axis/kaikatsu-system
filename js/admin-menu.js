@@ -130,15 +130,301 @@
       }
     ];
 
-    // ===== Upload (mock) =====
-    function uploadFile(type) {
-      var labels = {
-        zone: 'ゾーン', area: 'エリア', shop: '店舗',
-        user: 'ユーザー', supplier: '仕入先', product: '商品', budget: '予算'
+    // ===== Master Upload / Download =====
+    // 実装済みマスタ（バックエンドAPI存在）
+    var IMPLEMENTED_MASTERS = ['zone']; // 実装が進むごとに追記
+
+    // 各マスタの API パス
+    function masterApiPath(type, kind) {
+      // type: zone/area/shop/user/supplier/product
+      // kind: 'upload' or 'download'
+      var apiTypeMap = {
+        zone: 'zones', area: 'areas', shop: 'shops',
+        user: 'users', supplier: 'suppliers', product: 'products'
       };
-      var label = labels[type] || type;
-      alert('マスタアップロード（モックアップ）\n\n「' + label + '」のExcelファイルをアップロードします。\n予約→バッチ処理→反映の安全な仕組みで更新されます。');
+      var apiType = apiTypeMap[type] || type;
+      if (kind === 'upload')   return 'api/admin/master/'  + apiType + '.php';
+      if (kind === 'download') return 'api/export/master/' + apiType + '.php';
+      return null;
     }
+
+    // 確定送信用に File を保持
+    var pendingUploadFile = null;
+    var pendingUploadType = null;
+
+    function getMasterLabel(type) {
+      var card = document.querySelector('.master-card[data-master-type="' + type + '"]');
+      return card ? (card.getAttribute('data-master-label') || type) : type;
+    }
+
+    function triggerMasterUpload(type) {
+      if (IMPLEMENTED_MASTERS.indexOf(type) < 0) {
+        alert('「' + getMasterLabel(type) + '」は未実装です。');
+        return;
+      }
+      var input = document.querySelector('input[data-master-input="' + type + '"]');
+      if (input) input.click();
+    }
+    window.triggerMasterUpload = triggerMasterUpload;
+
+    function handleMasterFileSelected(type, files) {
+      if (!files || files.length === 0) return;
+      var file = files[0];
+      // バリデーション
+      if (!file.name.toLowerCase().endsWith('.xlsx')) {
+        alert('.xlsx形式のファイルを選択してください');
+        clearMasterInput(type);
+        return;
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        alert('ファイルサイズが上限(10MB)を超えています');
+        clearMasterInput(type);
+        return;
+      }
+      // dry_run実行 → プレビューモーダル表示
+      pendingUploadFile = file;
+      pendingUploadType = type;
+      runMasterDryRun(type, file);
+    }
+    window.handleMasterFileSelected = handleMasterFileSelected;
+
+    function clearMasterInput(type) {
+      var input = document.querySelector('input[data-master-input="' + type + '"]');
+      if (input) input.value = '';
+    }
+
+    function runMasterDryRun(type, file) {
+      var url = masterApiPath(type, 'upload') + '?dry_run=1';
+      var fd = new FormData();
+      fd.append('file', file);
+      showMasterModal({ loading: true, type: type });
+      fetch(url, { method: 'POST', credentials: 'same-origin', body: fd })
+        .then(function(res) {
+          return res.json().then(function(json) { return { ok: res.ok, status: res.status, json: json }; });
+        })
+        .then(function(r) {
+          // 成功 or 警告のみ(削除ブロック等)はプレビュー表示。バリデーションエラーはエラー表示。
+          var hasDiff = r.json && r.json.data && r.json.data.diff;
+          var hasErrors = r.json && r.json.data && Array.isArray(r.json.data.errors) && r.json.data.errors.length > 0;
+          if (hasDiff && !hasErrors) {
+            renderMasterPreview(type, r.json.data, r.json.error || null);
+          } else {
+            renderMasterErrors(type, r.json);
+          }
+        })
+        .catch(function(e) {
+          console.error('master dry-run error:', e);
+          renderMasterErrors(type, { error: '通信エラーが発生しました' });
+        });
+    }
+
+    function showMasterModal(opts) {
+      var overlay = document.getElementById('masterModal');
+      var titleEl = document.getElementById('masterModalTitle');
+      var bodyEl = document.getElementById('masterModalBody');
+      var footerEl = document.getElementById('masterModalFooter');
+      if (!overlay) return;
+
+      titleEl.textContent = getMasterLabel(opts.type) + ' 変更プレビュー';
+      if (opts.loading) {
+        bodyEl.innerHTML = '<div class="master-modal-loading">Excelを解析中…</div>';
+        footerEl.innerHTML = '<button type="button" class="btn-secondary" onclick="closeMasterModal()">キャンセル</button>';
+      }
+      overlay.classList.add('visible');
+    }
+
+    function renderMasterPreview(type, data, topMessage) {
+      var bodyEl = document.getElementById('masterModalBody');
+      var footerEl = document.getElementById('masterModalFooter');
+      var summary = data.summary || { insert: 0, update: 0, delete: 0, total: 0 };
+      var warnings = data.warnings || [];
+      var diff = data.diff || { insert: [], update: [], delete: [] };
+
+      var html = '';
+      if (topMessage) {
+        html += '<div class="master-error-msg">' + escapeHtml(topMessage) + '</div>';
+      }
+      html += '<div class="master-summary">';
+      html += '<span class="master-sum-item master-sum-insert">追加 ' + summary.insert + '件</span>';
+      html += '<span class="master-sum-item master-sum-update">変更 ' + summary.update + '件</span>';
+      html += '<span class="master-sum-item master-sum-delete">削除 ' + summary.delete + '件</span>';
+      if (warnings.length > 0) {
+        html += '<span class="master-sum-item master-sum-warn">警告 ' + warnings.length + '件</span>';
+      }
+      html += '</div>';
+
+      if (summary.total === 0 && warnings.length === 0) {
+        html += '<div class="master-empty-msg">変更内容はありません（現在のDBと一致しています）</div>';
+      }
+
+      // 警告
+      if (warnings.length > 0) {
+        html += '<div class="master-section master-section-warn">';
+        html += '<div class="master-section-title">⚠ 削除できないレコード</div>';
+        html += '<ul class="master-warning-list">';
+        warnings.forEach(function(w) {
+          html += '<li>' + escapeHtml(w.message) + '</li>';
+        });
+        html += '</ul></div>';
+      }
+
+      // 追加
+      if (diff.insert && diff.insert.length > 0) {
+        html += renderDiffSection('追加', diff.insert.map(function(r) {
+          return { label: makeRowLabel(type, r), detail: '' };
+        }), 'insert');
+      }
+      // 変更
+      if (diff.update && diff.update.length > 0) {
+        html += renderDiffSection('変更', diff.update.map(function(u) {
+          var changedSummary = u.changed_fields.map(function(f) {
+            var b = u.before[f], a = u.after[f];
+            return f + ': ' + escapeHtml(String(b)) + ' → ' + escapeHtml(String(a));
+          }).join(' / ');
+          return { label: makeRowLabel(type, u.after) + ' (key=' + u.key + ')', detail: changedSummary };
+        }), 'update');
+      }
+      // 削除
+      if (diff.delete && diff.delete.length > 0) {
+        html += renderDiffSection('削除', diff.delete.map(function(r) {
+          return { label: makeRowLabel(type, r), detail: '' };
+        }), 'delete');
+      }
+
+      bodyEl.innerHTML = html;
+
+      // フッター: 確定可否
+      var canApply = summary.total > 0 && warnings.length === 0;
+      footerEl.innerHTML =
+        '<button type="button" class="btn-secondary" onclick="closeMasterModal()">キャンセル</button>' +
+        '<button type="button" class="btn-primary" id="btnApplyMaster"' + (canApply ? '' : ' disabled') + ' onclick="confirmMasterApply()">この内容で確定</button>';
+    }
+
+    function makeRowLabel(type, row) {
+      // 各マスタごとに簡易ラベル
+      if (type === 'zone')     return (row.code || '') + ' ' + (row.name || '');
+      if (type === 'area')     return (row.code || '') + ' ' + (row.name || '');
+      if (type === 'shop')     return (row.code || '') + ' ' + (row.name || '');
+      if (type === 'supplier') return (row.code || '') + ' ' + (row.name || '');
+      if (type === 'user')     return (row.login_id || '') + ' ' + (row.name || '');
+      if (type === 'product')  return (row.code || '') + ' ' + (row.name || '');
+      return JSON.stringify(row);
+    }
+
+    function renderDiffSection(title, items, kind) {
+      var html = '<div class="master-section master-section-' + kind + '">';
+      html += '<div class="master-section-title">' + title + ' (' + items.length + '件)</div>';
+      html += '<ul class="master-diff-list">';
+      items.forEach(function(it) {
+        html += '<li><div class="master-diff-label">' + escapeHtml(it.label) + '</div>';
+        if (it.detail) html += '<div class="master-diff-detail">' + it.detail + '</div>';
+        html += '</li>';
+      });
+      html += '</ul></div>';
+      return html;
+    }
+
+    function renderMasterErrors(type, json) {
+      var bodyEl = document.getElementById('masterModalBody');
+      var footerEl = document.getElementById('masterModalFooter');
+      var errors = (json && json.data && json.data.errors) ? json.data.errors : [];
+      var msg = (json && json.error) ? json.error : 'エラーが発生しました';
+      var html = '<div class="master-error-msg">' + escapeHtml(msg) + '</div>';
+      if (errors.length > 0) {
+        html += '<ul class="master-error-list">';
+        errors.forEach(function(e) {
+          html += '<li>行 ' + e.row + ' / ' + escapeHtml(e.column || '') + ' = "' + escapeHtml(String(e.value || '')) + '"<br><span class="master-error-detail">' + escapeHtml(e.message) + '</span></li>';
+        });
+        html += '</ul>';
+      }
+      bodyEl.innerHTML = html;
+      footerEl.innerHTML = '<button type="button" class="btn-secondary" onclick="closeMasterModal()">閉じる</button>';
+    }
+
+    function confirmMasterApply() {
+      if (!pendingUploadFile || !pendingUploadType) return;
+      var type = pendingUploadType;
+      var file = pendingUploadFile;
+      var url = masterApiPath(type, 'upload');
+      var fd = new FormData();
+      fd.append('file', file);
+
+      var btn = document.getElementById('btnApplyMaster');
+      if (btn) { btn.disabled = true; btn.textContent = '反映中…'; }
+
+      fetch(url, { method: 'POST', credentials: 'same-origin', body: fd })
+        .then(function(res) { return res.json().then(function(json) { return { ok: res.ok, json: json }; }); })
+        .then(function(r) {
+          if (r.json && r.json.success) {
+            var s = r.json.data.summary || {};
+            alert(getMasterLabel(type) + 'を更新しました\n追加: ' + s.insert + '件 / 変更: ' + s.update + '件 / 削除: ' + s.delete + '件');
+            closeMasterModal();
+            clearMasterInput(type);
+          } else {
+            renderMasterErrors(type, r.json);
+          }
+        })
+        .catch(function(e) {
+          console.error('master apply error:', e);
+          alert('通信エラーが発生しました');
+        });
+    }
+    window.confirmMasterApply = confirmMasterApply;
+
+    function closeMasterModal() {
+      var overlay = document.getElementById('masterModal');
+      if (overlay) overlay.classList.remove('visible');
+      if (pendingUploadType) clearMasterInput(pendingUploadType);
+      pendingUploadFile = null;
+      pendingUploadType = null;
+    }
+    window.closeMasterModal = closeMasterModal;
+
+    function downloadMasterFile(type) {
+      if (IMPLEMENTED_MASTERS.indexOf(type) < 0) {
+        alert('「' + getMasterLabel(type) + '」は未実装です。');
+        return;
+      }
+      window.location.href = masterApiPath(type, 'download');
+    }
+    window.downloadMasterFile = downloadMasterFile;
+
+    function escapeHtml(s) {
+      if (s === null || s === undefined) return '';
+      return String(s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    // ===== D&D 対応（upload-area へのドロップ） =====
+    document.addEventListener('DOMContentLoaded', function() {
+      document.querySelectorAll('.master-card .upload-area').forEach(function(area) {
+        var type = area.parentElement.getAttribute('data-master-type');
+        if (!type) return;
+        ['dragenter', 'dragover'].forEach(function(ev) {
+          area.addEventListener(ev, function(e) {
+            e.preventDefault(); e.stopPropagation();
+            area.classList.add('dragover');
+          });
+        });
+        ['dragleave', 'drop'].forEach(function(ev) {
+          area.addEventListener(ev, function(e) {
+            e.preventDefault(); e.stopPropagation();
+            area.classList.remove('dragover');
+          });
+        });
+        area.addEventListener('drop', function(e) {
+          if (IMPLEMENTED_MASTERS.indexOf(type) < 0) {
+            alert('「' + getMasterLabel(type) + '」は未実装です。');
+            return;
+          }
+          var files = e.dataTransfer && e.dataTransfer.files;
+          if (files && files.length > 0) {
+            handleMasterFileSelected(type, files);
+          }
+        });
+      });
+    });
 
     // ===== Cascade Filters: Order =====
     function getFilteredShops(zoneVal, areaVal) {
@@ -325,7 +611,7 @@
       rows.push(['【ゾーン】', getSelectedText('exportBudgetZone')]);
       rows.push(['【エリア】', getSelectedText('exportBudgetArea')]);
       rows.push(['【店舗】', getSelectedText('exportBudgetShop')]);
-      rows.push(['【部門】', getSelectedText('exportBudgetDept')]);
+      rows.push(['【カテゴリ】', getSelectedText('exportBudgetDept')]);
       rows.push(['【年度】', yearLabel]);
       rows.push([]);
 

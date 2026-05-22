@@ -4,16 +4,18 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>管理メニュー画面</title>
+  <style>html.auth-pending body{visibility:hidden}</style>
+  <script>document.documentElement.classList.add('auth-pending');</script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/common.css">
-  <link rel="stylesheet" href="css/admin-menu.css">
+  <link rel="stylesheet" href="css/common.css?v=20260521">
+  <link rel="stylesheet" href="css/admin-menu.css?v=20260522">
 </head>
 <body>
   <header class="header" data-title="管理メニュー"></header>
   <nav class="nav" data-active="admin-menu.html"></nav>
-  <script src="js/common-nav.js"></script>
+  <script src="js/common-nav.js?v=20260521"></script>
   <main class="main">
     <h2 class="page-title">管理メニュー</h2>
     <p class="page-desc">マスタデータの更新とシステム設定を行います。ExcelファイルをアップロードしてマスタをBatch更新できます。</p>
@@ -23,113 +25,116 @@
       <div class="section-title">マスタデータ管理</div>
       <div class="master-grid">
         <!-- Zone Master -->
-        <div class="master-card">
+        <div class="master-card" data-master-type="zone" data-master-label="ゾーンマスタ">
           <div class="master-card-header">
             <div class="master-card-info">
               <div class="master-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg></div>
               <div><div class="master-card-title">ゾーンマスタ</div><div class="master-card-desc">ゾーン情報の管理</div></div>
             </div>
           </div>
-          <div class="upload-area" onclick="uploadFile('zone')">
+          <div class="upload-area" onclick="triggerMasterUpload('zone')">
+            <input type="file" accept=".xlsx" style="display:none" data-master-input="zone" onchange="handleMasterFileSelected('zone', this.files)">
             <div class="upload-area-text">Excelファイルをドロップ or クリック</div>
             <div class="upload-area-hint">.xlsx形式</div>
           </div>
           <div class="master-card-footer">
-            <span class="last-updated">最終更新: 2026/02/20</span>
-            <button class="btn-dl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>DL</button>
+            <span class="last-updated" data-master-updated="zone">—</span>
+            <button class="btn-dl" type="button" onclick="downloadMasterFile('zone')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>DL</button>
           </div>
         </div>
 
         <!-- Area Master -->
-        <div class="master-card">
+        <div class="master-card" data-master-type="area" data-master-label="エリアマスタ">
           <div class="master-card-header">
             <div class="master-card-info">
               <div class="master-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg></div>
               <div><div class="master-card-title">エリアマスタ</div><div class="master-card-desc">エリア情報の管理</div></div>
             </div>
           </div>
-          <div class="upload-area" onclick="uploadFile('area')">
+          <div class="upload-area" onclick="triggerMasterUpload('area')">
+            <input type="file" accept=".xlsx" style="display:none" data-master-input="area" onchange="handleMasterFileSelected('area', this.files)">
             <div class="upload-area-text">Excelファイルをドロップ or クリック</div>
             <div class="upload-area-hint">.xlsx形式</div>
           </div>
           <div class="master-card-footer">
-            <span class="last-updated">最終更新: 2026/02/20</span>
-            <button class="btn-dl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>DL</button>
+            <span class="last-updated" data-master-updated="area">—</span>
+            <button class="btn-dl" type="button" onclick="downloadMasterFile('area')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>DL</button>
           </div>
         </div>
 
         <!-- Shop Master -->
-        <div class="master-card">
+        <div class="master-card" data-master-type="shop" data-master-label="店舗マスタ">
           <div class="master-card-header">
             <div class="master-card-info">
               <div class="master-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg></div>
               <div><div class="master-card-title">店舗マスタ</div><div class="master-card-desc">店舗情報の管理</div></div>
             </div>
           </div>
-          <div class="upload-area" onclick="uploadFile('shop')">
+          <div class="upload-area" onclick="triggerMasterUpload('shop')">
+            <input type="file" accept=".xlsx" style="display:none" data-master-input="shop" onchange="handleMasterFileSelected('shop', this.files)">
             <div class="upload-area-text">Excelファイルをドロップ or クリック</div>
             <div class="upload-area-hint">.xlsx形式</div>
           </div>
           <div class="master-card-footer">
-            <span class="last-updated">最終更新: 2026/02/18</span>
-            <button class="btn-dl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>DL</button>
+            <span class="last-updated" data-master-updated="shop">—</span>
+            <button class="btn-dl" type="button" onclick="downloadMasterFile('shop')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>DL</button>
           </div>
         </div>
 
         <!-- User Master -->
-        <div class="master-card">
+        <div class="master-card" data-master-type="user" data-master-label="ユーザーマスタ">
           <div class="master-card-header">
             <div class="master-card-info">
               <div class="master-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg></div>
               <div><div class="master-card-title">ユーザーマスタ</div><div class="master-card-desc">ユーザー・権限の管理</div></div>
             </div>
           </div>
-          <div class="upload-area" onclick="uploadFile('user')">
+          <div class="upload-area" onclick="triggerMasterUpload('user')">
+            <input type="file" accept=".xlsx" style="display:none" data-master-input="user" onchange="handleMasterFileSelected('user', this.files)">
             <div class="upload-area-text">Excelファイルをドロップ or クリック</div>
             <div class="upload-area-hint">.xlsx形式</div>
           </div>
           <div class="master-card-footer">
-            <div class="footer-dates">
-              <span class="last-updated">最終更新: 2026/02/15</span>
-              <span class="scheduled-update">予約更新: 2026/02/28</span>
-            </div>
-            <button class="btn-dl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>DL</button>
+            <span class="last-updated" data-master-updated="user">—</span>
+            <button class="btn-dl" type="button" onclick="downloadMasterFile('user')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>DL</button>
           </div>
         </div>
 
         <!-- Supplier Master -->
-        <div class="master-card">
+        <div class="master-card" data-master-type="supplier" data-master-label="仕入先マスタ">
           <div class="master-card-header">
             <div class="master-card-info">
               <div class="master-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg></div>
               <div><div class="master-card-title">仕入先マスタ</div><div class="master-card-desc">仕入先情報の管理</div></div>
             </div>
           </div>
-          <div class="upload-area" onclick="uploadFile('supplier')">
+          <div class="upload-area" onclick="triggerMasterUpload('supplier')">
+            <input type="file" accept=".xlsx" style="display:none" data-master-input="supplier" onchange="handleMasterFileSelected('supplier', this.files)">
             <div class="upload-area-text">Excelファイルをドロップ or クリック</div>
             <div class="upload-area-hint">.xlsx形式</div>
           </div>
           <div class="master-card-footer">
-            <span class="last-updated">—</span>
-            <button class="btn-dl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>DL</button>
+            <span class="last-updated" data-master-updated="supplier">—</span>
+            <button class="btn-dl" type="button" onclick="downloadMasterFile('supplier')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>DL</button>
           </div>
         </div>
 
         <!-- Product Master -->
-        <div class="master-card">
+        <div class="master-card" data-master-type="product" data-master-label="商品マスタ">
           <div class="master-card-header">
             <div class="master-card-info">
               <div class="master-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg></div>
               <div><div class="master-card-title">商品マスタ</div><div class="master-card-desc">商品・画像の管理</div></div>
             </div>
           </div>
-          <div class="upload-area" onclick="uploadFile('product')">
+          <div class="upload-area" onclick="triggerMasterUpload('product')">
+            <input type="file" accept=".xlsx" style="display:none" data-master-input="product" onchange="handleMasterFileSelected('product', this.files)">
             <div class="upload-area-text">Excelファイルをドロップ or クリック</div>
             <div class="upload-area-hint">.xlsx形式（画像ファイル名列含む）</div>
           </div>
           <div class="master-card-footer">
-            <span class="last-updated">最終更新: 2026/02/25</span>
-            <button class="btn-dl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>DL</button>
+            <span class="last-updated" data-master-updated="product">—</span>
+            <button class="btn-dl" type="button" onclick="downloadMasterFile('product')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>DL</button>
           </div>
         </div>
 
@@ -138,12 +143,12 @@
           <div class="master-card-header">
             <div class="master-card-info">
               <div class="master-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg></div>
-              <div><div class="master-card-title">予算マスタ</div><div class="master-card-desc">店舗別・月別・部門別の予算管理</div></div>
+              <div><div class="master-card-title">予算マスタ</div><div class="master-card-desc">店舗別・月別・カテゴリ別の予算管理</div></div>
             </div>
           </div>
           <div class="upload-area" onclick="uploadFile('budget')">
             <div class="upload-area-text">Excelファイルをドロップ or クリック</div>
-            <div class="upload-area-hint">.xlsx形式（店舗・年月・部門・予算額）</div>
+            <div class="upload-area-hint">.xlsx形式（店舗・年月・カテゴリ・予算額）</div>
           </div>
           <div class="master-card-footer">
             <span class="last-updated">最終更新: 2026/02/25</span>
@@ -255,7 +260,7 @@
                 </select>
               </div>
               <div class="export-filter-group">
-                <label class="export-filter-label">部門</label>
+                <label class="export-filter-label">カテゴリ</label>
                 <select class="form-select" id="exportBudgetDept">
                   <option value="">すべて</option>
                   <option value="fit">フィットネス</option>
@@ -289,6 +294,18 @@
     </div>
   </main>
 
-  <script src="js/admin-menu.js"></script>
+  <!-- Master Upload Preview Modal -->
+  <div class="master-modal-overlay" id="masterModal" onclick="closeMasterModal(event)">
+    <div class="master-modal-dialog" onclick="event.stopPropagation()">
+      <div class="master-modal-header">
+        <div class="master-modal-title" id="masterModalTitle">変更プレビュー</div>
+        <button type="button" class="master-modal-close" onclick="closeMasterModal()" aria-label="閉じる">&times;</button>
+      </div>
+      <div class="master-modal-body" id="masterModalBody"></div>
+      <div class="master-modal-footer" id="masterModalFooter"></div>
+    </div>
+  </div>
+
+  <script src="js/admin-menu.js?v=20260522b"></script>
 </body>
 </html>

@@ -129,24 +129,28 @@ CREATE TABLE suppliers (
 -- FK: categories, suppliers
 -- ------------------------------------------------------------
 CREATE TABLE products (
-  id             INT           NOT NULL AUTO_INCREMENT COMMENT '商品ID',
-  name           VARCHAR(100)  NOT NULL COMMENT '商品名',
-  code           VARCHAR(20)   NOT NULL COMMENT '商品コード（MAT-001 等）',
-  price          INT           NOT NULL COMMENT '単価（税込・円）',
-  supplier_id    INT           NULL     COMMENT '仕入先ID',
-  category_code  VARCHAR(20)   NOT NULL COMMENT 'カテゴリコード',
-  recommended    BOOLEAN       NOT NULL DEFAULT FALSE COMMENT 'おすすめフラグ',
-  image_path     VARCHAR(255)  NULL     COMMENT '商品画像パス',
-  description    TEXT          NULL     COMMENT '商品説明',
-  is_active      BOOLEAN       NOT NULL DEFAULT TRUE  COMMENT '有効フラグ',
-  sort_order     INT           NOT NULL DEFAULT 0     COMMENT '表示順',
-  created_at     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  id                    INT           NOT NULL AUTO_INCREMENT COMMENT '商品ID',
+  name                  VARCHAR(100)  NOT NULL COMMENT '商品名',
+  code                  VARCHAR(20)   NOT NULL COMMENT '商品コード（MAT-001 等）',
+  price                 INT           NOT NULL COMMENT '単価（税込・円）',
+  supplier_id           INT           NULL     COMMENT '仕入先ID',
+  category_code         VARCHAR(20)   NOT NULL COMMENT 'カテゴリコード',
+  jan_code              VARCHAR(13)   NULL     COMMENT 'JANコード（8桁または13桁、NULL可、重複可）',
+  supplier_product_code VARCHAR(50)   NULL     COMMENT '仕入先商品コード',
+  recommended           BOOLEAN       NOT NULL DEFAULT FALSE COMMENT 'おすすめフラグ',
+  image_path            VARCHAR(255)  NULL     COMMENT '商品画像ファイル名（ディレクトリ uploads/products/ は固定）',
+  description           TEXT          NULL     COMMENT '商品説明',
+  is_active             BOOLEAN       NOT NULL DEFAULT TRUE  COMMENT '有効フラグ',
+  sort_order            INT           NOT NULL DEFAULT 0     COMMENT '表示順',
+  created_at            DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at            DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE INDEX uk_products_code (code),
   INDEX idx_products_category (category_code),
   INDEX idx_products_supplier (supplier_id),
   INDEX idx_products_recommended (recommended),
+  INDEX idx_products_jan (jan_code),
+  INDEX idx_products_supplier_product (supplier_product_code),
   CONSTRAINT fk_products_category FOREIGN KEY (category_code) REFERENCES categories(code)
     ON UPDATE CASCADE ON DELETE RESTRICT,
   CONSTRAINT fk_products_supplier FOREIGN KEY (supplier_id) REFERENCES suppliers(id)
@@ -491,6 +495,30 @@ CREATE TABLE master_scheduled_changes (
     ON UPDATE CASCADE ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
   COMMENT='マスタ予約更新';
+
+-- ------------------------------------------------------------
+-- master_change_log: マスタ変更履歴
+-- FK: users
+-- ------------------------------------------------------------
+CREATE TABLE master_change_log (
+  id               INT          NOT NULL AUTO_INCREMENT COMMENT 'ID',
+  target_table     VARCHAR(50)  NOT NULL COMMENT '対象テーブル名 (zones/areas/shops/suppliers/users/products)',
+  operation        ENUM('insert','update','delete') NOT NULL COMMENT '操作種別',
+  record_key       VARCHAR(100) NOT NULL COMMENT '対象レコードのキー（code, login_id等）',
+  change_data      JSON         NULL     COMMENT '変更内容（before/afterのJSON、passwordはマスク）',
+  changed_by_id    INT          NULL     COMMENT '変更者ユーザーID',
+  changed_at       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '変更日時',
+  upload_filename  VARCHAR(255) NULL     COMMENT 'アップロード元ファイル名',
+  upload_batch_id  VARCHAR(40)  NULL     COMMENT '同一アップロードのバッチID（UUID）',
+  PRIMARY KEY (id),
+  INDEX idx_master_change_log_table (target_table),
+  INDEX idx_master_change_log_changed_at (changed_at),
+  INDEX idx_master_change_log_changed_by (changed_by_id),
+  INDEX idx_master_change_log_batch (upload_batch_id),
+  CONSTRAINT fk_master_change_log_user FOREIGN KEY (changed_by_id) REFERENCES users(id)
+    ON UPDATE CASCADE ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+  COMMENT='マスタ変更履歴';
 
 -- ============================================================
 -- 初期データ投入
