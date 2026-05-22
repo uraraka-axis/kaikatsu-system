@@ -42,8 +42,10 @@ $zoneCode   = $_GET['zone'] ?? '';
 $areaCode   = $_GET['area'] ?? '';
 $shopCode   = $_GET['shop'] ?? '';
 
-// 部門バリデーション
-if (!in_array($dept, ['all', 'fit', 'ig'], true)) {
+// 部門バリデーション: 'all' または categories.code のいずれか
+$validCategoryCodes = array_column(query('SELECT code FROM categories WHERE is_active = 1'), 'code');
+$validDeptValues    = array_merge(['all'], $validCategoryCodes);
+if (!in_array($dept, $validDeptValues, true)) {
     jsonError('不正な部門パラメータです');
 }
 
@@ -90,18 +92,31 @@ if (empty($shops)) {
 $shopCodes = array_column($shops, 'shop_code');
 
 // --- 予算データ取得 ---
+// 'all' 行は廃止済み。dept='all' のときは shop+month で SUM し、
+// 部門指定時はその部門の行のみ取得する。
 $placeholders = implode(',', array_map(fn($i) => ':sc' . $i, array_keys($shopCodes)));
-$budgetSql    = "SELECT shop_code, month, budget_amount, actual_amount
-                 FROM budgets
-                 WHERE fiscal_year = :fiscal_year
-                   AND department  = :department
-                   AND shop_code IN ({$placeholders})
-                 ORDER BY shop_code, month";
-
-$budgetParams = [
-    ':fiscal_year' => $fiscalYear,
-    ':department'  => $dept,
-];
+if ($dept === 'all') {
+    $budgetSql = "SELECT shop_code, month,
+                         SUM(budget_amount) AS budget_amount,
+                         SUM(actual_amount) AS actual_amount
+                  FROM budgets
+                  WHERE fiscal_year = :fiscal_year
+                    AND shop_code IN ({$placeholders})
+                  GROUP BY shop_code, month
+                  ORDER BY shop_code, month";
+    $budgetParams = [':fiscal_year' => $fiscalYear];
+} else {
+    $budgetSql = "SELECT shop_code, month, budget_amount, actual_amount
+                  FROM budgets
+                  WHERE fiscal_year = :fiscal_year
+                    AND department  = :department
+                    AND shop_code IN ({$placeholders})
+                  ORDER BY shop_code, month";
+    $budgetParams = [
+        ':fiscal_year' => $fiscalYear,
+        ':department'  => $dept,
+    ];
+}
 foreach ($shopCodes as $i => $sc) {
     $budgetParams[':sc' . $i] = $sc;
 }
@@ -153,11 +168,10 @@ foreach ($shopCodes as $i => $sc) {
     $orderParams[':sc' . $i] = $sc;
 }
 
-// 部門フィルタ（all以外は対応するカテゴリで絞り込み）
-$deptCategoryMap = ['fit' => 'fitness', 'ig' => 'golf'];
-if (isset($deptCategoryMap[$dept])) {
+// 部門フィルタ: dept はそのまま category_code として扱える（'all'のときのみフィルタなし）
+if ($dept !== 'all') {
     $orderSql .= ' AND o.category_code = :cat_code';
-    $orderParams[':cat_code'] = $deptCategoryMap[$dept];
+    $orderParams[':cat_code'] = $dept;
 }
 
 $orderRows = query($orderSql, $orderParams);

@@ -10,3 +10,6 @@ composer.phar
 # 一時テストスクリプト
 _tmp_*.php
 _tmp_*.xlsx
+
+# DB バックアップダンプ（マイグレーション時等）
+database/_backup_*.sql

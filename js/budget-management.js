@@ -4,10 +4,12 @@
 
     var fiscalMonths = [4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3];
 
+    // 部門定義: 'all' は全体（バックエンドが SUM 計算）、他は categories.code = budgets.department
+    // 2026-05-22 schema migration: ENUM 'fit'/'ig' → VARCHAR 'fitness'/'golf' に統一
     var departments = [
-      { key: 'all', label: '全体' },
-      { key: 'fit', label: 'フィットネス' },
-      { key: 'ig',  label: 'インドアゴルフ' }
+      { key: 'all',     label: '全体' },
+      { key: 'fitness', label: 'フィットネス' },
+      { key: 'golf',    label: 'インドアゴルフ' }
     ];
 
     // ===== Excel出力対象選択（admin only） =====
@@ -204,7 +206,7 @@
     // ===== API: Fetch budget data =====
     function fetchBudgetData(callback) {
       var year = getSelectedYear();
-      var depts = ['all', 'fit', 'ig'];
+      var depts = ['all', 'fitness', 'golf'];
       var results = {};
       var done = 0;
       if (typeof window.showLoading === 'function') window.showLoading('予算データを読み込み中…');
@@ -255,24 +257,24 @@
           area: d.area_code,
           shopCode: d.shop_code,
           details: {
-            all: monthlyToDetail(d.monthly),
-            fit: emptyDetail(),
-            ig: emptyDetail()
+            all:     monthlyToDetail(d.monthly),
+            fitness: emptyDetail(),
+            golf:    emptyDetail()
           }
         };
       });
 
-      // Merge fit
-      results['fit'].forEach(function(d) {
+      // Merge fitness
+      results['fitness'].forEach(function(d) {
         if (shopMap[d.shop_code]) {
-          shopMap[d.shop_code].details.fit = monthlyToDetail(d.monthly);
+          shopMap[d.shop_code].details.fitness = monthlyToDetail(d.monthly);
         }
       });
 
-      // Merge ig
-      results['ig'].forEach(function(d) {
+      // Merge golf
+      results['golf'].forEach(function(d) {
         if (shopMap[d.shop_code]) {
-          shopMap[d.shop_code].details.ig = monthlyToDetail(d.monthly);
+          shopMap[d.shop_code].details.golf = monthlyToDetail(d.monthly);
         }
       });
 
@@ -678,6 +680,10 @@
       // Excel出力対象選択チェックボックス列はadminのみ
       var checkCol = document.querySelector('.budget-check-col');
       if (checkCol) checkCol.style.display = viewMode === 'admin' ? '' : 'none';
+
+      // ページネーションバーは admin のみ表示（店舗ユーザーは自店1件のみのため不要）
+      var pagBar = document.getElementById('budgetPaginationBar');
+      if (pagBar) pagBar.style.display = viewMode === 'admin' ? '' : 'none';
 
       var desc = document.getElementById('pageDesc');
       if (viewMode === 'store') {

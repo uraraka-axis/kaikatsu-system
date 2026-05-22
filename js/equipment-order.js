@@ -340,19 +340,14 @@
       return d; // none
     }
 
-    function categoryToDept(category) {
-      if (category === 'fitness') return 'fit';
-      if (category === 'golf') return 'ig';
-      return null;
-    }
-
+    // 2026-05-22: budgets.department migration により dept パラメータは categories.code をそのまま受け入れる
     function fetchBudgetForCategory(category) {
       var closing = categoriesMap[category];
-      var dept = categoryToDept(category);
-      if (!closing || !dept) {
+      if (!closing || !category) {
         budgetInfo.loaded = false;
         return;
       }
+      var dept = category; // budget API は categories.code を直接受け取る
 
       var settlement = computeSettlementDate(new Date(), closing.closing_type, closing.closing_day);
       var settlementMonth = settlement.getMonth() + 1;

@@ -139,20 +139,21 @@
         </div>
 
         <!-- Budget Master -->
-        <div class="master-card">
+        <div class="master-card" data-master-type="budget" data-master-label="予算マスタ">
           <div class="master-card-header">
             <div class="master-card-info">
               <div class="master-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg></div>
-              <div><div class="master-card-title">予算マスタ</div><div class="master-card-desc">店舗別・月別・カテゴリ別の予算管理</div></div>
+              <div><div class="master-card-title">予算マスタ</div><div class="master-card-desc">店舗別・月別・部門別の予算管理（ピボット形式）</div></div>
             </div>
           </div>
-          <div class="upload-area" onclick="uploadFile('budget')">
+          <div class="upload-area" onclick="triggerMasterUpload('budget')">
+            <input type="file" accept=".xlsx" style="display:none" data-master-input="budget" onchange="handleMasterFileSelected('budget', this.files)">
             <div class="upload-area-text">Excelファイルをドロップ or クリック</div>
-            <div class="upload-area-hint">.xlsx形式（店舗・年月・カテゴリ・予算額）</div>
+            <div class="upload-area-hint">.xlsx形式（フィットネス＋インドアゴルフのみ。全体は自動計算）</div>
           </div>
           <div class="master-card-footer">
-            <span class="last-updated">最終更新: 2026/02/25</span>
-            <button class="btn-dl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>DL</button>
+            <span class="last-updated" data-master-updated="budget">—</span>
+            <button class="btn-dl" type="button" onclick="downloadMasterFile('budget')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>DL</button>
           </div>
         </div>
       </div>
@@ -263,8 +264,8 @@
                 <label class="export-filter-label">カテゴリ</label>
                 <select class="form-select" id="exportBudgetDept">
                   <option value="">すべて</option>
-                  <option value="fit">フィットネス</option>
-                  <option value="ig">インドアゴルフ</option>
+                  <option value="fitness">フィットネス</option>
+                  <option value="golf">インドアゴルフ</option>
                 </select>
               </div>
               <div class="export-filter-group">
@@ -306,6 +307,6 @@
     </div>
   </div>
 
-  <script src="js/admin-menu.js?v=20260522g"></script>
+  <script src="js/admin-menu.js?v=20260522k"></script>
 </body>
 </html>

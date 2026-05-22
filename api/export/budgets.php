@@ -40,17 +40,19 @@ if (isset($_GET['shops']) && is_array($_GET['shops'])) {
     }
 }
 
-// カテゴリバリデーション
-if (!in_array($dept, ['all', 'fit', 'ig'], true)) {
+// カテゴリバリデーション: 'all' または categories.code のいずれか
+$categoryRows = query('SELECT code, name FROM categories WHERE is_active = 1');
+$validCategoryCodes = array_column($categoryRows, 'code');
+$validDeptValues    = array_merge(['all'], $validCategoryCodes);
+if (!in_array($dept, $validDeptValues, true)) {
     jsonError('不正なカテゴリパラメータです');
 }
 
-// カテゴリラベル
-$deptLabels = [
-    'all' => '全体',
-    'fit' => 'フィットネス',
-    'ig'  => 'インドアゴルフ',
-];
+// カテゴリラベル: dept='all' は固定、それ以外は categories.name
+$deptLabels = ['all' => '全体'];
+foreach ($categoryRows as $cr) {
+    $deptLabels[$cr['code']] = $cr['name'];
+}
 
 // --- 店舗ユーザーは自店のみ ---
 if ($user['role'] !== 'admin') {
@@ -102,17 +104,29 @@ $shopCodes = array_column($shops, 'shop_code');
 $budgetMap = [];
 if (!empty($shopCodes)) {
     $placeholders = implode(',', array_map(fn($i) => ':sc' . $i, array_keys($shopCodes)));
-    $budgetSql    = "SELECT shop_code, month, budget_amount, actual_amount
-                     FROM budgets
-                     WHERE fiscal_year = :fiscal_year
-                       AND department  = :department
-                       AND shop_code IN ({$placeholders})
-                     ORDER BY shop_code, month";
-
-    $budgetParams = [
-        ':fiscal_year' => $fiscalYear,
-        ':department'  => $dept,
-    ];
+    if ($dept === 'all') {
+        // 全体: 部門合計 (SUM)
+        $budgetSql = "SELECT shop_code, month,
+                             SUM(budget_amount) AS budget_amount,
+                             SUM(actual_amount) AS actual_amount
+                      FROM budgets
+                      WHERE fiscal_year = :fiscal_year
+                        AND shop_code IN ({$placeholders})
+                      GROUP BY shop_code, month
+                      ORDER BY shop_code, month";
+        $budgetParams = [':fiscal_year' => $fiscalYear];
+    } else {
+        $budgetSql = "SELECT shop_code, month, budget_amount, actual_amount
+                      FROM budgets
+                      WHERE fiscal_year = :fiscal_year
+                        AND department  = :department
+                        AND shop_code IN ({$placeholders})
+                      ORDER BY shop_code, month";
+        $budgetParams = [
+            ':fiscal_year' => $fiscalYear,
+            ':department'  => $dept,
+        ];
+    }
     foreach ($shopCodes as $i => $sc) {
         $budgetParams[':sc' . $i] = $sc;
     }

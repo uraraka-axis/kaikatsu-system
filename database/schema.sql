@@ -436,7 +436,7 @@ CREATE TABLE budgets (
   shop_code      VARCHAR(5)   NOT NULL COMMENT '店舗コード',
   fiscal_year    INT          NOT NULL COMMENT '年度（2026 = 2026年4月〜2027年3月）',
   month          TINYINT      NOT NULL COMMENT '月（1〜12）※暦月',
-  department     ENUM('all','fit','ig') NOT NULL DEFAULT 'all' COMMENT '部門（all=全体, fit=フィットネス, ig=インドアゴルフ）',
+  department     VARCHAR(20)  NOT NULL COMMENT '部門コード（categories.code を参照）。「全体」は SUM で動的計算するため行を持たない',
   budget_amount  INT          NOT NULL DEFAULT 0 COMMENT '予算額',
   actual_amount  INT          NOT NULL DEFAULT 0 COMMENT '実績額',
   created_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -446,9 +446,11 @@ CREATE TABLE budgets (
   INDEX idx_budgets_fiscal_year (fiscal_year),
   INDEX idx_budgets_shop_code (shop_code),
   CONSTRAINT fk_budgets_shop FOREIGN KEY (shop_code) REFERENCES shops(code)
-    ON UPDATE CASCADE ON DELETE RESTRICT
+    ON UPDATE CASCADE ON DELETE RESTRICT,
+  CONSTRAINT fk_budgets_category FOREIGN KEY (department) REFERENCES categories(code)
+    ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
-  COMMENT='予算（店舗×年度×月×部門）';
+  COMMENT='予算（店舗×年度×月×部門コード）';
 
 -- ============================================================
 -- ユーティリティテーブル

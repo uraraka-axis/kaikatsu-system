@@ -36,8 +36,8 @@
         </select>
         <select class="form-select" id="filterDept" onchange="filterBudget()">
           <option value="">すべてのカテゴリ</option>
-          <option value="fit">フィットネス</option>
-          <option value="ig">インドアゴルフ</option>
+          <option value="fitness">フィットネス</option>
+          <option value="golf">インドアゴルフ</option>
         </select>
         <select class="form-select" id="filterYear" onchange="filterBudget()">
         </select>
@@ -53,8 +53,8 @@
       <div class="toolbar-filters">
         <select class="form-select" id="storeDept" onchange="filterBudget()">
           <option value="">すべてのカテゴリ</option>
-          <option value="fit">フィットネス</option>
-          <option value="ig">インドアゴルフ</option>
+          <option value="fitness">フィットネス</option>
+          <option value="golf">インドアゴルフ</option>
         </select>
         <select class="form-select" id="storeYear" onchange="filterBudget()">
         </select>
@@ -110,8 +110,8 @@
       </table>
     </div>
 
-    <!-- Pagination -->
-    <div class="pagination-bar">
+    <!-- Pagination（admin専用。店舗ユーザーは自店のみ表示のため不要） -->
+    <div class="pagination-bar" id="budgetPaginationBar" style="display:none">
       <div class="pagination-info" id="budgetPaginationInfo"></div>
       <div class="pagination-controls">
         <label class="pagination-label">1ページの件数</label>
@@ -126,6 +126,6 @@
     </div>
   </main>
 
-  <script src="js/budget-management.js?v=20260521"></script>
+  <script src="js/budget-management.js?v=20260522b"></script>
 </body>
 </html>
