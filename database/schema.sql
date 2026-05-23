@@ -184,9 +184,11 @@ CREATE TABLE product_images (
 -- FK: shops
 -- ------------------------------------------------------------
 CREATE TABLE users (
-  id          INT           NOT NULL AUTO_INCREMENT COMMENT 'ユーザーID',
-  login_id    VARCHAR(50)   NOT NULL COMMENT 'ログインID',
-  password    VARCHAR(255)  NOT NULL COMMENT 'パスワード（ハッシュ）',
+  id                  INT           NOT NULL AUTO_INCREMENT COMMENT 'ユーザーID',
+  login_id            VARCHAR(50)   NOT NULL COMMENT 'ログインID',
+  password            VARCHAR(255)  NOT NULL COMMENT 'パスワード（ハッシュ）',
+  zone_manager_email  VARCHAR(255)  NULL     COMMENT 'ゾーンマネージャー通知先メアド',
+  area_manager_email  VARCHAR(255)  NULL     COMMENT 'エリアマネージャー通知先メアド',
   name        VARCHAR(50)   NOT NULL COMMENT 'ユーザー名',
   role        ENUM('shop','admin') NOT NULL DEFAULT 'shop' COMMENT 'ロール（shop=店舗, admin=管理者）',
   shop_code   VARCHAR(5)    NULL     COMMENT '所属店舗コード（管理者はNULL可）',

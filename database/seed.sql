@@ -502,5 +502,12 @@ INSERT INTO budgets (shop_code, fiscal_year, month, department, budget_amount, a
   ('20201', 2026, 3,  'golf', 11000, 3300);
 
 -- ============================================================
+-- 11. system_settings（システム設定）
+-- ============================================================
+INSERT INTO system_settings (`key`, `value`, description, is_active, sort_order) VALUES
+  ('product_dept_email', 'shohinbu@example.com',
+   '商品部メール通知先（全店舗共通／備品・修理・部品発注時に通知）', 1, 10);
+
+-- ============================================================
 -- END OF SEED DATA
 -- ============================================================

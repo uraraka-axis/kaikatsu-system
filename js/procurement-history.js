@@ -242,7 +242,8 @@ document.addEventListener('DOMContentLoaded', function() {
       showNotify('error', '入力エラー', 'カテゴリを選択してください。');
       return;
     }
-    var amount = parseInt(amountInput.value, 10);
+    // カンマ区切り入力にも対応
+    var amount = parseInt(String(amountInput.value).replace(/,/g, ''), 10);
     var reason = reasonInput.value.trim();
 
     if (!amount || amount <= 0) {

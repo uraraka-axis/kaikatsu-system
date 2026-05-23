@@ -819,7 +819,7 @@ function updateDiff(estimateAmount) {
   var input = document.getElementById('modalFinalAmount');
   var diffRow = document.getElementById('modalDiffRow');
   var diffValue = document.getElementById('modalDiffValue');
-  var val = parseInt(input.value);
+  var val = parseInt(String(input.value).replace(/,/g, ''), 10);
   if (isNaN(val)) {
     diffRow.style.display = 'none';
     return;
@@ -845,7 +845,8 @@ function doOrder(orderId) {
   var dateInput = document.getElementById('modalDate');
   var memo = (document.getElementById('modalMemo') || {}).value || '';
 
-  var amount = parseInt(amountInput.value);
+  // カンマ区切り入力（例: "10,000"）にも対応
+  var amount = parseInt(String(amountInput.value).replace(/,/g, ''), 10);
   if (isNaN(amount) || amount <= 0) {
     alert('見積金額を入力してください');
     return;
@@ -960,7 +961,8 @@ function doComplete(orderId) {
   if (!order) return;
   var memo = (document.getElementById('modalMemo') || {}).value || '';
   var finalInput = document.getElementById('modalFinalAmount');
-  var finalAmount = parseInt(finalInput.value);
+  // カンマ区切り入力（例: "10,000"）にも対応
+  var finalAmount = parseInt(String(finalInput.value).replace(/,/g, ''), 10);
 
   if (order.type === 'repair') {
     if (isNaN(finalAmount) || finalAmount <= 0) {
