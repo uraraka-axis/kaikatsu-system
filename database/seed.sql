@@ -86,20 +86,45 @@ INSERT INTO suppliers (id, name, code, sort_order) VALUES
 
 -- ============================================================
 -- 7. products（商品マスタ）
--- equipment-order.js の products 配列から抽出
--- supplier_id は suppliers テーブルの id に紐付け
+-- 2026-05-23 拡充: jan_code / supplier_product_code / image_path(1-3) を追加
+-- JANコードはダミー（先頭49=日本/49xxxxxxxxxxx の13桁形式に揃え）
+-- 仕入先商品コードは「仕入先プレフィックス + 連番」
+-- 画像ファイル名は uploads/products/<code>.jpg を想定
 -- ============================================================
-INSERT INTO products (id, name, code, price, supplier_id, category_code, recommended, sort_order) VALUES
-  (1,  'トレーニングマット',       'MAT-001', 3500,  1, 'fitness', TRUE,  1),
-  (2,  'ダンベル 5kg',             'DB-005',  2800,  1, 'fitness', TRUE,  2),
-  (3,  'バランスボール 65cm',      'BB-065',  1800,  2, 'fitness', FALSE, 3),
-  (4,  'ヨガブロック',             'YB-001',  1200,  1, 'fitness', FALSE, 4),
-  (5,  'ゴルフボール 1ダース',     'GB-012',  4200,  3, 'golf',    TRUE,  5),
-  (6,  'ゴルフティー 100本入り',   'GT-100',  800,   3, 'golf',    FALSE, 6),
-  (7,  'グローブ Lサイズ',         'GL-L01',  1500,  3, 'golf',    TRUE,  7),
-  (8,  'タオル（大）10枚セット',   'TW-L10',  5600,  4, 'fitness', TRUE,  8),
-  (9,  '消毒スプレー 500ml',       'DS-500',  980,   5, 'fitness', FALSE, 9),
-  (10, 'スコアカード 100枚',       'SC-100',  1200,  3, 'golf',    FALSE, 10);
+INSERT INTO products (id, name, code, price, supplier_id, category_code,
+                     jan_code, supplier_product_code,
+                     image_path, image_path2, image_path3,
+                     recommended, sort_order) VALUES
+  (1,  'トレーニングマット',       'MAT-001', 3500,  1, 'fitness',
+       '4901234500011', 'FIT-MAT-001', 'MAT-001.jpg', NULL, NULL, TRUE,  1),
+  (2,  'ダンベル 5kg',             'DB-005',  2800,  1, 'fitness',
+       '4901234500028', 'FIT-DB-005',  'DB-005.jpg',  'DB-005_1.jpg', 'DB-005_2.jpg', TRUE,  2),
+  (3,  'バランスボール 65cm',      'BB-065',  1800,  2, 'fitness',
+       '4901234500035', 'SPO-BB-065',  'BB-065.jpg',  NULL, NULL, FALSE, 3),
+  (4,  'ヨガブロック',             'YB-001',  1200,  1, 'fitness',
+       '4901234500042', 'FIT-YB-001',  'YB-001.jpg',  NULL, NULL, FALSE, 4),
+  (5,  'ゴルフボール 1ダース',     'GB-012',  4200,  3, 'golf',
+       '4901234500059', 'GLF-GB-012',  'GB-012.jpg',  NULL, NULL, TRUE,  5),
+  (6,  'ゴルフティー 100本入り',   'GT-100',  800,   3, 'golf',
+       '4901234500066', 'GLF-GT-100',  'GT-100.jpg',  NULL, NULL, FALSE, 6),
+  (7,  'グローブ Lサイズ',         'GL-L01',  1500,  3, 'golf',
+       '4901234500073', 'GLF-GL-L01',  'GL-L01.jpg',  NULL, NULL, TRUE,  7),
+  (8,  'タオル（大）10枚セット',   'TW-L10',  5600,  4, 'fitness',
+       '4901234500080', 'LIN-TW-L10',  'TW-L10.jpg',  NULL, NULL, TRUE,  8),
+  (9,  '消毒スプレー 500ml',       'DS-500',  980,   5, 'fitness',
+       '4901234500097', 'SAN-DS-500',  'DS-500.jpg',  NULL, NULL, FALSE, 9),
+  (10, 'スコアカード 100枚',       'SC-100',  1200,  3, 'golf',
+       '4901234500103', 'GLF-SC-100',  'SC-100.jpg',  NULL, NULL, FALSE, 10),
+  (11, 'エアロバイク AB-300',      'AB-300',  128000, 1, 'fitness',
+       '4901234500110', 'FIT-AB-300',  'AB-300.jpg',  NULL, NULL, FALSE, 11),
+  (12, 'フロアマット（大）',       'FM-L01',  12000, 1, 'fitness',
+       '4901234500127', 'FIT-FM-L01',  'FM-L01.jpg',  NULL, NULL, FALSE, 12),
+  (13, '心拍計アームバンド',       'HR-AB1',  4000,  3, 'fitness',
+       '4901234500134', 'GLF-HR-AB1',  'HR-AB1.jpg',  NULL, NULL, FALSE, 13),
+  (14, 'ダンベルセット 10kg',      'DB-010',  8400,  1, 'fitness',
+       '4901234500141', 'FIT-DB-010',  'DB-010.jpg',  NULL, NULL, FALSE, 14),
+  (15, 'ヨガマット',               'YM-001',  1500,  1, 'fitness',
+       '4901234500158', 'FIT-YM-001',  'YM-001.jpg',  NULL, NULL, FALSE, 15);
 
 -- ============================================================
 -- 8. users（ユーザーマスタ）
