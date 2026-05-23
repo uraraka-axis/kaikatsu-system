@@ -21,7 +21,8 @@ $category = $_GET['category'] ?? '';
 $search = $_GET['search'] ?? '';
 
 $sql = 'SELECT p.id, p.name, p.code, p.price, p.category_code AS category,
-               p.recommended, p.image_path, p.description,
+               p.recommended, p.image_path, p.image_path2, p.image_path3,
+               p.description,
                s.name AS supplier
         FROM products p
         LEFT JOIN suppliers s ON p.supplier_id = s.id

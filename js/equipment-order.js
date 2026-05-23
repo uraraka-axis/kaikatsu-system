@@ -29,7 +29,10 @@
                 price: parseInt(p.price, 10),
                 supplier: p.supplier || '',
                 category: p.category,
-                recommended: parseInt(p.recommended, 10) === 1
+                recommended: parseInt(p.recommended, 10) === 1,
+                image_path: p.image_path || '',
+                image_path2: p.image_path2 || '',
+                image_path3: p.image_path3 || ''
               };
             });
           }
@@ -131,8 +134,24 @@
       grid.innerHTML = list.map(function(p) {
         var qty = cart[p.id] || 0;
         var isSelected = qty > 0;
+        // image_path があれば api/product-image.php 経由で表示、なければプレースホルダSVG
+        // 画像ロード失敗時は CSS クラスで img を隠し SVG プレースホルダにフォールバック
+        var placeholderSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>';
+        var hasAnyImage = p.image_path || p.image_path2 || p.image_path3;
+        var imgHtml;
+        if (p.image_path) {
+          imgHtml = '<div class="product-img has-image clickable" onclick="openProductLightbox(' + p.id + ')">' +
+            '<img src="api/product-image.php?code=' + encodeURIComponent(p.code) + '&slot=0" alt="" loading="lazy" onerror="this.parentNode.classList.remove(\'has-image\')">' +
+            placeholderSvg +
+            '</div>';
+        } else if (hasAnyImage) {
+          // 画像1が無いが2/3はある場合はカード上はプレースホルダだがクリック可
+          imgHtml = '<div class="product-img clickable" onclick="openProductLightbox(' + p.id + ')">' + placeholderSvg + '</div>';
+        } else {
+          imgHtml = '<div class="product-img">' + placeholderSvg + '</div>';
+        }
         return '<div class="product-card' + (isSelected ? ' selected' : '') + '" id="card-' + p.id + '">' +
-          '<div class="product-img"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg></div>' +
+          imgHtml +
           (p.recommended ? '<span class="product-badge">よく発注される商品</span>' : '') +
           '<div class="product-name">' + p.name + '</div>' +
           '<div class="product-code">' + p.code + '</div>' +
@@ -247,6 +266,154 @@
         bar.classList.remove('expanded');
       }
     }
+
+    // ===== Product Image Lightbox (carousel) =====
+    var lightboxCurrentIndex = 0;
+    var lightboxImageCount = 0;
+    var lightboxScrollHandler = null;
+
+    window.openProductLightbox = function(productId) {
+      var p = products.find(function(x) { return x.id === productId; });
+      if (!p) return;
+      // 存在する画像スロットを抽出（slot 0..2）
+      var slots = [];
+      if (p.image_path)  slots.push({ slot: 0, file: p.image_path });
+      if (p.image_path2) slots.push({ slot: 1, file: p.image_path2 });
+      if (p.image_path3) slots.push({ slot: 2, file: p.image_path3 });
+      if (slots.length === 0) return;
+
+      var lightbox = document.getElementById('productLightbox');
+      var track    = document.getElementById('lightboxTrack');
+      var dots     = document.getElementById('lightboxDots');
+      var captionEl = document.getElementById('lightboxCaption');
+      var prevBtn  = lightbox.querySelector('.lightbox-prev');
+      var nextBtn  = lightbox.querySelector('.lightbox-next');
+
+      track.innerHTML = '';
+      dots.innerHTML  = '';
+
+      slots.forEach(function(s, i) {
+        var slide = document.createElement('div');
+        slide.className = 'lightbox-slide';
+        var img = document.createElement('img');
+        img.src = 'api/product-image.php?code=' + encodeURIComponent(p.code) + '&slot=' + s.slot;
+        img.alt = '';
+        // ロード失敗時: 画像を「画像が見つかりません」プレースホルダで差し替え
+        img.onerror = function() {
+          var ph = document.createElement('div');
+          ph.className = 'lightbox-no-image';
+          ph.innerHTML =
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">' +
+            '<rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>' +
+            '<circle cx="8.5" cy="8.5" r="1.5"></circle>' +
+            '<polyline points="21 15 16 10 5 21"></polyline>' +
+            '</svg>' +
+            '<div class="lightbox-no-image-text">画像が見つかりません</div>' +
+            '<div class="lightbox-no-image-file"></div>';
+          // ファイル名は textContent で安全に挿入
+          ph.querySelector('.lightbox-no-image-file').textContent = s.file;
+          slide.replaceChild(ph, img);
+        };
+        slide.appendChild(img);
+        track.appendChild(slide);
+
+        var dot = document.createElement('span');
+        dot.className = 'lightbox-dot' + (i === 0 ? ' active' : '');
+        dot.setAttribute('data-index', String(i));
+        dot.addEventListener('click', function() { lightboxGoto(i); });
+        dots.appendChild(dot);
+      });
+
+      lightboxImageCount  = slots.length;
+      lightboxCurrentIndex = 0;
+      captionEl.textContent = p.name;
+
+      // 1枚のときは prev/next/dots を隠す
+      var multi = lightboxImageCount > 1;
+      prevBtn.style.display = multi ? '' : 'none';
+      nextBtn.style.display = multi ? '' : 'none';
+      dots.style.display    = multi ? '' : 'none';
+
+      lightbox.hidden = false;
+      document.body.style.overflow = 'hidden';
+
+      // scroll-behavior: smooth を一時的に無効化して 1 枚目に瞬間スクロール
+      // （前回最後に表示していたスロットからスライドする動きを防ぐ）
+      var prevBehavior = track.style.scrollBehavior;
+      track.style.scrollBehavior = 'auto';
+      track.scrollLeft = 0;
+      requestAnimationFrame(function() {
+        track.style.scrollBehavior = prevBehavior;
+      });
+
+      // スクロール検出で active dot 更新
+      if (lightboxScrollHandler) track.removeEventListener('scroll', lightboxScrollHandler);
+      lightboxScrollHandler = debounce(function() {
+        var w = track.clientWidth;
+        if (w <= 0) return;
+        var idx = Math.round(track.scrollLeft / w);
+        if (idx !== lightboxCurrentIndex) updateLightboxDots(idx);
+      }, 80);
+      track.addEventListener('scroll', lightboxScrollHandler);
+    };
+
+    window.closeProductLightbox = function() {
+      var lightbox = document.getElementById('productLightbox');
+      if (!lightbox) return;
+      lightbox.hidden = true;
+      document.body.style.overflow = '';
+    };
+
+    function lightboxGoto(idx) {
+      var track = document.getElementById('lightboxTrack');
+      var slide = track.children[idx];
+      if (!slide) return;
+      track.scrollTo({ left: slide.offsetLeft, behavior: 'smooth' });
+      updateLightboxDots(idx);
+    }
+
+    window.lightboxPrev = function() {
+      lightboxGoto(Math.max(0, lightboxCurrentIndex - 1));
+    };
+
+    window.lightboxNext = function() {
+      lightboxGoto(Math.min(lightboxImageCount - 1, lightboxCurrentIndex + 1));
+    };
+
+    function updateLightboxDots(idx) {
+      lightboxCurrentIndex = idx;
+      var dots = document.getElementById('lightboxDots').children;
+      for (var i = 0; i < dots.length; i++) {
+        dots[i].classList.toggle('active', i === idx);
+      }
+    }
+
+    function debounce(fn, ms) {
+      var t;
+      return function() {
+        var ctx = this, args = arguments;
+        clearTimeout(t);
+        t = setTimeout(function() { fn.apply(ctx, args); }, ms);
+      };
+    }
+
+    // Esc / 矢印キーで操作、オーバーレイクリックで閉じる
+    document.addEventListener('keydown', function(e) {
+      var lightbox = document.getElementById('productLightbox');
+      if (!lightbox || lightbox.hidden) return;
+      if (e.key === 'Escape')    { e.preventDefault(); window.closeProductLightbox(); }
+      if (e.key === 'ArrowLeft') { e.preventDefault(); window.lightboxPrev(); }
+      if (e.key === 'ArrowRight'){ e.preventDefault(); window.lightboxNext(); }
+    });
+
+    document.addEventListener('DOMContentLoaded', function() {
+      var lightbox = document.getElementById('productLightbox');
+      if (lightbox) {
+        lightbox.addEventListener('click', function(e) {
+          if (e.target === lightbox) window.closeProductLightbox();
+        });
+      }
+    });
 
     // ===== Submit (API) =====
     function submitOrder() {
