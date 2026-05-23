@@ -66,6 +66,20 @@ $config = [
             'max_length' => 255,
         ],
         [
+            'field'      => 'zone_manager_email',
+            'header'     => 'ゾーンマネージャーメアド',
+            'type'       => 'string',
+            'required'   => false,
+            'max_length' => 255,
+        ],
+        [
+            'field'      => 'area_manager_email',
+            'header'     => 'エリアマネージャーメアド',
+            'type'       => 'string',
+            'required'   => false,
+            'max_length' => 255,
+        ],
+        [
             'field'    => 'is_active',
             'header'   => '有効',
             'type'     => 'bool',
