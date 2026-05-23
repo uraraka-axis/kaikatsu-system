@@ -132,122 +132,23 @@ foreach ($budgetRows as $row) {
     ];
 }
 
-// --- カテゴリ別締めルール取得 ---
-$categoryRows = query(
-    'SELECT code, closing_type, closing_day FROM categories'
-);
-$closingMap = [];
-foreach ($categoryRows as $row) {
-    $closingMap[$row['code']] = [
-        'type' => $row['closing_type'],
-        'day'  => (int)$row['closing_day'],
-    ];
-}
-
-// --- 発注額の動的集計（締めルールで計上月を決定） ---
-// 締めルール適用で前年度3月の発注が当年度4月に繰り上がる、
-// または当年度3月末の発注が翌年度4月に繰り下がる可能性があるため、
-// 取得範囲を前後1ヶ月ずつ広げる
-$orderDateFrom = (new DateTimeImmutable($fiscalYear . '-04-01'))
-    ->modify('-1 month')->format('Y-m-d');
-$orderDateTo   = (new DateTimeImmutable(($fiscalYear + 1) . '-03-31'))
-    ->modify('+1 month')->format('Y-m-d');
-
-$orderSql = "SELECT o.shop_code, o.date, o.category_code,
-                    COALESCE(o.final_amount, o.estimate_amount, 0) AS amount
-             FROM orders o
-             WHERE o.shop_code IN ({$placeholders})
-               AND o.date >= :date_from
-               AND o.date <= :date_to";
-
-$orderParams = [
-    ':date_from' => $orderDateFrom,
-    ':date_to'   => $orderDateTo,
-];
-foreach ($shopCodes as $i => $sc) {
-    $orderParams[':sc' . $i] = $sc;
-}
-
-// 部門フィルタ: dept はそのまま category_code として扱える（'all'のときのみフィルタなし）
-if ($dept !== 'all') {
-    $orderSql .= ' AND o.category_code = :cat_code';
-    $orderParams[':cat_code'] = $dept;
-}
-
-$orderRows = query($orderSql, $orderParams);
-
-// --- PHP側で計上月を計算して集計 ---
-$fyStart = new DateTimeImmutable($fiscalYear . '-04-01');
-$fyEnd   = new DateTimeImmutable(($fiscalYear + 1) . '-03-31');
-
-$orderMap = [];
-foreach ($orderRows as $row) {
-    $catCode = $row['category_code'];
-    $closing = $closingMap[$catCode] ?? ['type' => 'none', 'day' => 0];
-
-    $settlement = computeSettlementDate($row['date'], $closing['type'], $closing['day']);
-
-    // 計上月が当年度範囲外なら除外
-    if ($settlement < $fyStart || $settlement > $fyEnd) {
-        continue;
-    }
-
-    $m = (int)$settlement->format('n');
-    $sc = $row['shop_code'];
-    if (!isset($orderMap[$sc][$m])) {
-        $orderMap[$sc][$m] = 0;
-    }
-    $orderMap[$sc][$m] += (int)$row['amount'];
-}
-
-/**
- * 発注日とカテゴリの締めルールから「計上月の任意の日」を返す。
- * 戻り値の月のみ集計に使用する。
- */
-function computeSettlementDate(string $orderDate, string $closingType, int $closingDay): DateTimeImmutable
-{
-    $d = new DateTimeImmutable($orderDate);
-
-    if ($closingType === 'monthly') {
-        $day = (int)$d->format('j');
-        if ($day <= $closingDay) {
-            // 当月締め → 当月計上
-            return $d;
-        }
-        // 締め超過 → 翌月計上
-        return $d->modify('first day of next month');
-    }
-
-    if ($closingType === 'weekly') {
-        // 0=日, 1=月, ..., 6=土（PHP の 'w' フォーマットと同一）
-        $currentDow = (int)$d->format('w');
-        $daysUntilClosing = ($closingDay - $currentDow + 7) % 7;
-        // 締め日の翌日が実発注日 → その月を計上月とする
-        return $d->modify('+' . ($daysUntilClosing + 1) . ' days');
-    }
-
-    // none: 都度発注 → 発注日そのまま
-    return $d;
-}
-
 // --- 年度月配列（4月始まり） ---
 $fiscalMonths = [4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3];
 
 // --- レスポンス組み立て ---
+// 2026-05-23: Plan B 適用。orders の動的集計は廃止し、budgets.actual_amount を Single Source of Truth とする。
+// 発注確定 (status=発注済) 時に api/orders/status.php → applyBudgetActualDelta() で actual_amount が更新される。
 $data = [];
 foreach ($shops as $shop) {
     $code    = $shop['shop_code'];
     $monthly = [];
 
     foreach ($fiscalMonths as $m) {
-        $entry      = $budgetMap[$code][$m] ?? ['budget' => 0, 'actual' => 0];
-        $orderTotal = $orderMap[$code][$m] ?? 0;
-        // 締め実績と発注集計の大きい方を採用（締め前の発注を反映）
-        $actual = max($entry['actual'], $orderTotal);
+        $entry = $budgetMap[$code][$m] ?? ['budget' => 0, 'actual' => 0];
         $monthly[] = [
             'month'  => $m,
             'budget' => $entry['budget'],
-            'actual' => $actual,
+            'actual' => $entry['actual'],
         ];
     }
 
