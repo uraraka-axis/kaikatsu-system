@@ -912,8 +912,12 @@ function handleMasterUpload(array $config, bool $dryRun): array
             ];
         }
 
-        // 3) 現状取得
-        $selectFields = array_column($config['columns'], 'field');
+        // 4) 差分検出と現状取得に使うフィールドリスト
+        // compare_fields が指定されていればそれを使う（cat_*等のテーブル外フィールドを除外する用途）
+        $compareFields = $config['compare_fields'] ?? array_column($config['columns'], 'field');
+
+        // 3) 現状取得（compare_fields = 実テーブルのカラムリスト と同じセットを使う）
+        $selectFields = $compareFields;
         // fk_checks_on_delete で via_key 指定があれば、その列も取得対象に追加（例: suppliers の id）
         foreach ($config['fk_checks_on_delete'] ?? [] as $fk) {
             if (!empty($fk['via_key']) && !in_array($fk['via_key'], $selectFields, true)) {
@@ -921,9 +925,6 @@ function handleMasterUpload(array $config, bool $dryRun): array
             }
         }
         $existing = fetchCurrentRecords($config['table'], $config['key_field'], $selectFields);
-
-        // 4) 差分検出
-        $compareFields = array_column($config['columns'], 'field');
         $diff = computeDiff(
             $validated['rows'],
             $existing,
@@ -941,6 +942,12 @@ function handleMasterUpload(array $config, bool $dryRun): array
             $blocked = $check['blocked'];
         }
 
+        // 付随する別テーブル更新の差分計算（例: 店舗マスタにおける shop_categories）
+        $extraDiff = null;
+        if (isset($config['compute_extra_diff']) && is_callable($config['compute_extra_diff'])) {
+            $extraDiff = $config['compute_extra_diff']($validated['rows'], $diff);
+        }
+
         $summary = [
             'insert' => count($diff['insert']),
             'update' => count($diff['update']),
@@ -948,15 +955,26 @@ function handleMasterUpload(array $config, bool $dryRun): array
             'total'  => count($diff['insert']) + count($diff['update']) + count($diff['delete']),
         ];
 
+        // extra_diff の件数を summary に反映 (UI で「変更なし」誤表示を避けるため)
+        if ($extraDiff !== null) {
+            $extraInsert = count($extraDiff['insert'] ?? []);
+            $extraDelete = count($extraDiff['delete'] ?? []);
+            // shops テーブル自体に変更がない店舗だけが追加変更を持つ場合を考慮し、件数を加算
+            $summary['extra_insert'] = $extraInsert;
+            $summary['extra_delete'] = $extraDelete;
+            $summary['total'] += $extraInsert + $extraDelete;
+        }
+
         if ($dryRun) {
             return [
                 'success' => !$blocked,
                 'error'   => $blocked ? '削除できないレコードがあります' : null,
                 'data'    => [
-                    'summary'  => $summary,
-                    'errors'   => [],
-                    'warnings' => $warnings,
-                    'diff'     => $diff,
+                    'summary'   => $summary,
+                    'errors'    => [],
+                    'warnings'  => $warnings,
+                    'diff'      => $diff,
+                    'extra_diff' => $extraDiff,
                 ],
             ];
         }
@@ -981,6 +999,11 @@ function handleMasterUpload(array $config, bool $dryRun): array
                 'transform'   => $config['transform'] ?? null,
             ]
         );
+
+        // 適用後の追加処理（中間テーブル更新など）。事前計算した extraDiff も渡す
+        if (isset($config['after_apply']) && is_callable($config['after_apply'])) {
+            $config['after_apply']($validated['rows'], $applied['batch_id'], $userId, $origName, $diff, $extraDiff);
+        }
 
         return [
             'success' => true,

@@ -287,6 +287,9 @@
       var summary = data.summary || { insert: 0, update: 0, delete: 0, total: 0 };
       var warnings = data.warnings || [];
       var diff = data.diff || { insert: [], update: [], delete: [] };
+      var extraDiff = data.extra_diff || null;
+      var extraInsert = summary.extra_insert || 0;
+      var extraDelete = summary.extra_delete || 0;
 
       var html = '';
       if (topMessage) {
@@ -296,6 +299,10 @@
       html += '<span class="master-sum-item master-sum-insert">追加 ' + summary.insert + '件</span>';
       html += '<span class="master-sum-item master-sum-update">変更 ' + summary.update + '件</span>';
       html += '<span class="master-sum-item master-sum-delete">削除 ' + summary.delete + '件</span>';
+      if (extraInsert > 0 || extraDelete > 0) {
+        html += '<span class="master-sum-item master-sum-insert">カテゴリ追加 ' + extraInsert + '件</span>';
+        html += '<span class="master-sum-item master-sum-delete">カテゴリ削除 ' + extraDelete + '件</span>';
+      }
       if (warnings.length > 0) {
         html += '<span class="master-sum-item master-sum-warn">警告 ' + warnings.length + '件</span>';
       }
@@ -303,6 +310,20 @@
 
       if (summary.total === 0 && warnings.length === 0) {
         html += '<div class="master-empty-msg">変更内容はありません（現在のDBと一致しています）</div>';
+      }
+
+      // 中間テーブル（shop_categories 等）の差分一覧
+      if (extraDiff && (extraInsert > 0 || extraDelete > 0)) {
+        html += '<div class="master-section master-section-insert">';
+        html += '<div class="master-section-title">店舗カテゴリの変更</div>';
+        html += '<ul class="master-warning-list">';
+        (extraDiff.insert || []).forEach(function(e) {
+          html += '<li>追加: ' + escapeHtml(e.shop_code) + ' → ' + escapeHtml(e.category_code) + '</li>';
+        });
+        (extraDiff.delete || []).forEach(function(e) {
+          html += '<li>削除: ' + escapeHtml(e.shop_code) + ' → ' + escapeHtml(e.category_code) + '</li>';
+        });
+        html += '</ul></div>';
       }
 
       // 警告
