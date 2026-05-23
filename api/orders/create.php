@@ -23,6 +23,7 @@
 require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/functions.php';
+require_once __DIR__ . '/../../includes/mailer.php';
 
 requireLogin();
 requireMethod('POST');
@@ -101,6 +102,9 @@ try {
     }
 
     commit();
+
+    // --- 商品部への発注通知メール（コミット成功後・失敗してもレスポンスは返す） ---
+    notifyProductDeptNewOrder($orderId, $type, $shopCode, $category, $user);
 
     jsonResponse([
         'success'  => true,
@@ -248,6 +252,91 @@ function createPartsDetail(string $orderId): void
             ':quantity'         => $quantity,
             ':reason'           => $reason,
         ]
+    );
+}
+
+// ========================================
+// 商品部への発注通知メール
+// ========================================
+/**
+ * 店舗からの新規発注時に商品部へ通知メールを送る。
+ * 失敗してもログに残すだけで業務処理は止めない。
+ */
+function notifyProductDeptNewOrder(string $orderId, string $type, string $shopCode, string $category, array $user): void
+{
+    // 宛先: system_settings.product_dept_email
+    $row = getOne(
+        "SELECT `value` FROM system_settings WHERE `key` = 'product_dept_email' AND is_active = 1"
+    );
+    $toEmail = $row['value'] ?? '';
+    if ($toEmail === '') {
+        error_log('product_dept_email is not set in system_settings');
+        return;
+    }
+
+    // 店舗名・カテゴリ名を取得（メール文面の見栄え用）
+    $shop = getOne('SELECT name FROM shops WHERE code = :c', [':c' => $shopCode]);
+    $cat  = getOne('SELECT name FROM categories WHERE code = :c', [':c' => $category]);
+    $shopName = $shop['name'] ?? $shopCode;
+    $catName  = $cat['name']  ?? $category;
+
+    $typeLabel = match ($type) {
+        'repair'    => '修理発注',
+        'equipment' => '備品発注',
+        'parts'     => '部品発注',
+        default     => $type,
+    };
+
+    // 種別固有の概要
+    $detail = '';
+    switch ($type) {
+        case 'repair':
+            $r = getOne('SELECT equipment_name, issue FROM order_repair_details WHERE order_id = :id', [':id' => $orderId]);
+            if ($r) {
+                $detail = "故障機材: {$r['equipment_name']}\n不具合内容: {$r['issue']}";
+            }
+            break;
+        case 'equipment':
+            $items = query(
+                'SELECT product_name, qty, price FROM order_equipment_items WHERE order_id = :id ORDER BY id',
+                [':id' => $orderId]
+            );
+            $lines = [];
+            $total = 0;
+            foreach ($items as $it) {
+                $sub = (int)$it['price'] * (int)$it['qty'];
+                $total += $sub;
+                $lines[] = sprintf('  - %s × %d  ¥%s', $it['product_name'], $it['qty'], number_format($sub));
+            }
+            if (!empty($lines)) {
+                $detail = "発注商品:\n" . implode("\n", $lines) . "\n合計（参考）: ¥" . number_format($total);
+            }
+            break;
+        case 'parts':
+            $p = getOne('SELECT parts_name, target_equipment, quantity, reason FROM order_parts_details WHERE order_id = :id', [':id' => $orderId]);
+            if ($p) {
+                $detail = "部品名: {$p['parts_name']}\n対象機材: {$p['target_equipment']}\n数量: {$p['quantity']}\n発注理由: {$p['reason']}";
+            }
+            break;
+    }
+
+    $body  = "{$shopName}から{$typeLabel}が登録されました。\n\n";
+    $body .= "■ 発注番号: {$orderId}\n";
+    $body .= "■ 店舗:     {$shopName} ({$shopCode})\n";
+    $body .= "■ カテゴリ: {$catName}\n";
+    $body .= "■ 種別:     {$typeLabel}\n";
+    $body .= "■ 登録者:   {$user['name']}\n";
+    $body .= "■ 登録日時: " . date('Y-m-d H:i:s') . "\n";
+    if ($detail !== '') {
+        $body .= "\n--- 詳細 ---\n{$detail}\n";
+    }
+    $body .= "\n発注内容の確認・処理をお願いします。\n";
+
+    sendMail(
+        [$toEmail],
+        "【{$typeLabel}】{$shopName} ({$orderId})",
+        $body,
+        ['html' => false]
     );
 }
 

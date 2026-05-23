@@ -11,6 +11,8 @@
 require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/functions.php';
+require_once __DIR__ . '/../../includes/budget.php';
+require_once __DIR__ . '/../../includes/budget_notify.php';
 
 requireLogin();
 requireMethod('POST');
@@ -63,6 +65,7 @@ $orders = query(
 
 $processed = [];
 $skipped   = [];
+$pendingNotifications = [];
 
 try {
     beginTransaction();
@@ -126,6 +129,31 @@ try {
             ]
         );
 
+        // budgets.actual_amount 反映 & 四半期予算超過通知
+        $budgetDelta = 0;
+        if ($action === 'order') {
+            $budgetDelta = (int)($updateVals[':estimate_amount'] ?? $order['estimate_amount'] ?? 0);
+            if ($budgetDelta > 0) {
+                applyBudgetActualDelta($order, $budgetDelta);
+            }
+        } elseif ($action === 'complete') {
+            $afterFinal = getOne(
+                'SELECT final_amount, estimate_amount FROM orders WHERE id = :id',
+                [':id' => $orderId]
+            );
+            $finalAmt    = (int)($afterFinal['final_amount'] ?? 0);
+            $estimateAmt = (int)($afterFinal['estimate_amount'] ?? 0);
+            $budgetDelta = $finalAmt - $estimateAmt;
+            if ($budgetDelta !== 0) {
+                applyBudgetActualDelta($order, $budgetDelta);
+            }
+        }
+        // 一括処理ではトランザクション内だが、ON DUPLICATE KEY での更新は反映されているので
+        // commit 前でも getQuarterlyBudgetTotal は最新値を返す（同一トランザクション内のため）
+        if ($budgetDelta > 0) {
+            $pendingNotifications[] = ['order' => $order, 'delta' => $budgetDelta];
+        }
+
         $processed[] = $orderId;
     }
 
@@ -134,6 +162,11 @@ try {
     rollback();
     error_log('Bulk status change error: ' . $e->getMessage());
     jsonError('一括ステータス変更に失敗しました', 500);
+}
+
+// commit 後に予算超過通知メールを送信
+foreach ($pendingNotifications as $n) {
+    notifyIfQuarterBudgetCrossed($n['order'], $n['delta']);
 }
 
 jsonResponse([

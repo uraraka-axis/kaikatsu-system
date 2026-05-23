@@ -11,6 +11,8 @@
 require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/functions.php';
+require_once __DIR__ . '/../../includes/budget.php';
+require_once __DIR__ . '/../../includes/budget_notify.php';
 
 requireLogin();
 requireMethod('POST');
@@ -229,7 +231,32 @@ try {
         ]
     );
 
+    // 4. budgets.actual_amount 反映
+    //    - 'order'    : estimate_amount を加算 (発注済になった瞬間に予算消費)
+    //    - 'complete' : final_amount - estimate_amount の差分を加算 (確定時の補正)
+    $budgetDelta = 0;
+    if ($action === 'order') {
+        $budgetDelta = (int)($updateVals[':estimate_amount'] ?? 0);
+        if ($budgetDelta > 0) {
+            applyBudgetActualDelta($order, $budgetDelta);
+        }
+    } elseif ($action === 'complete') {
+        // 完了時は orders を再取得して final_amount の確定値を得る
+        $afterFinal = getOne('SELECT final_amount, estimate_amount FROM orders WHERE id = :id', [':id' => $orderId]);
+        $finalAmt    = (int)($afterFinal['final_amount'] ?? 0);
+        $estimateAmt = (int)($afterFinal['estimate_amount'] ?? 0);
+        $budgetDelta = $finalAmt - $estimateAmt;
+        if ($budgetDelta !== 0) {
+            applyBudgetActualDelta($order, $budgetDelta);
+        }
+    }
+
     commit();
+
+    // 5. 四半期予算超過通知（commit 後、加算で初めて超えた場合のみ）
+    if ($budgetDelta > 0) {
+        notifyIfQuarterBudgetCrossed($order, $budgetDelta);
+    }
 } catch (Throwable $e) {
     rollback();
     error_log('Status change error: ' . $e->getMessage());

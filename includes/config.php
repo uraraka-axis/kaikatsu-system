@@ -67,3 +67,22 @@ define('STATUS_ORDERED', 1);     // 発注済
 define('STATUS_IN_PROGRESS', 2); // 修理待ち / 配達中
 define('STATUS_DONE', 3);        // 修理済 / 納品済
 define('STATUS_COMPLETED', 4);   // 完了
+
+// ============================================================
+// メール送信設定 (PHPMailer + SMTP)
+// 環境ごとに値を差し替える。ローカル開発は Mailpit を想定。
+//   Mailpit:  SMTP_HOST=localhost, SMTP_PORT=1025, SMTP_AUTH=false
+//   Gmail:    SMTP_HOST=smtp.gmail.com, SMTP_PORT=587, SMTP_AUTH=true, SMTP_SECURE=tls
+//   SendGrid: SMTP_HOST=smtp.sendgrid.net, SMTP_PORT=587, SMTP_AUTH=true, SMTP_USER=apikey
+// ============================================================
+define('SMTP_HOST',     'localhost');
+define('SMTP_PORT',     1025);
+define('SMTP_AUTH',     false);          // true で認証あり
+define('SMTP_USER',     '');             // SMTP_AUTH=true のとき必須
+define('SMTP_PASS',     '');             // SMTP_AUTH=true のとき必須
+define('SMTP_SECURE',   '');             // '', 'tls', 'ssl' のいずれか
+define('MAIL_FROM',     'noreply@kaikatsu.local');
+define('MAIL_FROM_NAME','快活システム');
+// ローカル開発時に Mailpit 等を起動していない場合、true にすると
+// 送信を試みず logs/mail.log に追記するだけにできる (障害切り分け用)。
+define('MAIL_LOG_ONLY', false);
