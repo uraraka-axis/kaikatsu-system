@@ -53,9 +53,8 @@
         <div class="filter-group">
           <span class="filter-label">カテゴリ</span>
           <select class="form-select" id="adminFilterCategory" onchange="applyFilters()">
-            <option value="">すべて</option>
-            <option value="fitness">フィットネス</option>
-            <option value="golf">ゴルフ</option>
+            <option value="">すべてのカテゴリ</option>
+            <!-- カテゴリは JS で動的に追加 -->
           </select>
         </div>
         <div class="filter-group">
@@ -91,9 +90,8 @@
     <div class="toolbar" id="storeFilterBar">
       <div class="toolbar-left">
         <select class="form-select" id="filterCategory" onchange="applyFilters()">
-          <option value="">カテゴリ</option>
-          <option value="fitness">フィットネス</option>
-          <option value="golf">ゴルフ</option>
+          <option value="">すべてのカテゴリ</option>
+          <!-- カテゴリは JS で動的に追加 -->
         </select>
         <select class="form-select" id="filterType" onchange="applyFilters()">
           <option value="">種別</option>
@@ -181,6 +179,6 @@
     </div>
   </div>
 
-  <script src="js/order-list.js?v=20260521"></script>
+  <script src="js/order-list.js?v=20260523b"></script>
 </body>
 </html>

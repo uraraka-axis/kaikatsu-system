@@ -45,7 +45,19 @@
         })
         .catch(function(e) { console.error('shops fetch error:', e); });
 
-      Promise.all([p1, p2, p3]).then(function() {
+      // カテゴリも動的取得 (admin なので全カテゴリが返る)
+      var p4 = fetch('api/master/categories.php', { credentials: 'same-origin' })
+        .then(function(r) {
+          if (r.status === 401) { window.location.href = 'login.html'; return null; }
+          return r.json();
+        })
+        .then(function(json) {
+          if (!json || !json.success || !Array.isArray(json.data)) return [];
+          return json.data;
+        })
+        .catch(function(e) { console.error('categories fetch error:', e); return []; });
+
+      Promise.all([p1, p2, p3, p4]).then(function(results) {
         // Order/Budget 両方のゾーンプルダウンを初期化
         var zoneHtml = '<option value="">すべて</option>' +
           zones.map(function(z) {
@@ -65,6 +77,19 @@
         if (budgetArea) budgetArea.innerHTML = buildAreaOptions('');
         var budgetShop = document.getElementById('exportBudgetShop');
         if (budgetShop) budgetShop.innerHTML = buildShopOptions(getFilteredShops('', ''));
+
+        // カテゴリプルダウン
+        var cats = results[3] || [];
+        var budgetDept = document.getElementById('exportBudgetDept');
+        if (budgetDept) {
+          while (budgetDept.options.length > 1) budgetDept.remove(1);
+          cats.forEach(function(c) {
+            var opt = document.createElement('option');
+            opt.value = c.code;
+            opt.textContent = c.name;
+            budgetDept.appendChild(opt);
+          });
+        }
       });
     }
 

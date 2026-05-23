@@ -8,7 +8,29 @@
     document.addEventListener('DOMContentLoaded', function() {
       initDateInput();
       initHourSelects();
+      populateCategoryOptions();
     });
+
+    function populateCategoryOptions() {
+      var sel = document.getElementById('category');
+      if (!sel) return;
+      fetch('api/master/categories.php', { credentials: 'same-origin' })
+        .then(function(r) {
+          if (r.status === 401) { window.location.href = 'login.html'; return null; }
+          return r.json();
+        })
+        .then(function(data) {
+          if (!data || !data.success || !Array.isArray(data.data)) return;
+          while (sel.options.length > 1) sel.remove(1);
+          data.data.forEach(function(c) {
+            var opt = document.createElement('option');
+            opt.value = c.code;
+            opt.textContent = c.name;
+            sel.appendChild(opt);
+          });
+        })
+        .catch(function(e) { console.error('categories fetch error:', e); });
+    }
 
     function initDateInput() {
       const dateInput = document.getElementById('slotDate');

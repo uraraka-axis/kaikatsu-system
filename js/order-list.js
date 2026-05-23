@@ -184,8 +184,22 @@ function fetchMasterData(callback) {
 
   apiGet('api/master/categories.php')
     .then(function(data) {
-      (data.data || []).forEach(function(c) {
-        categoriesMap[c.code] = { closing_type: c.closing_type, closing_day: c.closing_day };
+      var cats = data.data || [];
+      cats.forEach(function(c) {
+        categoriesMap[c.code] = { closing_type: c.closing_type, closing_day: c.closing_day, name: c.name };
+      });
+      // カテゴリプルダウンを動的構築（管理者/店舗どちらのフィルタも対応）
+      ['adminFilterCategory', 'filterCategory'].forEach(function(id) {
+        var sel = document.getElementById(id);
+        if (!sel) return;
+        // 「すべて」「カテゴリ」など先頭の option は維持
+        while (sel.options.length > 1) sel.remove(1);
+        cats.forEach(function(c) {
+          var opt = document.createElement('option');
+          opt.value = c.code;
+          opt.textContent = c.name;
+          sel.appendChild(opt);
+        });
       });
       checkDone();
     })
@@ -412,7 +426,7 @@ function renderOrders() {
     var typeLabel = o.type === 'repair' ? '修理' : o.type === 'equipment' ? '備品' : '部品';
     var statusClass = getStatusClass(o.status, o.type);
     var statusLabel = getStatusLabel(o.status, o.type);
-    var catLabel = o.category_code === 'fitness' ? 'フィットネス' : 'ゴルフ';
+    var catLabel = (categoriesMap[o.category_code] && categoriesMap[o.category_code].name) || o.category_code;
     var displayAmount = getDisplayAmount(o);
     var isOpen = !!expandedIds[o.id];
 
@@ -1322,22 +1336,19 @@ function bootOrderList(user) {
   currentUser = user;
   viewMode = currentUser.role === 'admin' ? 'admin' : 'store';
 
-  // 店舗ユーザーが単一カテゴリのみ取り扱う場合、カテゴリ選択を絞り込み＋固定
+  // 店舗ユーザーの場合、取扱カテゴリのみをドロップダウンに表示（プレースホルダは「すべてのカテゴリ」）
   if (viewMode === 'store' && Array.isArray(user.categories)) {
     var filterCategoryEl = document.getElementById('filterCategory');
     if (filterCategoryEl) {
-      // ドロップダウンの選択肢を取扱カテゴリのみに絞る
-      var opts = '<option value="">カテゴリ</option>';
+      var opts = '<option value="">すべてのカテゴリ</option>';
       user.categories.forEach(function(c) {
         opts += '<option value="' + c.code + '">' + c.name + '</option>';
       });
       filterCategoryEl.innerHTML = opts;
-
-      // 単一カテゴリの場合は自動選択＋ロック（操作不可）
-      if (user.categories.length === 1) {
-        filterCategoryEl.value = user.categories[0].code;
-        filterCategoryEl.disabled = true;
-      }
+      // categoriesMap を user.categories から構築（表セルの日本語ラベル表示用）
+      user.categories.forEach(function(c) {
+        categoriesMap[c.code] = { name: c.name };
+      });
     }
   }
 

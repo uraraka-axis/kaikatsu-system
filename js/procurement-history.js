@@ -7,9 +7,8 @@ document.addEventListener('DOMContentLoaded', function() {
   var summary = {};
   var shops = [];
 
-  // カテゴリマッピング（フォーム値 → DB値）
-  var categoryFormToDb = { 'fit': 'fitness', 'ig': 'golf' };
-  var categoryLabels = { 'fitness': 'フィットネス', 'golf': 'インドアゴルフ' };
+  // 2026-05-22 schema migration: カテゴリは categories.code を直接使用（fit→fitness, ig→golf 廃止）
+  var categoryLabels = {};
   var statusLabels = { 'approved': '承認', 'pending': '申請中', 'rejected': '却下' };
   var statusClass = { 'approved': 'status-approved', 'pending': 'status-pending', 'rejected': 'status-rejected' };
 
@@ -25,11 +24,14 @@ document.addEventListener('DOMContentLoaded', function() {
         currentUser = data.user;
         viewMode = currentUser.role === 'admin' ? 'admin' : 'store';
         setupView();
-        if (viewMode === 'admin') {
-          loadShops().then(function() { loadData(); });
-        } else {
-          loadData();
-        }
+        // カテゴリを動的ロード（店舗ユーザーは自店所属のみ、admin は全件）
+        loadCategories().then(function() {
+          if (viewMode === 'admin') {
+            loadShops().then(function() { loadData(); });
+          } else {
+            loadData();
+          }
+        });
       })
       .catch(function() { location.href = 'login.html'; });
   }
@@ -60,6 +62,31 @@ document.addEventListener('DOMContentLoaded', function() {
       .then(function(data) {
         if (data.success) shops = data.data || [];
       });
+  }
+
+  // ===== カテゴリ動的ロード（店舗ユーザーは自店所属、admin は全件） =====
+  function loadCategories() {
+    return fetch('api/master/categories.php', { credentials: 'same-origin' })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (!data || !data.success) return;
+        var cats = data.data || [];
+        cats.forEach(function(c) {
+          categoryLabels[c.code] = c.name;
+        });
+        // 申請フォームのカテゴリプルダウンを動的構築
+        var sel = document.getElementById('procCategory');
+        if (sel) {
+          while (sel.options.length > 1) sel.remove(1);
+          cats.forEach(function(c) {
+            var opt = document.createElement('option');
+            opt.value = c.code;
+            opt.textContent = c.name;
+            sel.appendChild(opt);
+          });
+        }
+      })
+      .catch(function(e) { console.error('Failed to fetch categories:', e); });
   }
 
   // ===== フィルタ構築 =====
@@ -209,7 +236,12 @@ document.addEventListener('DOMContentLoaded', function() {
     var amountInput = document.getElementById('procAmount');
     var reasonInput = document.getElementById('procReason');
 
-    var categoryCode = categoryFormToDb[catSelect.value] || catSelect.value;
+    // categories.code をそのまま使う（fit/ig 変換は廃止）
+    var categoryCode = catSelect.value;
+    if (!categoryCode) {
+      showNotify('error', '入力エラー', 'カテゴリを選択してください。');
+      return;
+    }
     var amount = parseInt(amountInput.value, 10);
     var reason = reasonInput.value.trim();
 

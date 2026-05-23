@@ -43,15 +43,32 @@
 
     function fetchCategories(callback) {
       fetch('api/master/categories.php', { credentials: 'same-origin' })
-        .then(function(r) { return r.json(); })
+        .then(function(r) {
+          if (r.status === 401) { window.location.href = 'login.html'; return null; }
+          return r.json();
+        })
         .then(function(data) {
+          if (!data) return;
           if (data.success && Array.isArray(data.data)) {
             data.data.forEach(function(c) {
               categoriesMap[c.code] = {
                 closing_type: c.closing_type || 'none',
                 closing_day: parseInt(c.closing_day, 10) || 0,
+                name: c.name,
               };
             });
+            // カテゴリプルダウンを動的構築（自店所属カテゴリのみ）
+            var sel = document.getElementById('category');
+            if (sel) {
+              // 既存option（「すべて」は残す）を一度クリア
+              while (sel.options.length > 1) sel.remove(1);
+              data.data.forEach(function(c) {
+                var opt = document.createElement('option');
+                opt.value = c.code;
+                opt.textContent = c.name;
+                sel.appendChild(opt);
+              });
+            }
           }
           if (callback) callback();
         })
@@ -414,7 +431,7 @@
       if (currentUser) return;
       currentUser = user;
 
-      // 取扱カテゴリでドロップダウンを絞り込み＋単一カテゴリの場合は自動選択＋ロック
+      // 取扱カテゴリでドロップダウンを絞り込み（自動選択ロックは行わない – 発注一覧と統一）
       if (Array.isArray(user.categories) && user.categories.length > 0) {
         var catSel = document.getElementById('category');
         if (catSel) {
@@ -423,10 +440,6 @@
             opts += '<option value="' + c.code + '">' + c.name + '</option>';
           });
           catSel.innerHTML = opts;
-          if (user.categories.length === 1) {
-            catSel.value = user.categories[0].code;
-            catSel.disabled = true;
-          }
         }
       }
 

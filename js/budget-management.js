@@ -5,11 +5,9 @@
     var fiscalMonths = [4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3];
 
     // 部門定義: 'all' は全体（バックエンドが SUM 計算）、他は categories.code = budgets.department
-    // 2026-05-22 schema migration: ENUM 'fit'/'ig' → VARCHAR 'fitness'/'golf' に統一
+    // 2026-05-23 自店所属カテゴリのみ表示するため API から動的構築
     var departments = [
-      { key: 'all',     label: '全体' },
-      { key: 'fitness', label: 'フィットネス' },
-      { key: 'golf',    label: 'インドアゴルフ' }
+      { key: 'all', label: '全体' }
     ];
 
     // ===== Excel出力対象選択（admin only） =====
@@ -152,10 +150,10 @@
     }
 
     function fetchMasterData(callback) {
-      // 年度ドロップダウンは全ユーザーで必要
+      // 年度ドロップダウン + カテゴリは全ユーザーで必要
       var done = 0;
-      var total = viewMode === 'admin' ? 4 : 1;
-      var zones = [], areas = [], shops = [];
+      var total = viewMode === 'admin' ? 5 : 2;
+      var zones = [], areas = [], shops = [], categories = [];
 
       function checkDone() {
         done++;
@@ -180,10 +178,33 @@
             zoneSelect.innerHTML += '<option value="' + z.zone_code + '">' + z.zone_code + ':' + z.zone_name + '</option>';
           });
         }
+        // Populate dept(category) selects (admin / store 両方対応)
+        ['filterDept', 'storeDept'].forEach(function(id) {
+          var sel = document.getElementById(id);
+          if (!sel) return;
+          while (sel.options.length > 1) sel.remove(1);
+          categories.forEach(function(c) {
+            var opt = document.createElement('option');
+            opt.value = c.code;
+            opt.textContent = c.name;
+            sel.appendChild(opt);
+          });
+        });
+        // departments を「全体 + 取得済みカテゴリ」で再構築
+        // 店舗ユーザーは自店所属カテゴリのみ、admin は全カテゴリ
+        departments = [{ key: 'all', label: '全体' }];
+        categories.forEach(function(c) {
+          departments.push({ key: c.code, label: c.name });
+        });
         callback();
       }
 
       fetchFiscalYears(checkDone);
+
+      fetch('api/master/categories.php', { credentials: 'same-origin' })
+        .then(function(r) { return r.json(); })
+        .then(function(data) { categories = data.data || []; checkDone(); })
+        .catch(function(e) { console.error('Failed to fetch categories:', e); categories = []; checkDone(); });
 
       if (viewMode === 'admin') {
         fetch('api/master/zones.php', { credentials: 'same-origin' })
@@ -206,9 +227,11 @@
     // ===== API: Fetch budget data =====
     function fetchBudgetData(callback) {
       var year = getSelectedYear();
-      var depts = ['all', 'fitness', 'golf'];
+      // departments は initView 前に fetchMasterData で動的構築済み
+      var depts = departments.map(function(d) { return d.key; });
       var results = {};
       var done = 0;
+      var total = depts.length;
       if (typeof window.showLoading === 'function') window.showLoading('予算データを読み込み中…');
 
       function finishedAll() {
@@ -234,13 +257,13 @@
           .then(function(data) {
             results[dept] = data.data || [];
             done++;
-            if (done === 3) finishedAll();
+            if (done === total) finishedAll();
           })
           .catch(function(e) {
             console.error('Failed to fetch budgets (dept=' + dept + '):', e);
             results[dept] = [];
             done++;
-            if (done === 3) finishedAll();
+            if (done === total) finishedAll();
           });
       });
     }
@@ -249,33 +272,29 @@
       // Use 'all' dept list as the base shop list
       var shopMap = {};
 
-      results['all'].forEach(function(d) {
+      (results['all'] || []).forEach(function(d) {
+        var details = {};
+        departments.forEach(function(dp) {
+          details[dp.key] = dp.key === 'all' ? monthlyToDetail(d.monthly) : emptyDetail();
+        });
         shopMap[d.shop_code] = {
           year: String(year),
           shop: d.shop_code + ':' + d.shop_name,
           zone: d.zone_code,
           area: d.area_code,
           shopCode: d.shop_code,
-          details: {
-            all:     monthlyToDetail(d.monthly),
-            fitness: emptyDetail(),
-            golf:    emptyDetail()
-          }
+          details: details
         };
       });
 
-      // Merge fitness
-      results['fitness'].forEach(function(d) {
-        if (shopMap[d.shop_code]) {
-          shopMap[d.shop_code].details.fitness = monthlyToDetail(d.monthly);
-        }
-      });
-
-      // Merge golf
-      results['golf'].forEach(function(d) {
-        if (shopMap[d.shop_code]) {
-          shopMap[d.shop_code].details.golf = monthlyToDetail(d.monthly);
-        }
+      // Merge per-category details for all departments except 'all'
+      departments.forEach(function(dp) {
+        if (dp.key === 'all') return;
+        (results[dp.key] || []).forEach(function(d) {
+          if (shopMap[d.shop_code]) {
+            shopMap[d.shop_code].details[dp.key] = monthlyToDetail(d.monthly);
+          }
+        });
       });
 
       budgetData = [];
