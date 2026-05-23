@@ -129,23 +129,24 @@ INSERT INTO products (id, name, code, price, supplier_id, category_code,
 -- ============================================================
 -- 8. users（ユーザーマスタ）
 -- 管理者1名 + 各店舗に1ユーザーずつ
--- ※ パスワードはプレーンテキストで仮置き。
---   本番環境ではPHP password_hash('password', PASSWORD_BCRYPT) で
---   生成したハッシュ値に置き換えてください。
+-- パスワードは "password" を bcrypt ハッシュ化したもの。
+-- 全ユーザー共通でログイン可能（開発・検証用）。
+-- 本番運用時は各ユーザーごとに新しいハッシュを設定すること。
+-- ハッシュ生成: php -r "echo password_hash('password', PASSWORD_BCRYPT);"
 -- ============================================================
 INSERT INTO users (id, login_id, password, name, role, shop_code, sort_order) VALUES
-  (1,  'admin', 'password', '商品部', 'admin', NULL,    0),
-  (2,  '10101', 'password', '札幌店',       'shop',  '10101', 1),
-  (3,  '10102', 'password', '函館店',       'shop',  '10102', 2),
-  (4,  '10103', 'password', '旭川店',       'shop',  '10103', 3),
-  (5,  '10201', 'password', '仙台店',       'shop',  '10201', 4),
-  (6,  '10202', 'password', '盛岡店',       'shop',  '10202', 5),
-  (7,  '10301', 'password', '新宿東口店',   'shop',  '10301', 6),
-  (8,  '10302', 'password', '池袋西口店',   'shop',  '10302', 7),
-  (9,  '10303', 'password', '横浜店',       'shop',  '10303', 8),
-  (10, '20101', 'password', '梅田店',       'shop',  '20101', 9),
-  (11, '20102', 'password', '難波店',       'shop',  '20102', 10),
-  (12, '20201', 'password', '広島店',       'shop',  '20201', 11);
+  (1,  'admin', '$2y$10$c2zmVJav6G.Qn0dj8kU0J.VJbD8gV1XxUFiotFTO95msoCS48tIva', '商品部', 'admin', NULL,    0),
+  (2,  '10101', '$2y$10$c2zmVJav6G.Qn0dj8kU0J.VJbD8gV1XxUFiotFTO95msoCS48tIva', '札幌店',       'shop',  '10101', 1),
+  (3,  '10102', '$2y$10$c2zmVJav6G.Qn0dj8kU0J.VJbD8gV1XxUFiotFTO95msoCS48tIva', '函館店',       'shop',  '10102', 2),
+  (4,  '10103', '$2y$10$c2zmVJav6G.Qn0dj8kU0J.VJbD8gV1XxUFiotFTO95msoCS48tIva', '旭川店',       'shop',  '10103', 3),
+  (5,  '10201', '$2y$10$c2zmVJav6G.Qn0dj8kU0J.VJbD8gV1XxUFiotFTO95msoCS48tIva', '仙台店',       'shop',  '10201', 4),
+  (6,  '10202', '$2y$10$c2zmVJav6G.Qn0dj8kU0J.VJbD8gV1XxUFiotFTO95msoCS48tIva', '盛岡店',       'shop',  '10202', 5),
+  (7,  '10301', '$2y$10$c2zmVJav6G.Qn0dj8kU0J.VJbD8gV1XxUFiotFTO95msoCS48tIva', '新宿東口店',   'shop',  '10301', 6),
+  (8,  '10302', '$2y$10$c2zmVJav6G.Qn0dj8kU0J.VJbD8gV1XxUFiotFTO95msoCS48tIva', '池袋西口店',   'shop',  '10302', 7),
+  (9,  '10303', '$2y$10$c2zmVJav6G.Qn0dj8kU0J.VJbD8gV1XxUFiotFTO95msoCS48tIva', '横浜店',       'shop',  '10303', 8),
+  (10, '20101', '$2y$10$c2zmVJav6G.Qn0dj8kU0J.VJbD8gV1XxUFiotFTO95msoCS48tIva', '梅田店',       'shop',  '20101', 9),
+  (11, '20102', '$2y$10$c2zmVJav6G.Qn0dj8kU0J.VJbD8gV1XxUFiotFTO95msoCS48tIva', '難波店',       'shop',  '20102', 10),
+  (12, '20201', '$2y$10$c2zmVJav6G.Qn0dj8kU0J.VJbD8gV1XxUFiotFTO95msoCS48tIva', '広島店',       'shop',  '20201', 11);
 
 -- ============================================================
 -- 9. system_settings
