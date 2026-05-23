@@ -23,8 +23,11 @@ requireLogin();
 requireMethod('GET');
 
 // --- パラメータ取得 ---
-$user       = getCurrentUser();
-$fiscalYear = isset($_GET['year']) ? (int)$_GET['year'] : getCurrentFiscalYear();
+$user      = getCurrentUser();
+// year: 空欄 or 'all' → 全年度（複数年をまとめて出力）／ それ以外は当該年度のみ
+$yearParam = $_GET['year'] ?? '';
+$allYears  = ($yearParam === '' || $yearParam === 'all');
+$fiscalYear = $allYears ? null : (int)$yearParam;
 $dept       = $_GET['dept'] ?? 'all';
 $zoneCode   = $_GET['zone'] ?? '';
 $areaCode   = $_GET['area'] ?? '';
@@ -99,44 +102,68 @@ $shopSql .= ' ORDER BY s.sort_order, s.code';
 $shops = query($shopSql, $shopParams);
 
 // --- 予算データ取得 ---
+// 出力する dept のリストを決定:
+//   - dept='all'         → 全体（SUM）＋全カテゴリの内訳行を出力（カテゴリ拡張時も自動対応）
+//   - dept=<categories.code> → そのカテゴリのみ
 $shopCodes = array_column($shops, 'shop_code');
 
+$deptsToOutput = ($dept === 'all')
+    ? array_merge(['all'], array_column($categoryRows, 'code'))
+    : [$dept];
+
+// 出力対象年度の決定
+if ($allYears) {
+    $yearRows = query('SELECT DISTINCT fiscal_year FROM budgets ORDER BY fiscal_year');
+    $yearsToOutput = array_map(fn($r) => (int)$r['fiscal_year'], $yearRows);
+} else {
+    $yearsToOutput = [$fiscalYear];
+}
+
+// budgetMap[dept][shop_code][fiscal_year][month] = ['budget'=>x, 'actual'=>y]
 $budgetMap = [];
-if (!empty($shopCodes)) {
+if (!empty($shopCodes) && !empty($yearsToOutput)) {
     $placeholders = implode(',', array_map(fn($i) => ':sc' . $i, array_keys($shopCodes)));
-    if ($dept === 'all') {
-        // 全体: 部門合計 (SUM)
-        $budgetSql = "SELECT shop_code, month,
-                             SUM(budget_amount) AS budget_amount,
-                             SUM(actual_amount) AS actual_amount
-                      FROM budgets
-                      WHERE fiscal_year = :fiscal_year
-                        AND shop_code IN ({$placeholders})
-                      GROUP BY shop_code, month
-                      ORDER BY shop_code, month";
-        $budgetParams = [':fiscal_year' => $fiscalYear];
-    } else {
-        $budgetSql = "SELECT shop_code, month, budget_amount, actual_amount
-                      FROM budgets
-                      WHERE fiscal_year = :fiscal_year
-                        AND department  = :department
-                        AND shop_code IN ({$placeholders})
-                      ORDER BY shop_code, month";
-        $budgetParams = [
-            ':fiscal_year' => $fiscalYear,
-            ':department'  => $dept,
-        ];
-    }
-    foreach ($shopCodes as $i => $sc) {
-        $budgetParams[':sc' . $i] = $sc;
+    $yearFilter   = $allYears ? '' : ' AND fiscal_year = :fiscal_year';
+
+    // 全体（SUM）: dept=all のときに使う
+    if (in_array('all', $deptsToOutput, true)) {
+        $sumSql = "SELECT shop_code, fiscal_year, month,
+                          SUM(budget_amount) AS budget_amount,
+                          SUM(actual_amount) AS actual_amount
+                   FROM budgets
+                   WHERE shop_code IN ({$placeholders}){$yearFilter}
+                   GROUP BY shop_code, fiscal_year, month
+                   ORDER BY shop_code, fiscal_year, month";
+        $sumParams = [];
+        if (!$allYears) $sumParams[':fiscal_year'] = $fiscalYear;
+        foreach ($shopCodes as $i => $sc) $sumParams[':sc' . $i] = $sc;
+        foreach (query($sumSql, $sumParams) as $r) {
+            $budgetMap['all'][$r['shop_code']][(int)$r['fiscal_year']][(int)$r['month']] = [
+                'budget' => (int)$r['budget_amount'],
+                'actual' => (int)$r['actual_amount'],
+            ];
+        }
     }
 
-    $budgetRows = query($budgetSql, $budgetParams);
-    foreach ($budgetRows as $row) {
-        $budgetMap[$row['shop_code']][(int)$row['month']] = [
-            'budget' => (int)$row['budget_amount'],
-            'actual' => (int)$row['actual_amount'],
-        ];
+    // 個別カテゴリ取得
+    $categoryDepts = array_filter($deptsToOutput, fn($d) => $d !== 'all');
+    if (!empty($categoryDepts)) {
+        $deptPlaceholders = implode(',', array_map(fn($i) => ':dp' . $i, array_keys(array_values($categoryDepts))));
+        $catSql = "SELECT shop_code, fiscal_year, month, department, budget_amount, actual_amount
+                   FROM budgets
+                   WHERE department IN ({$deptPlaceholders})
+                     AND shop_code IN ({$placeholders}){$yearFilter}
+                   ORDER BY shop_code, fiscal_year, department, month";
+        $catParams = [];
+        if (!$allYears) $catParams[':fiscal_year'] = $fiscalYear;
+        foreach (array_values($categoryDepts) as $i => $d) $catParams[':dp' . $i] = $d;
+        foreach ($shopCodes as $i => $sc) $catParams[':sc' . $i] = $sc;
+        foreach (query($catSql, $catParams) as $r) {
+            $budgetMap[$r['department']][$r['shop_code']][(int)$r['fiscal_year']][(int)$r['month']] = [
+                'budget' => (int)$r['budget_amount'],
+                'actual' => (int)$r['actual_amount'],
+            ];
+        }
     }
 }
 
@@ -149,21 +176,15 @@ $spreadsheet->getDefaultStyle()->getFont()->setName('Meiryo UI');
 $sheet = $spreadsheet->getActiveSheet();
 $sheet->setTitle('予算実績');
 
-// ヘッダ定義
+// ヘッダ定義: 店舗情報6列 + 項目1列 + 月12列 + 合計1列 = 20列
+// 各 (店舗 × カテゴリ) について 予算/実績/残高/消化(%) の4行を出力（画面の月別明細と同じレイアウト）
 $headers = [
-    '店舗コード',
-    '店舗名',
-    'ゾーン',
-    'エリア',
-    '年度',
-    'カテゴリ',
+    '店舗コード', '店舗名', 'ゾーン', 'エリア', '年度', 'カテゴリ', '項目',
 ];
 foreach ($fiscalMonths as $m) {
-    $headers[] = $m . '月_予算';
-    $headers[] = $m . '月_実績';
+    $headers[] = $m . '月';
 }
-$headers[] = '年間_予算合計';
-$headers[] = '年間_実績合計';
+$headers[] = '合計';
 
 // ヘッダ行書き込み
 $col = 1;
@@ -171,7 +192,7 @@ foreach ($headers as $label) {
     $sheet->setCellValue([$col, 1], $label);
     $col++;
 }
-$lastCol = $col - 1; // 30列 (6 + 24 + 2)
+$lastCol = $col - 1; // 20列
 $lastColLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($lastCol);
 
 // ヘッダスタイル
@@ -184,37 +205,62 @@ $sheet->getStyle($headerRange)->applyFromArray([
 ]);
 $sheet->getRowDimension(1)->setRowHeight(24);
 
-// カラム幅（データ書き込み後に自動調整）
-
-// データ行書き込み
+// データ行書き込み: 店舗 × カテゴリ × {予算/実績/残高/消化(%)} の4行
 $rowNum = 2;
+$itemLabels = ['予算（円）', '実績（円）', '残高（円）', '消化（%）'];
 
 foreach ($shops as $shop) {
     $code = $shop['shop_code'];
-    $col  = 1;
 
-    $sheet->setCellValue([$col++, $rowNum], $shop['shop_code']);
-    $sheet->setCellValue([$col++, $rowNum], $shop['shop_name']);
-    $sheet->setCellValue([$col++, $rowNum], $shop['zone_name']);
-    $sheet->setCellValue([$col++, $rowNum], $shop['area_name']);
-    $sheet->setCellValue([$col++, $rowNum], $fiscalYear . '年度');
-    $sheet->setCellValue([$col++, $rowNum], $deptLabels[$dept] ?? $dept);
+    foreach ($yearsToOutput as $year) {
+        foreach ($deptsToOutput as $deptKey) {
+            $monthMap = $budgetMap[$deptKey][$code][$year] ?? [];
 
-    $totalBudget = 0;
-    $totalActual = 0;
+            // 月別 budget / actual 配列を作成
+            $budgets = [];
+            $actuals = [];
+            $balances = [];
+            $rates = []; // 消化率(%)
+            $totalBudget = 0;
+            $totalActual = 0;
+            foreach ($fiscalMonths as $m) {
+                $entry = $monthMap[$m] ?? ['budget' => 0, 'actual' => 0];
+                $b = (int)$entry['budget'];
+                $a = (int)$entry['actual'];
+                $budgets[]  = $b;
+                $actuals[]  = $a;
+                $balances[] = $b - $a;
+                $rates[]    = $b > 0 ? round($a / $b * 100, 1) : 0.0;
+                $totalBudget += $b;
+                $totalActual += $a;
+            }
+            $totalBalance = $totalBudget - $totalActual;
+            $totalRate    = $totalBudget > 0 ? round($totalActual / $totalBudget * 100, 1) : 0.0;
 
-    foreach ($fiscalMonths as $m) {
-        $entry = $budgetMap[$code][$m] ?? ['budget' => 0, 'actual' => 0];
-        $sheet->setCellValue([$col++, $rowNum], $entry['budget']);
-        $sheet->setCellValue([$col++, $rowNum], $entry['actual']);
-        $totalBudget += $entry['budget'];
-        $totalActual += $entry['actual'];
+            $itemValues = [
+                ['予算（円）',  $budgets,  $totalBudget],
+                ['実績（円）',  $actuals,  $totalActual],
+                ['残高（円）',  $balances, $totalBalance],
+                ['消化（%）',   $rates,    $totalRate],
+            ];
+
+            foreach ($itemValues as $iv) {
+                $col = 1;
+                $sheet->setCellValueExplicit([$col++, $rowNum], $shop['shop_code'], \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                $sheet->setCellValue([$col++, $rowNum], $shop['shop_name']);
+                $sheet->setCellValue([$col++, $rowNum], $shop['zone_name']);
+                $sheet->setCellValue([$col++, $rowNum], $shop['area_name']);
+                $sheet->setCellValue([$col++, $rowNum], $year . '年度');
+                $sheet->setCellValue([$col++, $rowNum], $deptLabels[$deptKey] ?? $deptKey);
+                $sheet->setCellValue([$col++, $rowNum], $iv[0]);
+                foreach ($iv[1] as $val) {
+                    $sheet->setCellValue([$col++, $rowNum], $val);
+                }
+                $sheet->setCellValue([$col++, $rowNum], $iv[2]);
+                $rowNum++;
+            }
+        }
     }
-
-    $sheet->setCellValue([$col++, $rowNum], $totalBudget);
-    $sheet->setCellValue([$col++, $rowNum], $totalActual);
-
-    $rowNum++;
 }
 
 // データ行スタイル（罫線）
@@ -226,13 +272,21 @@ if ($lastRow >= 2) {
         'font' => ['size' => 10],
         'alignment' => ['vertical' => Alignment::VERTICAL_CENTER],
     ]);
-    // 金額列は右寄せ・カンマ区切り（G列〜最終列）
-    for ($c = 7; $c <= $lastCol; $c++) {
+    // 数値列の書式（H列=4月以降〜最終列）。消化(%)行と金額行で書式分けする必要があるが、
+    // ここでは数値列を右寄せ + デフォルトの数値表示にし、行ごとに細かい数値書式を適用
+    for ($c = 8; $c <= $lastCol; $c++) {
         $letter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($c);
         $sheet->getStyle($letter . '2:' . $letter . $lastRow)
-              ->getNumberFormat()->setFormatCode('#,##0');
-        $sheet->getStyle($letter . '2:' . $letter . $lastRow)
               ->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+    }
+    // 行ごとに書式適用: 予算/実績/残高は #,##0、消化率は 0.0
+    // 4行を1サイクルとして処理
+    for ($r = 2; $r <= $lastRow; $r++) {
+        // (r - 2) % 4 で行種別を判定 (0=予算, 1=実績, 2=残高, 3=消化率)
+        $itemIdx = ($r - 2) % 4;
+        $fmt = ($itemIdx === 3) ? '0.0' : '#,##0';
+        $sheet->getStyle('H' . $r . ':' . $lastColLetter . $r)
+              ->getNumberFormat()->setFormatCode($fmt);
     }
 }
 
@@ -242,14 +296,15 @@ for ($c = 1; $c <= $lastCol; $c++) {
     $sheet->getColumnDimension($letter)->setAutoSize(true);
 }
 
-// ウィンドウ枠固定（ヘッダ行 + 左6列固定）
-$sheet->freezePane('G2');
+// ウィンドウ枠固定（ヘッダ行 + 左7列=店舗情報+項目 固定）
+$sheet->freezePane('H2');
 
 // アクティブセルをA1に設定
 $sheet->setSelectedCell('A1');
 
 // --- 出力 ---
-$filename = sprintf('budget_%d_%s_%s.xlsx', $fiscalYear, $dept, date('Ymd'));
+$yearLabel = $allYears ? '全年度' : (string)$fiscalYear;
+$filename = sprintf('budget_%s_%s_%s.xlsx', $yearLabel, $dept, date('Ymd'));
 
 header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
 header('Content-Disposition: attachment; filename="' . $filename . '"');

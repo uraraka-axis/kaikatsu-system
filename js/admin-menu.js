@@ -1,26 +1,72 @@
-    // ===== Master Data (shared with order-list) =====
-    var zones = [
-      { code: '100', name: '東日本' },
-      { code: '200', name: '西日本' }
-    ];
-    var areas = [
-      { code: '101', name: '北海道', zone: '100' },
-      { code: '102', name: '東北', zone: '100' },
-      { code: '103', name: '関東', zone: '100' },
-      { code: '201', name: '関西', zone: '200' },
-      { code: '202', name: '中国・四国', zone: '200' }
-    ];
-    var shopList = [
-      { code: '10301', name: '新宿東口', shortCode: 'S01', area: '103' },
-      { code: '10302', name: '池袋西口', shortCode: 'S02', area: '103' },
-      { code: '10303', name: '横浜', shortCode: 'S03', area: '103' },
-      { code: '10101', name: '札幌', shortCode: 'S04', area: '101' },
-      { code: '10102', name: '函館', shortCode: 'S05', area: '101' },
-      { code: '10201', name: '仙台', shortCode: 'S06', area: '102' },
-      { code: '20101', name: '梅田', shortCode: 'S07', area: '201' },
-      { code: '20102', name: '難波', shortCode: 'S08', area: '201' },
-      { code: '20201', name: '広島', shortCode: 'S09', area: '202' }
-    ];
+    // ===== Master Data (zones/areas/shops are loaded from API on DOMContentLoaded) =====
+    // 旧来の参照箇所と互換を保つため field 名は { code, name, zone, area } に正規化する
+    var zones = [];
+    var areas = [];
+    var shopList = [];
+
+    // ゾーン/エリア/店舗マスタを API から取得して各プルダウンを構築する
+    function loadExportFilterMasters() {
+      var p1 = fetch('api/master/zones.php', { credentials: 'same-origin' })
+        .then(function(r) {
+          if (r.status === 401) { window.location.href = 'login.html'; return null; }
+          return r.json();
+        })
+        .then(function(json) {
+          if (!json || !json.success || !Array.isArray(json.data)) return;
+          zones = json.data.map(function(z) {
+            return { code: z.zone_code, name: z.zone_name };
+          });
+        })
+        .catch(function(e) { console.error('zones fetch error:', e); });
+
+      var p2 = fetch('api/master/areas.php', { credentials: 'same-origin' })
+        .then(function(r) {
+          if (r.status === 401) { window.location.href = 'login.html'; return null; }
+          return r.json();
+        })
+        .then(function(json) {
+          if (!json || !json.success || !Array.isArray(json.data)) return;
+          areas = json.data.map(function(a) {
+            return { code: a.area_code, name: a.area_name, zone: a.zone_code };
+          });
+        })
+        .catch(function(e) { console.error('areas fetch error:', e); });
+
+      var p3 = fetch('api/master/shops.php', { credentials: 'same-origin' })
+        .then(function(r) {
+          if (r.status === 401) { window.location.href = 'login.html'; return null; }
+          return r.json();
+        })
+        .then(function(json) {
+          if (!json || !json.success || !Array.isArray(json.data)) return;
+          shopList = json.data.map(function(s) {
+            return { code: s.shop_code, name: s.shop_name, area: s.area_code };
+          });
+        })
+        .catch(function(e) { console.error('shops fetch error:', e); });
+
+      Promise.all([p1, p2, p3]).then(function() {
+        // Order/Budget 両方のゾーンプルダウンを初期化
+        var zoneHtml = '<option value="">すべて</option>' +
+          zones.map(function(z) {
+            return '<option value="' + z.code + '">' + z.code + ':' + z.name + '</option>';
+          }).join('');
+        var orderZone = document.getElementById('exportOrderZone');
+        if (orderZone) orderZone.innerHTML = zoneHtml;
+        var budgetZone = document.getElementById('exportBudgetZone');
+        if (budgetZone) budgetZone.innerHTML = zoneHtml;
+
+        // エリア/店舗は「すべて」初期状態でフル一覧を出す
+        var orderArea = document.getElementById('exportOrderArea');
+        if (orderArea) orderArea.innerHTML = buildAreaOptions('');
+        var orderShop = document.getElementById('exportOrderShop');
+        if (orderShop) orderShop.innerHTML = buildShopOptions(getFilteredShops('', ''));
+        var budgetArea = document.getElementById('exportBudgetArea');
+        if (budgetArea) budgetArea.innerHTML = buildAreaOptions('');
+        var budgetShop = document.getElementById('exportBudgetShop');
+        if (budgetShop) budgetShop.innerHTML = buildShopOptions(getFilteredShops('', ''));
+      });
+    }
 
     function getShopName(code) {
       var s = shopList.find(function(s) { return s.code === code; });
@@ -402,8 +448,34 @@
         .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
 
+    // ===== 年度ドロップダウン動的取得 =====
+    function populateBudgetYearDropdown() {
+      var sel = document.getElementById('exportBudgetYear');
+      if (!sel) return;
+      fetch('api/budgets.php?action=years', { credentials: 'same-origin' })
+        .then(function(r) {
+          if (r.status === 401) { window.location.href = 'login.html'; return null; }
+          return r.json();
+        })
+        .then(function(json) {
+          if (!json || !json.success || !Array.isArray(json.data)) return;
+          var years = json.data;
+          if (years.length === 0) {
+            sel.innerHTML = '<option value="">（年度データなし）</option>';
+            return;
+          }
+          sel.innerHTML = '<option value="">すべて</option>' + years.map(function(y) {
+            return '<option value="' + y + '">' + y + '年度</option>';
+          }).join('');
+        })
+        .catch(function(e) { console.error('year fetch error:', e); });
+    }
+
     // ===== D&D 対応（upload-area へのドロップ） =====
     document.addEventListener('DOMContentLoaded', function() {
+      populateBudgetYearDropdown();
+      loadExportFilterMasters();
+
       document.querySelectorAll('.master-card .upload-area').forEach(function(area) {
         var type = area.parentElement.getAttribute('data-master-type');
         if (!type) return;
@@ -536,55 +608,25 @@
       });
     }
 
+    // 発注データExcel出力（サーバー側 xlsx）
     function exportOrderData() {
-      var filtered = getFilteredOrders();
-      if (filtered.length === 0) {
-        alert('出力対象のデータがありません。');
-        return;
-      }
-
-      var rows = [];
-      rows.push(['発注データ']);
-      rows.push([]);
-
-      // Filter conditions
-      rows.push(['【ゾーン】', getSelectedText('exportOrderZone')]);
-      rows.push(['【エリア】', getSelectedText('exportOrderArea')]);
-      rows.push(['【店舗】', getSelectedText('exportOrderShop')]);
+      var params = [];
+      var zone = document.getElementById('exportOrderZone').value;
+      var area = document.getElementById('exportOrderArea').value;
+      var shop = document.getElementById('exportOrderShop').value;
       var dateFrom = document.getElementById('exportDateFrom').value;
       var dateTo = document.getElementById('exportDateTo').value;
-      var dateLabel = (dateFrom || '指定なし') + ' 〜 ' + (dateTo || '指定なし');
-      rows.push(['【発注日】', dateLabel]);
-      rows.push(['【種別】', getSelectedText('exportType')]);
-      rows.push(['【ステータス】', getSelectedText('exportStatus')]);
-      rows.push([]);
-
-      // Header
-      rows.push(['発注番号', '種別', '店舗', 'カテゴリ', '内容', '金額', 'ステータス', '発注日']);
-
-      // Data
-      filtered.sort(function(a, b) { return b.date.localeCompare(a.date); });
-      filtered.forEach(function(o) {
-        var typeLabel = TYPE_LABELS[o.type] || o.type;
-        var statusLabel = (STATUS_LABELS[o.type] || STATUS_LABELS.equipment)[o.status] || '';
-        var catLabel = o.category === 'fitness' ? 'フィットネス' : 'インドアゴルフ';
-        rows.push([
-          o.id, typeLabel, getShopName(o.shop), catLabel, o.title,
-          o.amount != null ? o.amount : '', statusLabel, o.date
-        ]);
-      });
-
-      // Summary
-      rows.push([]);
-      rows.push(['合計件数', filtered.length + '件']);
-      var totalAmount = 0;
-      var amountCount = 0;
-      filtered.forEach(function(o) { if (o.amount != null) { totalAmount += o.amount; amountCount++; } });
-      if (amountCount > 0) {
-        rows.push(['金額合計', totalAmount]);
-      }
-
-      downloadCsv(rows, '発注データ.csv');
+      var type = document.getElementById('exportType').value;
+      var status = document.getElementById('exportStatus').value;
+      if (zone)     params.push('zone='      + encodeURIComponent(zone));
+      if (area)     params.push('area='      + encodeURIComponent(area));
+      if (shop)     params.push('shop='      + encodeURIComponent(shop));
+      if (dateFrom) params.push('date_from=' + encodeURIComponent(dateFrom));
+      if (dateTo)   params.push('date_to='   + encodeURIComponent(dateTo));
+      if (type)     params.push('type='      + encodeURIComponent(type));
+      if (status)   params.push('status='    + encodeURIComponent(status));
+      var url = 'api/export/orders.php' + (params.length ? '?' + params.join('&') : '');
+      window.location.href = url;
     }
 
     // ===== Export: Budget Data =====
@@ -601,83 +643,19 @@
       });
     }
 
+    // 予算データExcel出力（サーバー側 xlsx）
+    //   year='' (すべて) のときは全年度をまとめて出力
+    //   dept='' (すべて) のときは全カテゴリブレークダウン
     function exportBudgetData() {
-      var data = getFilteredBudget();
-      if (data.length === 0) {
-        alert('出力対象のデータがありません。');
-        return;
-      }
-
-      var yearLabel = getSelectedText('exportBudgetYear');
-      var deptVal = document.getElementById('exportBudgetDept').value;
-
-      var rows = [];
-      rows.push(['予算管理データ']);
-      rows.push([]);
-      rows.push(['【ゾーン】', getSelectedText('exportBudgetZone')]);
-      rows.push(['【エリア】', getSelectedText('exportBudgetArea')]);
-      rows.push(['【店舗】', getSelectedText('exportBudgetShop')]);
-      rows.push(['【カテゴリ】', getSelectedText('exportBudgetDept')]);
-      rows.push(['【年度】', yearLabel]);
-      rows.push([]);
-
-      // Summary table
-      rows.push([
-        '店舗',
-        '当期予算', '当期実績', '当期残高', '当期消化率(%)',
-        '期中予算', '期中実績', '期中残高', '期中消化率(%)',
-        '当月予算', '当月実績', '当月残高', '当月消化率(%)'
-      ]);
-      data.forEach(function(d) {
-        rows.push([
-          d.shop,
-          d.period[0], d.period[1], d.period[2], d.period[3].toFixed(1),
-          d.midterm[0], d.midterm[1], d.midterm[2], d.midterm[3].toFixed(1),
-          d.month[0], d.month[1], d.month[2], d.month[3].toFixed(1)
-        ]);
-      });
-      if (data.length > 1) {
-        var totP = [0,0,0], totM = [0,0,0], totMo = [0,0,0];
-        data.forEach(function(d) {
-          for (var i = 0; i < 3; i++) { totP[i] += d.period[i]; totM[i] += d.midterm[i]; totMo[i] += d.month[i]; }
-        });
-        rows.push([
-          '合計',
-          totP[0], totP[1], totP[2], totP[0] > 0 ? (totP[1] / totP[0] * 100).toFixed(1) : '0.0',
-          totM[0], totM[1], totM[2], totM[0] > 0 ? (totM[1] / totM[0] * 100).toFixed(1) : '0.0',
-          totMo[0], totMo[1], totMo[2], totMo[0] > 0 ? (totMo[1] / totMo[0] * 100).toFixed(1) : '0.0'
-        ]);
-      }
-
-      // Monthly detail
-      var deptKeys = deptVal ? [departments.find(function(d) { return d.key === deptVal; }) || departments[0]] : departments;
-      rows.push([]);
-      rows.push(['===== 月別明細 =====']);
-      var monthHeaders = ['項目'];
-      fiscalMonths.forEach(function(m) { monthHeaders.push(m + '月'); });
-      monthHeaders.push('合計');
-
-      data.forEach(function(d) {
-        rows.push([]);
-        rows.push(['■ ' + d.shop]);
-        deptKeys.forEach(function(dept) {
-          rows.push(['【' + dept.label + '】']);
-          rows.push(monthHeaders);
-          var detail = d.details[dept.key];
-          var bRow = ['予算'], aRow = ['実績'], balRow = ['残高'], rRow = ['消化率(%)'];
-          var bTot = 0, aTot = 0;
-          detail.forEach(function(cell) {
-            bRow.push(cell[0]); aRow.push(cell[1]);
-            balRow.push(cell[0] - cell[1]);
-            rRow.push(cell[0] > 0 ? (cell[1] / cell[0] * 100).toFixed(1) : '0.0');
-            bTot += cell[0]; aTot += cell[1];
-          });
-          bRow.push(bTot); aRow.push(aTot); balRow.push(bTot - aTot);
-          rRow.push(bTot > 0 ? (aTot / bTot * 100).toFixed(1) : '0.0');
-          rows.push(bRow); rows.push(aRow); rows.push(balRow); rows.push(rRow);
-        });
-      });
-
-      var year = document.getElementById('exportBudgetYear').value;
-      downloadCsv(rows, '予算管理_' + year + '年度.csv');
+      var year = document.getElementById('exportBudgetYear').value; // '' or 'YYYY'
+      var zone = document.getElementById('exportBudgetZone').value;
+      var area = document.getElementById('exportBudgetArea').value;
+      var shop = document.getElementById('exportBudgetShop').value;
+      var dept = document.getElementById('exportBudgetDept').value || 'all';
+      var params = ['dept=' + encodeURIComponent(dept)];
+      if (year) params.push('year=' + encodeURIComponent(year));
+      if (zone) params.push('zone=' + encodeURIComponent(zone));
+      if (area) params.push('area=' + encodeURIComponent(area));
+      if (shop) params.push('shop=' + encodeURIComponent(shop));
+      window.location.href = 'api/export/budgets.php?' + params.join('&');
     }

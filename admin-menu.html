@@ -176,8 +176,7 @@
                 <label class="export-filter-label">ゾーン</label>
                 <select class="form-select" id="exportOrderZone" onchange="onOrderZoneChange()">
                   <option value="">すべて</option>
-                  <option value="100">100:東日本</option>
-                  <option value="200">200:西日本</option>
+                  <!-- DBから動的取得: zones マスタ -->
                 </select>
               </div>
               <div class="export-filter-group">
@@ -244,8 +243,7 @@
                 <label class="export-filter-label">ゾーン</label>
                 <select class="form-select" id="exportBudgetZone" onchange="onBudgetZoneChange()">
                   <option value="">すべて</option>
-                  <option value="100">100:東日本</option>
-                  <option value="200">200:西日本</option>
+                  <!-- DBから動的取得: zones マスタ -->
                 </select>
               </div>
               <div class="export-filter-group">
@@ -271,8 +269,7 @@
               <div class="export-filter-group">
                 <label class="export-filter-label">年度</label>
                 <select class="form-select" id="exportBudgetYear">
-                  <option value="2025">2025年度</option>
-                  <option value="2024">2024年度</option>
+                  <!-- DBから動的取得: budgets.fiscal_year -->
                 </select>
               </div>
             </div>
@@ -307,6 +304,6 @@
     </div>
   </div>
 
-  <script src="js/admin-menu.js?v=20260522k"></script>
+  <script src="js/admin-menu.js?v=20260523c"></script>
 </body>
 </html>
