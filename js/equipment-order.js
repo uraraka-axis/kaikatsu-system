@@ -8,7 +8,8 @@
       remaining: 0,
       loaded: false,
       category: null,
-      monthLabel: '',
+      quarterLabel: '',  // 例: 'Q1'
+      quarterRange: '',  // 例: '4-6月'
     };
     var cartExpanded = false;
     var currentUser = null;
@@ -157,6 +158,9 @@
       if (!keys.length) {
         bar.classList.remove('visible', 'expanded');
         cartExpanded = false;
+        // カート空時は予算アラートも消す（既に超過していた場合に残ってしまうため）
+        var budgetAlert = document.getElementById('budgetAlert');
+        if (budgetAlert) budgetAlert.classList.remove('visible');
         return;
       }
       bar.classList.add('visible');
@@ -196,17 +200,18 @@
         }
       }
 
-      // 予算アラート表示
+      // 予算アラート表示（四半期予算ベース）
       var budgetAlert = document.getElementById('budgetAlert');
       if (budgetInfo.loaded && totalPrice > budgetInfo.remaining) {
         var alertText = document.getElementById('budgetAlertText');
         if (alertText) {
           var over = totalPrice - budgetInfo.remaining;
-          var label = budgetInfo.monthLabel || '当月';
-          alertText.innerHTML = '<strong>予算超過の可能性があります。</strong>' +
-            ' ' + label + '予算: ¥' + budgetInfo.budget.toLocaleString() +
-            ' / ' + label + '実績: ¥' + budgetInfo.actual.toLocaleString() +
-            ' / ' + label + '残高: ¥' + budgetInfo.remaining.toLocaleString() +
+          var qLabel = budgetInfo.quarterLabel || 'Q';
+          var qRange = budgetInfo.quarterRange ? '（' + budgetInfo.quarterRange + '）' : '';
+          alertText.innerHTML = '<strong>四半期予算超過の可能性があります。</strong>' +
+            ' ' + qLabel + qRange + '予算: ¥' + budgetInfo.budget.toLocaleString() +
+            ' / 実績: ¥' + budgetInfo.actual.toLocaleString() +
+            ' / 残高: ¥' + budgetInfo.remaining.toLocaleString() +
             ' / 今回発注予定額 ¥' + totalPrice.toLocaleString() +
             '（¥' + over.toLocaleString() + ' 超過）';
         }
@@ -264,12 +269,13 @@
             });
             if (totalPrice > budgetInfo.remaining) {
               var over = totalPrice - budgetInfo.remaining;
-              var label = budgetInfo.monthLabel || '当月';
+              var qLabel = budgetInfo.quarterLabel || 'Q';
+              var qRange = budgetInfo.quarterRange ? '（' + budgetInfo.quarterRange + '）' : '';
               bodyHtml += '<span class="notify-warning">' +
-                '<strong>⚠ 予算超過の可能性があります</strong><br>' +
-                label + '予算: ¥' + budgetInfo.budget.toLocaleString() +
-                ' / ' + label + '実績: ¥' + budgetInfo.actual.toLocaleString() +
-                ' / ' + label + '残高: ¥' + budgetInfo.remaining.toLocaleString() +
+                '<strong>⚠ 四半期予算超過の可能性があります</strong><br>' +
+                qLabel + qRange + '予算: ¥' + budgetInfo.budget.toLocaleString() +
+                ' / 実績: ¥' + budgetInfo.actual.toLocaleString() +
+                ' / 残高: ¥' + budgetInfo.remaining.toLocaleString() +
                 '<br>今回発注予定額 ¥' + totalPrice.toLocaleString() +
                 '（¥' + over.toLocaleString() + ' 超過）</span>';
               showNotify('warning', '備品発注を送信しました', bodyHtml);
@@ -341,6 +347,14 @@
     }
 
     // 2026-05-22: budgets.department migration により dept パラメータは categories.code をそのまま受け入れる
+    // 2026-05-23: 月次→四半期予算ベースの判定に変更（Q1=4-6月, Q2=7-9月, Q3=10-12月, Q4=1-3月）
+    function getQuarterInfo(month) {
+      if (month >= 4 && month <= 6)  return { label: 'Q1', range: '4-6月',  months: [4, 5, 6] };
+      if (month >= 7 && month <= 9)  return { label: 'Q2', range: '7-9月',  months: [7, 8, 9] };
+      if (month >= 10 && month <= 12) return { label: 'Q3', range: '10-12月', months: [10, 11, 12] };
+      return { label: 'Q4', range: '1-3月', months: [1, 2, 3] };
+    }
+
     function fetchBudgetForCategory(category) {
       var closing = categoriesMap[category];
       if (!closing || !category) {
@@ -353,6 +367,7 @@
       var settlementMonth = settlement.getMonth() + 1;
       var settlementYear  = settlement.getFullYear();
       var fiscalYear      = settlementMonth >= 4 ? settlementYear : settlementYear - 1;
+      var quarter         = getQuarterInfo(settlementMonth);
 
       budgetFetching = true;
       fetch('api/budgets.php?year=' + fiscalYear + '&dept=' + dept, { credentials: 'same-origin' })
@@ -366,24 +381,25 @@
         .then(function(data) {
           if (!data || !data.success || !data.data || !data.data.length) return;
           var shop = data.data[0];
-          var monthData = null;
+          // 四半期（3ヶ月）合計の budget / actual を集計
+          var qBudget = 0;
+          var qActual = 0;
           if (shop.monthly) {
-            for (var i = 0; i < shop.monthly.length; i++) {
-              if (shop.monthly[i].month === settlementMonth) {
-                monthData = shop.monthly[i];
-                break;
+            shop.monthly.forEach(function(m) {
+              if (quarter.months.indexOf(m.month) >= 0) {
+                qBudget += m.budget || 0;
+                qActual += m.actual || 0;
               }
-            }
+            });
           }
-          if (monthData) {
-            budgetInfo.budget     = monthData.budget || 0;
-            budgetInfo.actual     = monthData.actual || 0;
-            budgetInfo.remaining  = budgetInfo.budget - budgetInfo.actual;
-            budgetInfo.loaded     = true;
-            budgetInfo.category   = category;
-            budgetInfo.monthLabel = settlementMonth + '月度';
-            updateCart();
-          }
+          budgetInfo.budget       = qBudget;
+          budgetInfo.actual       = qActual;
+          budgetInfo.remaining    = qBudget - qActual;
+          budgetInfo.loaded       = true;
+          budgetInfo.category     = category;
+          budgetInfo.quarterLabel = quarter.label;
+          budgetInfo.quarterRange = quarter.range;
+          updateCart();
         })
         .catch(function(e) {
           console.error('Budget fetch error:', e);
