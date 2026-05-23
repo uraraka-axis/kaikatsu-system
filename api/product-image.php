@@ -78,10 +78,19 @@ try {
         exit;
     }
 
-    $baseDir   = realpath(__DIR__ . '/../uploads/products');
-    $candidate = $baseDir ? realpath($baseDir . DIRECTORY_SEPARATOR . $imageFile) : false;
+    $baseDir = realpath(__DIR__ . '/../uploads/products');
+    if ($baseDir === false) {
+        http_response_code(404);
+        exit;
+    }
 
-    if ($baseDir === false || $candidate === false) {
+    // 拡張子フォールバック:
+    //   DB の image_path と実ファイルの拡張子が一致しない場合
+    //   （例: DB=「DB-005.jpg」だが実体は DB-005.png）でも見つける。
+    //   許容拡張子: jpg/jpeg/png/gif/webp（白リスト）
+    $candidate = resolveProductImagePath($baseDir, $imageFile);
+
+    if ($candidate === null) {
         http_response_code(404);
         exit;
     }
@@ -115,4 +124,36 @@ try {
     error_log('Product image API error: ' . $e->getMessage());
     http_response_code(500);
     exit;
+}
+
+/**
+ * 商品画像ファイルパスを解決する。
+ *
+ * まず指定ファイル名で検索し、見つからなければ拡張子を差し替えて
+ * jpg / jpeg / png / gif / webp を順に試す。
+ * 既に拡張子が一致する候補があれば即返す。
+ *
+ * @return string|null realpath されたファイルパス or null（見つからない場合）
+ */
+function resolveProductImagePath(string $baseDir, string $imageFile): ?string
+{
+    // 1) 指定された通りのファイル名を試す
+    $direct = realpath($baseDir . DIRECTORY_SEPARATOR . $imageFile);
+    if ($direct !== false && is_file($direct)) {
+        return $direct;
+    }
+
+    // 2) 拡張子を差し替えてフォールバック
+    $baseName = pathinfo($imageFile, PATHINFO_FILENAME); // 拡張子無し部分
+    if ($baseName === '' || $baseName === '.' || $baseName === '..') {
+        return null;
+    }
+    $extensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+    foreach ($extensions as $ext) {
+        $candidate = realpath($baseDir . DIRECTORY_SEPARATOR . $baseName . '.' . $ext);
+        if ($candidate !== false && is_file($candidate)) {
+            return $candidate;
+        }
+    }
+    return null;
 }
