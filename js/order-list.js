@@ -1178,23 +1178,38 @@ function onCheckChange(checkbox) {
 
 function exportExcel() {
   var params = [];
-  var type = document.getElementById('filterType');
-  var status = document.getElementById('filterStatus');
-  var dateFrom = document.getElementById('filterDateFrom');
-  var dateTo = document.getElementById('filterDateTo');
 
-  if (type && type.value) params.push('type=' + encodeURIComponent(type.value));
-  if (status && status.value) params.push('status=' + encodeURIComponent(status.value));
-  if (dateFrom && dateFrom.value) params.push('date_from=' + encodeURIComponent(dateFrom.value));
-  if (dateTo && dateTo.value) params.push('date_to=' + encodeURIComponent(dateTo.value));
+  // チェックされた発注がある場合は ids パラメータで限定、それ以外はフィルタ条件で抽出
+  var checkedIds = getCheckedOrderIds();
+  if (checkedIds.length > 0) {
+    params.push('ids=' + encodeURIComponent(checkedIds.join(',')));
+  } else {
+    var dateFrom = document.getElementById('filterDateFrom');
+    var dateTo = document.getElementById('filterDateTo');
+    if (dateFrom && dateFrom.value) params.push('date_from=' + encodeURIComponent(dateFrom.value));
+    if (dateTo && dateTo.value) params.push('date_to=' + encodeURIComponent(dateTo.value));
 
-  if (viewMode === 'admin') {
-    var zone = document.getElementById('filterZone');
-    var area = document.getElementById('filterArea');
-    var shop = document.getElementById('filterShop');
-    if (zone && zone.value) params.push('zone=' + encodeURIComponent(zone.value));
-    if (area && area.value) params.push('area=' + encodeURIComponent(area.value));
-    if (shop && shop.value) params.push('shop=' + encodeURIComponent(shop.value));
+    if (viewMode === 'admin') {
+      var catA = document.getElementById('adminFilterCategory');
+      var typeA = document.getElementById('adminFilterType');
+      var statusA = document.getElementById('adminFilterStatus');
+      var zone = document.getElementById('filterZone');
+      var area = document.getElementById('filterArea');
+      var shop = document.getElementById('filterShop');
+      if (catA && catA.value) params.push('category=' + encodeURIComponent(catA.value));
+      if (typeA && typeA.value) params.push('type=' + encodeURIComponent(typeA.value));
+      if (statusA && statusA.value) params.push('status=' + encodeURIComponent(statusA.value));
+      if (zone && zone.value) params.push('zone=' + encodeURIComponent(zone.value));
+      if (area && area.value) params.push('area=' + encodeURIComponent(area.value));
+      if (shop && shop.value) params.push('shop=' + encodeURIComponent(shop.value));
+    } else {
+      var cat = document.getElementById('filterCategory');
+      var type = document.getElementById('filterType');
+      var status = document.getElementById('filterStatus');
+      if (cat && cat.value) params.push('category=' + encodeURIComponent(cat.value));
+      if (type && type.value) params.push('type=' + encodeURIComponent(type.value));
+      if (status && status.value) params.push('status=' + encodeURIComponent(status.value));
+    }
   }
 
   window.location.href = 'api/export/orders.php' + (params.length ? '?' + params.join('&') : '');
@@ -1366,4 +1381,327 @@ window.addEventListener('userLoaded', function(e) {
 // レース条件対策: common-nav.jsが先に完了していた場合
 if (window.__currentUser) {
   bootOrderList(window.__currentUser);
+}
+
+// ===== Draft Mails (Phase 1) =====
+// 「依頼中」の備品発注を仕入先単位に集計し、メーラー起動 / 本文コピー / 発注済化を提供する
+var draftMailsState = {
+  suppliers: [],
+  activeIndex: 0
+};
+
+function openDraftMails() {
+  if (viewMode !== 'admin') return;
+
+  var params = [];
+  // チェックがある場合はその発注のみ対象、なければ画面のフィルタを引き継ぐ
+  var checkedIds = getCheckedOrderIds();
+  if (checkedIds.length > 0) {
+    params.push('ids=' + encodeURIComponent(checkedIds.join(',')));
+  } else {
+    var zone = document.getElementById('filterZone');
+    var area = document.getElementById('filterArea');
+    var shop = document.getElementById('filterShop');
+    var cat  = document.getElementById('adminFilterCategory');
+    var df   = document.getElementById('filterDateFrom');
+    var dt   = document.getElementById('filterDateTo');
+    if (zone && zone.value) params.push('zone=' + encodeURIComponent(zone.value));
+    if (area && area.value) params.push('area=' + encodeURIComponent(area.value));
+    if (shop && shop.value) params.push('shop=' + encodeURIComponent(shop.value));
+    if (cat && cat.value)   params.push('category=' + encodeURIComponent(cat.value));
+    if (df && df.value)     params.push('date_from=' + encodeURIComponent(df.value));
+    if (dt && dt.value)     params.push('date_to=' + encodeURIComponent(dt.value));
+  }
+
+  var url = 'api/orders/draft-mails.php' + (params.length ? '?' + params.join('&') : '');
+
+  if (typeof window.showLoading === 'function') window.showLoading('集計中…');
+
+  apiGet(url)
+    .then(function(res) {
+      if (!res || !res.success) {
+        alert('メール下書きの取得に失敗しました');
+        return;
+      }
+      draftMailsState.suppliers = (res.data && res.data.suppliers) || [];
+      draftMailsState.activeIndex = 0;
+      renderDraftMails();
+      var ov = document.getElementById('draftMailsOverlay');
+      if (ov) ov.classList.add('open');
+    })
+    .catch(function(e) {
+      console.error(e);
+      alert('通信エラーが発生しました');
+    })
+    .finally(function() {
+      if (typeof window.hideLoading === 'function') window.hideLoading();
+    });
+}
+
+function closeDraftMails() {
+  var ov = document.getElementById('draftMailsOverlay');
+  if (ov) ov.classList.remove('open');
+}
+
+function escapeHtml(s) {
+  if (s === null || s === undefined) return '';
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function formatYen(n) {
+  return '¥' + (Number(n) || 0).toLocaleString();
+}
+
+function buildMailSubject(sup) {
+  var today = new Date();
+  var ymd = today.getFullYear() + ('0' + (today.getMonth() + 1)).slice(-2) + ('0' + today.getDate()).slice(-2);
+  return '【発注依頼】' + ymd + '_' + sup.supplier + ' 御中';
+}
+
+function buildMailBody(sup) {
+  var lines = [];
+  var contactName = sup.contact ? (sup.contact + ' 様') : 'ご担当者様';
+  lines.push(sup.supplier + ' 御中');
+  lines.push(contactName);
+  lines.push('');
+  lines.push('いつもお世話になっております。');
+  lines.push('快活フロンティア商品部です。');
+  lines.push('');
+  lines.push('下記のとおり発注いたしますので、ご手配のほど');
+  lines.push('よろしくお願いいたします。');
+  lines.push('');
+  lines.push('─────────────────────────');
+  lines.push('■ 発注明細');
+  lines.push('─────────────────────────');
+
+  // 店舗単位でまとめる
+  var byShop = {};
+  sup.items.forEach(function(it) {
+    var key = it.shop_code + ':' + it.shop_name;
+    if (!byShop[key]) byShop[key] = [];
+    byShop[key].push(it);
+  });
+
+  Object.keys(byShop).forEach(function(key) {
+    var label = key.split(':').slice(1).join(':');
+    lines.push('');
+    lines.push('【' + label + '店】');
+    byShop[key].forEach(function(it) {
+      var codePart = it.product_code ? ' (' + it.product_code + ')' : '';
+      var priceLine = it.price > 0
+        ? '  ・' + it.product_name + codePart + ' ×' + it.qty + ' @' + it.price.toLocaleString() + '円'
+        : '  ・' + it.product_name + codePart + ' ×' + it.qty;
+      lines.push(priceLine);
+    });
+  });
+
+  lines.push('');
+  lines.push('─────────────────────────');
+  lines.push('合計数量: ' + sup.total_qty + ' 点');
+  if (sup.total_amount > 0) {
+    lines.push('合計金額（税抜）: ' + sup.total_amount.toLocaleString() + ' 円');
+  }
+  lines.push('─────────────────────────');
+  lines.push('');
+  lines.push('納期・納品先・運送条件など、ご不明な点があれば');
+  lines.push('ご連絡くださいますようお願いいたします。');
+  lines.push('');
+  lines.push('以上、よろしくお願いいたします。');
+  lines.push('');
+  lines.push('────────────────────────');
+  lines.push('快活フロンティア 商品部');
+  lines.push('────────────────────────');
+
+  return lines.join('\n');
+}
+
+function renderDraftMails() {
+  var body = document.getElementById('draftMailsBody');
+  if (!body) return;
+
+  var suppliers = draftMailsState.suppliers;
+
+  if (!suppliers || suppliers.length === 0) {
+    body.innerHTML = '<div class="draft-mails-empty">対象となる「依頼中」の備品発注がありません。<br>発注一覧のフィルタ条件をご確認ください。</div>';
+    return;
+  }
+
+  // Tabs
+  var tabsHtml = '<div class="draft-mails-tabs">';
+  suppliers.forEach(function(sup, i) {
+    var active = (i === draftMailsState.activeIndex) ? ' active' : '';
+    tabsHtml += '<button type="button" class="draft-mails-tab' + active + '" onclick="switchDraftTab(' + i + ')">' +
+      escapeHtml(sup.supplier) +
+      '<span class="badge-count">' + sup.order_ids.length + '</span>' +
+    '</button>';
+  });
+  tabsHtml += '</div>';
+
+  // Cards
+  var cardsHtml = '';
+  suppliers.forEach(function(sup, i) {
+    var active = (i === draftMailsState.activeIndex) ? ' active' : '';
+    var subject = buildMailSubject(sup);
+    var bodyText = buildMailBody(sup);
+    cardsHtml += '<div class="draft-mail-card' + active + '" id="draftMailCard-' + i + '">';
+    cardsHtml +=   '<div class="draft-mail-summary">';
+    cardsHtml +=     '<div><span class="draft-mail-summary-label">仕入先:</span><span class="draft-mail-summary-value">' + escapeHtml(sup.supplier) + '</span></div>';
+    cardsHtml +=     '<div><span class="draft-mail-summary-label">対象発注数:</span><span class="draft-mail-summary-value">' + sup.order_ids.length + ' 件</span></div>';
+    cardsHtml +=     '<div><span class="draft-mail-summary-label">合計数量:</span><span class="draft-mail-summary-value">' + sup.total_qty + ' 点</span></div>';
+    cardsHtml +=     '<div><span class="draft-mail-summary-label">合計金額:</span><span class="draft-mail-summary-value">' + formatYen(sup.total_amount) + '</span></div>';
+    cardsHtml +=     '<div style="grid-column:1/-1"><span class="draft-mail-summary-label">対象店舗:</span><span class="draft-mail-summary-value">' + escapeHtml(sup.shops.join(' / ')) + '</span></div>';
+    cardsHtml +=   '</div>';
+
+    cardsHtml +=   '<div class="draft-mail-field">';
+    cardsHtml +=     '<label>To（送信先メールアドレス）</label>';
+    cardsHtml +=     '<input type="text" class="draft-mail-input" id="draftMailTo-' + i + '" value="' + escapeHtml(sup.email || '') + '" placeholder="例: contact@supplier.co.jp">';
+    cardsHtml +=   '</div>';
+
+    cardsHtml +=   '<div class="draft-mail-field">';
+    cardsHtml +=     '<label>件名</label>';
+    cardsHtml +=     '<input type="text" class="draft-mail-input" id="draftMailSubject-' + i + '" value="' + escapeHtml(subject) + '">';
+    cardsHtml +=   '</div>';
+
+    cardsHtml +=   '<div class="draft-mail-field">';
+    cardsHtml +=     '<label>本文（編集可）</label>';
+    cardsHtml +=     '<textarea class="draft-mail-textarea" id="draftMailBody-' + i + '">' + escapeHtml(bodyText) + '</textarea>';
+    cardsHtml +=   '</div>';
+
+    cardsHtml +=   '<div class="draft-mail-actions">';
+    cardsHtml +=     '<button type="button" class="btn-action btn-secondary" onclick="openMailtoForSupplier(' + i + ')">';
+    cardsHtml +=       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>';
+    cardsHtml +=       'メーラーで開く</button>';
+    cardsHtml +=     '<button type="button" class="btn-action btn-secondary" onclick="copyDraftBody(' + i + ')">';
+    cardsHtml +=       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
+    cardsHtml +=       '本文コピー</button>';
+    cardsHtml +=     '<span class="copy-feedback" id="copyFeedback-' + i + '">コピーしました</span>';
+    cardsHtml +=     '<div class="spacer"></div>';
+    cardsHtml +=     '<button type="button" class="btn-action btn-primary" onclick="markSupplierOrdered(' + i + ')">';
+    cardsHtml +=       'この仕入先分を発注済にする</button>';
+    cardsHtml +=   '</div>';
+    cardsHtml += '</div>';
+  });
+
+  body.innerHTML = tabsHtml + cardsHtml;
+}
+
+function switchDraftTab(i) {
+  draftMailsState.activeIndex = i;
+  // クラス切り替えのみ（再描画すると編集中のテキストが消えるため）
+  document.querySelectorAll('.draft-mails-tab').forEach(function(el, idx) {
+    if (idx === i) el.classList.add('active'); else el.classList.remove('active');
+  });
+  document.querySelectorAll('.draft-mail-card').forEach(function(el, idx) {
+    if (idx === i) el.classList.add('active'); else el.classList.remove('active');
+  });
+}
+
+function openMailtoForSupplier(i) {
+  var toEl   = document.getElementById('draftMailTo-' + i);
+  var subEl  = document.getElementById('draftMailSubject-' + i);
+  var bodyEl = document.getElementById('draftMailBody-' + i);
+  if (!toEl || !subEl || !bodyEl) return;
+
+  var to      = (toEl.value || '').trim();
+  var subject = subEl.value || '';
+  var body    = bodyEl.value || '';
+
+  var qs = [];
+  qs.push('subject=' + encodeURIComponent(subject));
+  qs.push('body=' + encodeURIComponent(body));
+  var url = 'mailto:' + encodeURIComponent(to) + '?' + qs.join('&');
+
+  // URL 長制限（実装によっては ~2000 文字）の警告
+  if (url.length > 2000) {
+    if (!confirm('本文が長いため、メーラーで開いた際に途中で切れる可能性があります。\n「本文コピー」の利用を推奨します。\n\nそれでもメーラーを起動しますか？')) {
+      return;
+    }
+  }
+
+  // 一部ブラウザ/メーラーで location.href にすると現画面が遷移してしまうため新規ウィンドウ経由が安全
+  window.location.href = url;
+}
+
+function copyDraftBody(i) {
+  var bodyEl = document.getElementById('draftMailBody-' + i);
+  if (!bodyEl) return;
+  var text = bodyEl.value || '';
+
+  var fb = document.getElementById('copyFeedback-' + i);
+
+  function showFeedback() {
+    if (!fb) return;
+    fb.classList.add('show');
+    setTimeout(function() { fb.classList.remove('show'); }, 1500);
+  }
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(showFeedback).catch(function() {
+      // フォールバック
+      legacyCopy(text);
+      showFeedback();
+    });
+  } else {
+    legacyCopy(text);
+    showFeedback();
+  }
+}
+
+function legacyCopy(text) {
+  var ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.left = '-9999px';
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); } catch (e) {}
+  document.body.removeChild(ta);
+}
+
+function markSupplierOrdered(i) {
+  var sup = draftMailsState.suppliers[i];
+  if (!sup) return;
+
+  var msg = '【' + sup.supplier + '】に紐付く ' + sup.order_ids.length + ' 件の発注を「発注済」に変更します。\n' +
+            'よろしいですか？';
+  if (!confirm(msg)) return;
+
+  if (typeof window.showLoading === 'function') window.showLoading('発注済に更新中…');
+
+  apiPost('api/orders/bulk-status.php', {
+    order_ids: sup.order_ids,
+    action: 'order',
+    memo: 'メール下書きから発注: ' + sup.supplier
+  })
+    .then(function(res) {
+      if (!res || !res.success) {
+        alert('一括ステータス変更に失敗しました');
+        return;
+      }
+      var processed = (res.processed || []).length;
+      var skipped   = (res.skipped || []).length;
+      alert('発注済に更新しました（' + processed + ' 件 / スキップ: ' + skipped + ' 件）');
+
+      // この仕入先タブを閉じてリストから除外
+      draftMailsState.suppliers.splice(i, 1);
+      if (draftMailsState.activeIndex >= draftMailsState.suppliers.length) {
+        draftMailsState.activeIndex = Math.max(0, draftMailsState.suppliers.length - 1);
+      }
+      renderDraftMails();
+
+      // 発注一覧側も再読込
+      fetchOrders(function() { renderOrders(); });
+    })
+    .catch(function(e) {
+      console.error(e);
+      alert('通信エラーが発生しました');
+    })
+    .finally(function() {
+      if (typeof window.hideLoading === 'function') window.hideLoading();
+    });
 }

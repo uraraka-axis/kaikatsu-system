@@ -34,6 +34,20 @@ $areaCode  = $_GET['area'] ?? '';
 $category  = $_GET['category'] ?? '';
 $dateFrom  = $_GET['date_from'] ?? '';
 $dateTo    = $_GET['date_to'] ?? '';
+$idsParam  = $_GET['ids'] ?? '';
+
+// 選択行ID（カンマ区切り）。指定された場合は他フィルタより優先して該当発注のみ出力
+// orders.id は VARCHAR(30) の発注番号（例: EQU-S04-20260523-0001）
+$selectedIds = [];
+if ($idsParam !== '') {
+    foreach (explode(',', (string)$idsParam) as $idStr) {
+        $idStr = trim($idStr);
+        // 安全な発注番号フォーマットのみ許可（英数字とハイフン、30文字以内）
+        if ($idStr !== '' && preg_match('/\A[A-Za-z0-9\-]{1,30}\z/', $idStr)) {
+            $selectedIds[] = $idStr;
+        }
+    }
+}
 
 // --- 店舗ユーザーは自店のみ ---
 if ($user['role'] !== 'admin') {
@@ -114,6 +128,17 @@ if ($dateFrom !== '') {
 if ($dateTo !== '') {
     $where[] = 'o.date <= :date_to';
     $params[':date_to'] = $dateTo;
+}
+
+// 選択された ID 群が指定されていれば、IN 句で絞り込み（店舗ユーザーは shop_code 制約も同時に効く）
+if (!empty($selectedIds)) {
+    $placeholders = [];
+    foreach ($selectedIds as $i => $oid) {
+        $key = ':sid_' . $i;
+        $placeholders[] = $key;
+        $params[$key] = $oid;
+    }
+    $where[] = 'o.id IN (' . implode(',', $placeholders) . ')';
 }
 
 if (!empty($joins)) {

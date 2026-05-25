@@ -44,10 +44,6 @@ document.addEventListener('DOMContentLoaded', function() {
       header.textContent = currentUser.name + '様';
     }
 
-    if (viewMode === 'admin') {
-      document.getElementById('pageDesc').textContent = '全店舗の自店調達申請を管理します';
-    }
-
     // 店舗ユーザーのみ申請フォーム表示
     document.getElementById('procurementSection').style.display = viewMode === 'store' ? '' : 'none';
 

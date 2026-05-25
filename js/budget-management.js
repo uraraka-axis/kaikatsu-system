@@ -704,11 +704,6 @@
       var pagBar = document.getElementById('budgetPaginationBar');
       if (pagBar) pagBar.style.display = viewMode === 'admin' ? '' : 'none';
 
-      var desc = document.getElementById('pageDesc');
-      if (viewMode === 'store') {
-        desc.textContent = '自店の予算・実績・消化状況を確認できます。行をクリックすると月別明細を表示します。';
-      }
-
       loadBudgetPageSize();
       budgetDisplayLimit = (budgetPageSize === 'all') ? Number.MAX_SAFE_INTEGER : budgetPageSize;
       restoreBudgetFilters();

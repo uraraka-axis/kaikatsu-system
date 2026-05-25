@@ -2,21 +2,12 @@
 .main { max-width: 1400px; }
 
 /* ===== Excel出力対象選択チェックボックス列（admin only） ===== */
+/* 発注一覧のスタイルに揃える: 列幅40px / 中央寄せ / checkbox はブラウザデフォルトサイズ */
 .budget-table .budget-check-col,
 .budget-table .budget-check-cell {
-  width: 48px;
-  min-width: 48px;
+  width: 40px;
+  min-width: 40px;
   text-align: center;
-  padding: 8px 12px;
-  vertical-align: middle;
-}
-.budget-table .budget-check-col input[type="checkbox"],
-.budget-table .budget-check-cell input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
-  margin: 0;
-  cursor: pointer;
-  accent-color: #2563eb;
   vertical-align: middle;
 }
 
