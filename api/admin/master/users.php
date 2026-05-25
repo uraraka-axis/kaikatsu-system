@@ -47,8 +47,8 @@ $config = [
             'header'      => 'ロール',
             'type'        => 'string',
             'required'    => true,
-            'pattern'     => '/^(shop|admin)$/',
-            'pattern_msg' => 'shop または admin で指定してください',
+            'pattern'     => '/^(shop|admin|system)$/',
+            'pattern_msg' => 'shop / admin / system のいずれかで指定してください',
         ],
         [
             // role=shop時必須、role=admin時NULL（preprocess_rowsで強制）
@@ -125,8 +125,8 @@ $config = [
             if (isset($row['password']) && $row['password'] === '********') {
                 $row['password'] = '';
             }
-            // role=admin の shop_code は強制的に NULL
-            if (($row['role'] ?? null) === 'admin') {
+            // role=admin / role=system の shop_code は強制的に NULL（店舗に紐づかない）
+            if (in_array($row['role'] ?? null, ['admin', 'system'], true)) {
                 $row['shop_code'] = null;
             }
         }

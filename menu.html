@@ -121,20 +121,41 @@
           </a>
         </div>
       </div>
+
+      <!-- システム管理者メニュー（role=system のみ） -->
+      <div class="menu-section" id="systemSection">
+        <div class="menu-section-title">システム管理者メニュー</div>
+        <div class="menu-grid">
+          <a href="master-change-log.html" class="menu-card">
+            <div class="menu-card-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+            </div>
+            <div class="menu-card-text">
+              <div class="menu-card-title">監査ログ閲覧</div>
+              <div class="menu-card-desc">マスタ変更履歴・予約一覧・ログイン履歴</div>
+            </div>
+          </a>
+        </div>
+      </div>
     </div>
   </main>
   <script>
-    // 初期状態で両セクションを非表示にし、ユーザー情報取得後に切り替え
+    // 初期状態で全セクションを非表示にし、ユーザー情報取得後に切り替え
     document.getElementById('orderSection').style.display = 'none';
     document.getElementById('adminSection').style.display = 'none';
+    document.getElementById('systemSection').style.display = 'none';
 
     window.addEventListener('userLoaded', function(e) {
       var user = e.detail;
       if (user.role === 'admin') {
-        // 管理者: 管理者メニューセクション表示、発注セクション非表示
+        // 商品部: 管理者メニューのみ表示
         document.getElementById('adminSection').style.display = '';
+      } else if (user.role === 'system') {
+        // システム管理者: 管理者メニュー + システム管理者メニュー (admin の上位互換)
+        document.getElementById('adminSection').style.display = '';
+        document.getElementById('systemSection').style.display = '';
       } else {
-        // 店舗ユーザー: 発注セクション表示、管理者メニューセクション非表示
+        // 店舗ユーザー: 発注セクション表示
         document.getElementById('orderSection').style.display = '';
       }
     });

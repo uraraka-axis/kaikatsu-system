@@ -18,6 +18,40 @@ function startSession(): void
 }
 
 /**
+ * ログイン履歴に1行記録（失敗・成功どちらも）
+ *
+ * @param string $loginId 入力されたログインID
+ * @param int|null $userId 成功時のみセット
+ * @param bool $success 成功フラグ
+ * @param string|null $failureReason 失敗理由 (user_not_found / invalid_password / inactive など)
+ */
+function recordLoginAttempt(string $loginId, ?int $userId, bool $success, ?string $failureReason = null): void
+{
+    try {
+        $ip = $_SERVER['REMOTE_ADDR'] ?? null;
+        $ua = $_SERVER['HTTP_USER_AGENT'] ?? null;
+        if ($ua !== null && mb_strlen($ua) > 500) {
+            $ua = mb_substr($ua, 0, 500);
+        }
+        execute(
+            'INSERT INTO login_history (user_id, login_id, ip_address, user_agent, success, failure_reason)
+             VALUES (:uid, :lid, :ip, :ua, :ok, :fr)',
+            [
+                ':uid' => $userId,
+                ':lid' => $loginId,
+                ':ip'  => $ip,
+                ':ua'  => $ua,
+                ':ok'  => $success ? 1 : 0,
+                ':fr'  => $failureReason,
+            ]
+        );
+    } catch (Throwable $e) {
+        // ログイン履歴の記録失敗は認証フロー自体を止めない
+        error_log('login_history insert failed: ' . $e->getMessage());
+    }
+}
+
+/**
  * ログイン処理
  *
  * @param string $loginId ログインID
@@ -35,10 +69,12 @@ function login(string $loginId, string $password): ?array
     );
 
     if ($user === null) {
+        recordLoginAttempt($loginId, null, false, 'user_not_found_or_inactive');
         return null;
     }
 
     if (!password_verify($password, $user['password'])) {
+        recordLoginAttempt($loginId, (int)$user['id'], false, 'invalid_password');
         return null;
     }
 
@@ -69,8 +105,10 @@ function login(string $loginId, string $password): ?array
         'role'       => $user['role'],
         'shop_code'  => $user['shop_code'],
         'shop_name'  => $user['shop_name'],
-        'categories' => $categories, // 店舗ユーザーの取り扱いカテゴリ。admin は空配列
+        'categories' => $categories, // 店舗ユーザーの取り扱いカテゴリ。admin/system は空配列
     ];
+
+    recordLoginAttempt($loginId, (int)$user['id'], true);
 
     return $_SESSION['user'];
 }
@@ -123,14 +161,29 @@ function isLoggedIn(): bool
 }
 
 /**
- * 管理者判定
+ * 管理者判定（admin または system）
+ *
+ * system は admin の上位互換のため、admin 用の権限を持つ。
+ * admin 専用に限定したい場合は明示的に role === 'admin' をチェックすること。
  *
  * @return bool 管理者ならtrue
  */
 function isAdmin(): bool
 {
     startSession();
-    return isset($_SESSION['user']['role']) && $_SESSION['user']['role'] === 'admin';
+    $role = $_SESSION['user']['role'] ?? null;
+    return $role === 'admin' || $role === 'system';
+}
+
+/**
+ * システム管理者判定（system のみ）
+ *
+ * @return bool system なら true
+ */
+function isSystem(): bool
+{
+    startSession();
+    return isset($_SESSION['user']['role']) && $_SESSION['user']['role'] === 'system';
 }
 
 /**
@@ -156,7 +209,7 @@ function requireLogin(): void
 }
 
 /**
- * 管理者権限必須チェック
+ * 管理者権限必須チェック（admin または system を通す）
  */
 function requireAdmin(): void
 {
@@ -174,6 +227,31 @@ function requireAdmin(): void
         }
         http_response_code(403);
         echo '403 Forbidden: 管理者権限が必要です';
+        exit;
+    }
+}
+
+/**
+ * システム管理者権限必須チェック（system のみ）
+ *
+ * 監査ログ閲覧などシステム管理者専用機能に使う。
+ */
+function requireSystem(): void
+{
+    requireLogin();
+
+    if (!isSystem()) {
+        if (isApiRequest()) {
+            http_response_code(403);
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode([
+                'success' => false,
+                'error'   => 'システム管理者権限が必要です',
+            ], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+        http_response_code(403);
+        echo '403 Forbidden: システム管理者権限が必要です';
         exit;
     }
 }

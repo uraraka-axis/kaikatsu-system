@@ -190,7 +190,7 @@ CREATE TABLE users (
   zone_manager_email  VARCHAR(255)  NULL     COMMENT 'ゾーンマネージャー通知先メアド',
   area_manager_email  VARCHAR(255)  NULL     COMMENT 'エリアマネージャー通知先メアド',
   name        VARCHAR(50)   NOT NULL COMMENT 'ユーザー名',
-  role        ENUM('shop','admin') NOT NULL DEFAULT 'shop' COMMENT 'ロール（shop=店舗, admin=管理者）',
+  role        ENUM('shop','admin','system') NOT NULL DEFAULT 'shop' COMMENT 'ロール（shop=店舗, admin=商品部, system=IT管理者）',
   shop_code   VARCHAR(5)    NULL     COMMENT '所属店舗コード（管理者はNULL可）',
   is_active   BOOLEAN       NOT NULL DEFAULT TRUE  COMMENT '有効フラグ',
   sort_order  INT           NOT NULL DEFAULT 0     COMMENT '表示順',
@@ -527,6 +527,29 @@ CREATE TABLE master_change_log (
     ON UPDATE CASCADE ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
   COMMENT='マスタ変更履歴';
+
+-- ------------------------------------------------------------
+-- login_history: ユーザーログイン履歴
+-- FK: users (SET NULL on user delete)
+-- ------------------------------------------------------------
+CREATE TABLE login_history (
+  id             INT          NOT NULL AUTO_INCREMENT COMMENT 'ID',
+  user_id        INT          NULL     COMMENT '成功時のユーザーID(失敗時NULL)',
+  login_id       VARCHAR(50)  NOT NULL COMMENT '入力されたログインID',
+  ip_address     VARCHAR(45)  NULL     COMMENT 'IPv4/IPv6 両対応',
+  user_agent     VARCHAR(500) NULL     COMMENT 'ブラウザのUser-Agent',
+  success        TINYINT(1)   NOT NULL COMMENT '1=成功 / 0=失敗',
+  failure_reason VARCHAR(100) NULL     COMMENT '失敗理由(invalid_password / user_not_found 等)',
+  attempted_at   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '試行日時',
+  PRIMARY KEY (id),
+  INDEX idx_login_history_user (user_id),
+  INDEX idx_login_history_login_id (login_id),
+  INDEX idx_login_history_attempted (attempted_at),
+  INDEX idx_login_history_success (success),
+  CONSTRAINT fk_login_history_user FOREIGN KEY (user_id) REFERENCES users(id)
+    ON UPDATE CASCADE ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+  COMMENT='ユーザーログイン履歴';
 
 -- ============================================================
 -- 初期データ投入
