@@ -967,10 +967,11 @@ function handleMasterUpload(array $config, bool $dryRun): array
             }
         }
         $scheduled = [];
+        $scheduledExtras = []; // shop_categories 等の中間テーブル予約エントリ
         $immediateDiff = $diff;
+        $rowsByKey = [];
         if ($hasApplyDateColumn) {
             // key_field でインデックス化（__apply_date 参照用）
-            $rowsByKey = [];
             foreach ($validated['rows'] as $r) {
                 $k = (string)($r[$config['key_field']] ?? '');
                 if ($k !== '') {
@@ -980,6 +981,25 @@ function handleMasterUpload(array $config, bool $dryRun): array
             $split = splitDiffByApplyDate($diff, $rowsByKey, $config['key_field']);
             $immediateDiff = $split['immediate_diff'];
             $scheduled = $split['scheduled'];
+
+            // 中間テーブル（shop_categories 等）の予約差分計算
+            // 注意: 本体に変更がない行（cat_* のみ変更）も対象にするため、
+            //       scheduled[] ではなく「apply_date が翌日以降の全行」を渡す
+            if (isset($config['compute_scheduled_extras']) && is_callable($config['compute_scheduled_extras'])) {
+                $scheduledRowsForExtras = [];
+                foreach ($validated['rows'] as $r) {
+                    $applyDate = $r['__apply_date'] ?? null;
+                    if ($applyDate instanceof DateTimeImmutable && shouldSchedule($applyDate)) {
+                        $k = (string)($r[$config['key_field']] ?? '');
+                        if ($k !== '') {
+                            $scheduledRowsForExtras[] = ['key' => $k, 'apply_date' => $applyDate];
+                        }
+                    }
+                }
+                if (!empty($scheduledRowsForExtras)) {
+                    $scheduledExtras = $config['compute_scheduled_extras']($scheduledRowsForExtras, $rowsByKey);
+                }
+            }
         }
 
         // 5) FK削除可否（即時側 delete のみ対象）
@@ -1015,6 +1035,7 @@ function handleMasterUpload(array $config, bool $dryRun): array
             'delete' => count($immediateDiff['delete']),
             'total'  => count($immediateDiff['insert']) + count($immediateDiff['update']) + count($immediateDiff['delete']),
             'scheduled' => count($scheduled),
+            'scheduled_extras' => count($scheduledExtras),
         ];
 
         // extra_diff の件数を summary に反映 (UI で「変更なし」誤表示を避けるため)
@@ -1040,7 +1061,21 @@ function handleMasterUpload(array $config, bool $dryRun): array
                     'before'         => $s['before'] ?? null,
                 ];
             }
+            // 予約Extras（shop_categories 等）のプレビュー整形
+            $scheduledExtrasPreview = [];
+            foreach ($scheduledExtras as $ex) {
+                $scheduledExtrasPreview[] = [
+                    'target_table'   => $ex['target_table'] ?? null,
+                    'operation'      => $ex['operation'],
+                    'key'            => $ex['key'],
+                    'apply_date'     => $ex['apply_date']->format('Y-m-d'),
+                    'after'          => $ex['after'] ?? null,
+                    'before'         => $ex['before'] ?? null,
+                ];
+            }
+
             // 競合する既存pendingの一覧（プレビュー警告用）
+            // shops 本体と shop_categories 両方の競合をチェック
             $conflicting = [];
             if (!empty($scheduled)) {
                 $conflictingRows = findConflictingPendingChanges($config['table'], $scheduled);
@@ -1048,6 +1083,7 @@ function handleMasterUpload(array $config, bool $dryRun): array
                     $cd = json_decode((string)$c['change_data'], true);
                     $conflicting[] = [
                         'id'             => (int)$c['id'],
+                        'target_table'   => $c['target_table'] ?? $config['table'],
                         'record_key'     => $c['record_key'],
                         'scheduled_at'   => $c['scheduled_at'],
                         'operation'      => $c['operation'],
@@ -1057,18 +1093,45 @@ function handleMasterUpload(array $config, bool $dryRun): array
                     ];
                 }
             }
+            // scheduledExtras の競合も検出（target_table が異なる場合）
+            if (!empty($scheduledExtras)) {
+                // target_table ごとにまとめて検索
+                $byTable = [];
+                foreach ($scheduledExtras as $ex) {
+                    $tbl = $ex['target_table'] ?? $config['table'];
+                    $byTable[$tbl][] = $ex;
+                }
+                foreach ($byTable as $tbl => $entries) {
+                    if ($tbl === $config['table']) continue; // 本体は上で処理済み
+                    $extraConflict = findConflictingPendingChanges($tbl, $entries);
+                    foreach ($extraConflict as $c) {
+                        $cd = json_decode((string)$c['change_data'], true);
+                        $conflicting[] = [
+                            'id'             => (int)$c['id'],
+                            'target_table'   => $tbl,
+                            'record_key'     => $c['record_key'],
+                            'scheduled_at'   => $c['scheduled_at'],
+                            'operation'      => $c['operation'],
+                            'changed_fields' => $cd['changed_fields'] ?? [],
+                            'after'          => $cd['after'] ?? [],
+                            'before'         => $cd['before'] ?? null,
+                        ];
+                    }
+                }
+            }
             $summary['scheduled_overwrites'] = count($conflicting);
             return [
                 'success' => !$blocked,
                 'error'   => $blocked ? '削除できないレコードがあります' : null,
                 'data'    => [
-                    'summary'     => $summary,
-                    'errors'      => [],
-                    'warnings'    => $warnings,
-                    'diff'        => $immediateDiff,
-                    'extra_diff'  => $extraDiff,
-                    'scheduled'   => $scheduledPreview,
-                    'conflicting' => $conflicting,
+                    'summary'           => $summary,
+                    'errors'            => [],
+                    'warnings'          => $warnings,
+                    'diff'              => $immediateDiff,
+                    'extra_diff'        => $extraDiff,
+                    'scheduled'         => $scheduledPreview,
+                    'scheduled_extras'  => $scheduledExtrasPreview,
+                    'conflicting'       => $conflicting,
                 ],
             ];
         }
@@ -1112,7 +1175,7 @@ function handleMasterUpload(array $config, bool $dryRun): array
             $config['after_apply']($immediateRowsForAfter, $applied['batch_id'], $userId, $origName, $immediateDiff, $extraDiff);
         }
 
-        // 予約分を master_scheduled_changes に登録
+        // 予約分（本体）を master_scheduled_changes に登録
         $scheduledResult = ['inserted' => 0, 'cancelled' => 0, 'ids' => []];
         if (!empty($scheduled)) {
             $scheduledResult = insertScheduledChanges(
@@ -1126,13 +1189,25 @@ function handleMasterUpload(array $config, bool $dryRun): array
             );
         }
 
+        // 予約Extras（shop_categories 等の中間テーブル）を別途登録
+        // target_table は entry 内に指定されているため defaultTable は使われない
+        $scheduledExtrasResult = ['inserted' => 0, 'cancelled' => 0, 'ids' => []];
+        if (!empty($scheduledExtras)) {
+            $scheduledExtrasResult = insertScheduledChanges(
+                $config['table'],   // defaultTable（entry の target_table が優先される）
+                $scheduledExtras,
+                $userId,
+                []  // transform/mask は本体テーブル用のため適用しない
+            );
+        }
+
         return [
             'success' => true,
             'data'    => [
                 'summary'  => $summary,
                 'batch_id' => $applied['batch_id'],
-                'scheduled_inserted'  => $scheduledResult['inserted'],
-                'scheduled_cancelled' => $scheduledResult['cancelled'],
+                'scheduled_inserted'  => $scheduledResult['inserted'] + $scheduledExtrasResult['inserted'],
+                'scheduled_cancelled' => $scheduledResult['cancelled'] + $scheduledExtrasResult['cancelled'],
             ],
         ];
     } finally {

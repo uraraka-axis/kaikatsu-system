@@ -45,6 +45,8 @@ foreach ($categories as $cat) {
         'type'   => 'bool',
     ];
 }
+// 予約更新用「適用日」列（全マスタ共通: 一番右に配置）
+$columns[] = ['field' => 'apply_date', 'header' => '適用日', 'type' => 'date_optional'];
 
 $config = [
     'table'     => 'shops',

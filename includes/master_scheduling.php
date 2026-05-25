@@ -208,19 +208,21 @@ function findConflictingPendingChanges(string $table, array $scheduledRows): arr
  * 予約行を master_scheduled_changes に INSERT。
  * 同一(target_table, record_key) の既存 pending があれば cancelled にする。
  *
- * 注意: トランザクションは呼び出し側で管理する想定。
- *       handleMasterUpload は applyDiff の外側でこの関数を呼ぶため、
- *       本関数内で独自にトランザクションを張る。
+ * 各 entry に 'target_table' が指定されていればそれを優先（中間テーブル shop_categories 等用）。
+ * 指定がなければ第1引数の $defaultTable を使う（shops/users/products/zones/areas/suppliers）。
  *
- * @param string $table target_table
- * @param array $scheduledRows splitDiffByApplyDate の戻り値の 'scheduled'
+ * @param string $defaultTable デフォルトの target_table
+ * @param array $scheduledRows splitDiffByApplyDate の戻り値 / または compute_scheduled_extras の戻り値
+ *   各 entry: ['operation', 'key', 'after' (or 'before'), 'changed_fields', 'apply_date', 'target_table' (任意)]
  * @param int|null $userId
  * @param array $opts
  *   - 'transform' => callable(array $row, string $op): array  保存前変換（password→hashなど）
+ *     target_table が $defaultTable と一致するエントリにのみ適用
+ *   - 'mask_fields' => before の機密マスク用
  *   - 'auto_fields' => 除外フィールド（created_at, updated_at）デフォルト同じ
  * @return array{inserted: int, cancelled: int, ids: int[]}
  */
-function insertScheduledChanges(string $table, array $scheduledRows, ?int $userId, array $opts = []): array
+function insertScheduledChanges(string $defaultTable, array $scheduledRows, ?int $userId, array $opts = []): array
 {
     if (empty($scheduledRows)) {
         return ['inserted' => 0, 'cancelled' => 0, 'ids' => []];
@@ -228,7 +230,7 @@ function insertScheduledChanges(string $table, array $scheduledRows, ?int $userI
 
     $transform = $opts['transform'] ?? null;
     $autoFields = $opts['auto_fields'] ?? ['created_at', 'updated_at'];
-    $maskFields = $opts['mask_fields'] ?? [];  // change_data 内マスク（passwordなどは事前にhash化される想定だが二重保険）
+    $maskFields = $opts['mask_fields'] ?? [];
 
     $insertedIds = [];
     $cancelledCount = 0;
@@ -236,11 +238,13 @@ function insertScheduledChanges(string $table, array $scheduledRows, ?int $userI
     beginTransaction();
     try {
         foreach ($scheduledRows as $entry) {
+            // entry が独自の target_table を指定していればそれを優先（shop_categories 等）
+            $table = $entry['target_table'] ?? $defaultTable;
             $key = $entry['key'];
             $operation = $entry['operation'];
-            $applyDate = $entry['apply_date'];  // DateTimeImmutable
+            $applyDate = $entry['apply_date'];
 
-            // 競合解決 5a: 既存 pending を cancelled に
+            // 競合解決 5a: 既存 pending を cancelled に（同一 target_table + record_key）
             $existingIds = query(
                 "SELECT id FROM master_scheduled_changes
                   WHERE target_table = :t AND record_key = :k AND status = 'pending'
@@ -260,36 +264,36 @@ function insertScheduledChanges(string $table, array $scheduledRows, ?int $userI
             }
 
             // change_data 構築
-            // - after: 保存前 transform を通した行（password→hash 後）
-            // - changed_fields: cron 反映時にどの列を UPDATE するかの指針
-            // - before: update 時のみ（参考情報）
-            $after = $entry['after'];
-            // __apply_date など制御列を落とす
-            unset($after['__apply_date'], $after['__row_num']);
-            if ($transform) {
-                $after = $transform($after, $operation);
-            }
-            // auto_fields は cron 側でも自動付与されるため change_data からは外す
-            foreach ($autoFields as $f) {
-                unset($after[$f]);
-            }
-            // mask_fields は cron で UPDATE 時に必要なので落とせない。
-            // ここでマスクしないこと（パスワードは事前 transform で hash 化済み）。
-
+            // delete 操作なら after は不要、before のみ
             $changeData = [
                 'operation'      => $operation,
-                'after'          => $after,
                 'changed_fields' => $entry['changed_fields'] ?? [],
             ];
-            if ($operation === 'update' && isset($entry['before'])) {
-                $beforeClean = $entry['before'];
-                // before からも機密フィールドはマスクで残す（参考表示用）
+
+            if ($operation === 'delete') {
+                $before = $entry['before'] ?? [];
                 foreach ($maskFields as $f) {
-                    if (array_key_exists($f, $beforeClean)) {
-                        $beforeClean[$f] = '********';
-                    }
+                    if (array_key_exists($f, $before)) $before[$f] = '********';
                 }
-                $changeData['before'] = $beforeClean;
+                $changeData['before'] = $before;
+            } else {
+                $after = $entry['after'] ?? [];
+                unset($after['__apply_date'], $after['__row_num']);
+                // transform は default テーブルのエントリにのみ適用（shop_categories 等は変換不要）
+                if ($transform && $table === $defaultTable) {
+                    $after = $transform($after, $operation);
+                }
+                foreach ($autoFields as $f) {
+                    unset($after[$f]);
+                }
+                $changeData['after'] = $after;
+                if ($operation === 'update' && isset($entry['before'])) {
+                    $beforeClean = $entry['before'];
+                    foreach ($maskFields as $f) {
+                        if (array_key_exists($f, $beforeClean)) $beforeClean[$f] = '********';
+                    }
+                    $changeData['before'] = $beforeClean;
+                }
             }
 
             execute(

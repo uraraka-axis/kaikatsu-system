@@ -317,6 +317,8 @@
       var extraDelete = summary.extra_delete || 0;
       var scheduled = data.scheduled || [];          // 予約反映行（apply_date 翌日以降）
       var scheduledCount = summary.scheduled || scheduled.length || 0;
+      var scheduledExtras = data.scheduled_extras || []; // 中間テーブル予約 (shop_categories 等)
+      var scheduledExtrasCount = summary.scheduled_extras || scheduledExtras.length || 0;
       var conflicting = data.conflicting || [];      // 上書きされる既存pending予約
       var overwritesCount = summary.scheduled_overwrites || conflicting.length || 0;
 
@@ -334,6 +336,9 @@
       }
       if (scheduledCount > 0) {
         html += '<span class="master-sum-item master-sum-scheduled">予約 ' + scheduledCount + '件</span>';
+      }
+      if (scheduledExtrasCount > 0) {
+        html += '<span class="master-sum-item master-sum-scheduled">予約(カテゴリ) ' + scheduledExtrasCount + '件</span>';
       }
       if (overwritesCount > 0) {
         html += '<span class="master-sum-item master-sum-overwrite">上書き ' + overwritesCount + '件</span>';
@@ -446,11 +451,31 @@
         html += '</ul></div>';
       }
 
+      // 予約反映の関連テーブル（shops の場合は shop_categories）
+      if (scheduledExtras.length > 0) {
+        html += '<div class="master-section master-section-scheduled">';
+        html += '<div class="master-section-title">📅 予約反映 (店舗カテゴリ) (' + scheduledExtras.length + '件)</div>';
+        html += '<ul class="master-diff-list">';
+        scheduledExtras.forEach(function(e) {
+          var opLabel = e.operation === 'insert' ? 'カテゴリ追加' : (e.operation === 'delete' ? 'カテゴリ削除' : e.operation);
+          // key = '10501/fitness' 形式
+          var parts = (e.key || '').split('/');
+          var label = '店舗 ' + (parts[0] || '?') + ' × カテゴリ ' + (parts[1] || '?');
+          html += '<li>';
+          html += '<div class="master-diff-label">' +
+                  '<span class="master-scheduled-date">' + escapeHtml(e.apply_date) + '</span> ' +
+                  '[' + opLabel + '] ' + escapeHtml(label) +
+                  '</div>';
+          html += '</li>';
+        });
+        html += '</ul></div>';
+      }
+
       bodyEl.innerHTML = html;
 
       // フッター: 確定可否
-      //   即時反映 or 予約反映どちらかが1件でもあって警告なしなら確定可能
-      var canApply = (summary.total > 0 || scheduledCount > 0) && warnings.length === 0;
+      //   即時反映 or 予約反映（中間テーブル含む）どちらかが1件でもあって警告なしなら確定可能
+      var canApply = (summary.total > 0 || scheduledCount > 0 || scheduledExtrasCount > 0) && warnings.length === 0;
       footerEl.innerHTML =
         '<button type="button" class="btn-secondary" onclick="closeMasterModal()">キャンセル</button>' +
         '<button type="button" class="btn-primary" id="btnApplyMaster"' + (canApply ? '' : ' disabled') + ' onclick="confirmMasterApply()">この内容で確定</button>';

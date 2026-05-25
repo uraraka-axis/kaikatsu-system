@@ -26,6 +26,7 @@ $config = [
         ['field' => 'area_manager_email', 'header' => 'エリアマネージャーメアド', 'type' => 'string'],
         ['field' => 'is_active',          'header' => '有効',                   'type' => 'bool'],
         ['field' => 'sort_order',         'header' => '表示順',                 'type' => 'int'],
+        ['field' => 'apply_date',         'header' => '適用日',                 'type' => 'date_optional'],
     ],
     // DL時はpasswordをマスク（ハッシュ値を露出させない）
     'mask_fields_on_download' => ['password'],

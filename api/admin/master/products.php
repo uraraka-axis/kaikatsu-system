@@ -122,6 +122,13 @@ $config = [
             'required' => true,
             'min'      => 0,
         ],
+        [
+            // 予約更新用「適用日」列
+            'field'    => 'apply_date',
+            'header'   => '適用日',
+            'type'     => 'date_optional',
+            'required' => false,
+        ],
     ],
     // code は UNIQUE
     'unique_fields' => ['code'],

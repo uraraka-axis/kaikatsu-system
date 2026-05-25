@@ -94,18 +94,21 @@ try {
         // 1件ごとに独立したトランザクション
         beginTransaction();
         try {
-            // PK 列名の解決
-            $keyField = resolveKeyField($table);
-
-            if ($operation === 'insert') {
-                applyScheduledInsert($table, $after);
-            } elseif ($operation === 'update') {
-                applyScheduledUpdate($table, $keyField, $recordKey, $after, $changedFields);
-            } elseif ($operation === 'delete') {
-                // フェーズ1 では delete 予約は受け付けない設計
-                throw new RuntimeException('delete 予約はフェーズ1未対応です');
+            // shop_categories は複合キー (shop_code/category_code) のため特別扱い
+            if ($table === 'shop_categories') {
+                applyScheduledShopCategoryChange($operation, $recordKey);
             } else {
-                throw new RuntimeException("未知の operation: {$operation}");
+                $keyField = resolveKeyField($table);
+                if ($operation === 'insert') {
+                    applyScheduledInsert($table, $after);
+                } elseif ($operation === 'update') {
+                    applyScheduledUpdate($table, $keyField, $recordKey, $after, $changedFields);
+                } elseif ($operation === 'delete') {
+                    // 通常マスタの delete 予約はフェーズ1未対応
+                    throw new RuntimeException('delete 予約はフェーズ1未対応です');
+                } else {
+                    throw new RuntimeException("未知の operation: {$operation}");
+                }
             }
 
             // master_change_log に記録（cron 由来と分かるよう upload_filename を特殊な値に）
@@ -237,6 +240,53 @@ function applyScheduledUpdate(string $table, string $keyField, string $recordKey
     $affected = execute($sql, $params);
     if ($affected === 0) {
         throw new RuntimeException("対象レコードが見つかりません ({$keyField}={$recordKey})");
+    }
+}
+
+/**
+ * shop_categories の予約反映（複合キー対応）
+ *
+ * record_key は 'shop_code/category_code' 形式。
+ * - insert: 既に行が存在すれば skip（UNIQUE 違反回避、並行操作で既追加の場合）
+ * - delete: 既に行が無ければ skip（既削除の場合）
+ */
+function applyScheduledShopCategoryChange(string $operation, string $recordKey): void
+{
+    $parts = explode('/', $recordKey, 2);
+    if (count($parts) !== 2) {
+        throw new RuntimeException("shop_categories の record_key 形式不正: {$recordKey}");
+    }
+    [$shopCode, $catCode] = $parts;
+    if ($shopCode === '' || $catCode === '') {
+        throw new RuntimeException("shop_categories の record_key 形式不正: {$recordKey}");
+    }
+
+    if ($operation === 'insert') {
+        // 既に存在していたら skip
+        $existing = getOne(
+            "SELECT 1 FROM shop_categories
+              WHERE shop_code = :sc AND category_code = :cc",
+            [':sc' => $shopCode, ':cc' => $catCode]
+        );
+        if ($existing) {
+            fwrite(STDOUT, "[INFO] shop_categories/{$recordKey} は既に存在するため skip\n");
+            return;
+        }
+        execute(
+            "INSERT INTO shop_categories (shop_code, category_code) VALUES (:sc, :cc)",
+            [':sc' => $shopCode, ':cc' => $catCode]
+        );
+    } elseif ($operation === 'delete') {
+        $affected = execute(
+            "DELETE FROM shop_categories
+              WHERE shop_code = :sc AND category_code = :cc",
+            [':sc' => $shopCode, ':cc' => $catCode]
+        );
+        if ($affected === 0) {
+            fwrite(STDOUT, "[INFO] shop_categories/{$recordKey} は既に存在しないため skip\n");
+        }
+    } else {
+        throw new RuntimeException("shop_categories の未対応 operation: {$operation}");
     }
 }
 

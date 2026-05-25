@@ -30,6 +30,7 @@ $columns = [
     ['field' => 'image_path3',           'header' => '画像3',            'type' => 'string'],
     ['field' => 'is_active',             'header' => '有効',             'type' => 'bool'],
     ['field' => 'sort_order',            'header' => '表示順',           'type' => 'int'],
+    ['field' => 'apply_date',            'header' => '適用日',           'type' => 'date_optional'],
 ];
 
 // products + suppliers を JOIN して取得（仕入先名を含める）

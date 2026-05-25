@@ -86,6 +86,15 @@ foreach ($categories as $cat) {
     ];
 }
 
+// 予約更新用「適用日」列（全マスタ共通: 一番右に配置）
+// 注意: shops の場合カテゴリ追加時に位置が動く（ヘッダ名照合のため動作影響なし）
+$columns[] = [
+    'field'    => 'apply_date',
+    'header'   => '適用日',
+    'type'     => 'date_optional',
+    'required' => false,
+];
+
 // カテゴリコード一覧（after_apply で使う）
 $catCodes = array_column($categories, 'code');
 
@@ -118,14 +127,19 @@ $config = [
         ['table' => 'users',                'column' => 'shop_code', 'label' => 'ユーザー'],
     ],
     // dry_run 時の差分計算（プレビューの「変更0件」誤表示を回避）
+    // ※ 渡される rows は即時反映行のみ（予約行は除外済み）
     'compute_extra_diff' => function (array $rows, array $diff) use ($catCodes) {
         return computeShopCategoriesDiff($rows, $catCodes);
     },
-    // 適用後フック: shop_categories を差分同期する
+    // 適用後フック: shop_categories を差分同期する（即時反映行のみ）
     'after_apply' => function (array $rows, string $batchId, ?int $userId, string $filename, array $diff, ?array $extraDiff) use ($catCodes) {
-        // dry_run 用に既に extraDiff が計算済みなら再利用、なければ計算
         $catDiff = $extraDiff ?? computeShopCategoriesDiff($rows, $catCodes);
         applyShopCategoriesDiff($catDiff, $batchId, $userId, $filename);
+    },
+    // 予約反映分の shop_categories 差分を計算（フェーズ2A 追加）
+    // $scheduledRows: splitDiffByApplyDate の scheduled[]、$rowsByKey: validated rows を key_field で索引化
+    'compute_scheduled_extras' => function (array $scheduledRows, array $rowsByKey) use ($catCodes) {
+        return computeShopCategoriesScheduledExtras($scheduledRows, $rowsByKey, $catCodes);
     },
 ];
 
@@ -190,6 +204,77 @@ function computeShopCategoriesDiff(array $rows, array $catCodes): array
     }
 
     return ['insert' => $inserts, 'delete' => $deletes];
+}
+
+/**
+ * 予約行の shop_categories 差分を「予約エントリ配列」として返す。
+ *
+ * 各 scheduled エントリの key (shop_code) に対して、その行で指定された cat_* フラグと
+ * 現状の shop_categories を比較し、INSERT/DELETE 用の予約エントリを生成。
+ *
+ * 戻り値の各エントリは insertScheduledChanges() がそのまま受け取れる形式:
+ *   ['target_table' => 'shop_categories', 'operation' => 'insert'|'delete',
+ *    'key' => '10501/fitness', 'after' or 'before' => [...], 'apply_date' => DateTimeImmutable, ...]
+ */
+function computeShopCategoriesScheduledExtras(array $scheduledRows, array $rowsByKey, array $catCodes): array
+{
+    if (empty($scheduledRows) || empty($catCodes)) return [];
+
+    // 対象店舗コード
+    $shopCodes = [];
+    foreach ($scheduledRows as $s) {
+        $shopCodes[(string)$s['key']] = true;
+    }
+    $shopCodeList = array_keys($shopCodes);
+    if (empty($shopCodeList)) return [];
+
+    // 現状の shop_categories
+    $placeholders = implode(',', array_map(fn($i) => ':sc' . $i, array_keys($shopCodeList)));
+    $params = [];
+    foreach ($shopCodeList as $i => $sc) {
+        $params[':sc' . $i] = $sc;
+    }
+    $existingRows = query(
+        "SELECT shop_code, category_code FROM shop_categories
+          WHERE shop_code IN ({$placeholders})",
+        $params
+    );
+    $existing = [];
+    foreach ($existingRows as $r) {
+        $existing[$r['shop_code']][$r['category_code']] = true;
+    }
+
+    $extras = [];
+    foreach ($scheduledRows as $s) {
+        $shopCode = (string)$s['key'];
+        $applyDate = $s['apply_date'];
+        $row = $rowsByKey[$shopCode] ?? null;
+        if (!$row) continue;
+        foreach ($catCodes as $catCode) {
+            $wantOn = isset($row['cat_' . $catCode]) && (int)$row['cat_' . $catCode] === 1;
+            $hasNow = !empty($existing[$shopCode][$catCode]);
+            if ($wantOn && !$hasNow) {
+                $extras[] = [
+                    'target_table'   => 'shop_categories',
+                    'operation'      => 'insert',
+                    'key'            => $shopCode . '/' . $catCode,
+                    'after'          => ['shop_code' => $shopCode, 'category_code' => $catCode],
+                    'changed_fields' => ['shop_code', 'category_code'],
+                    'apply_date'     => $applyDate,
+                ];
+            } elseif (!$wantOn && $hasNow) {
+                $extras[] = [
+                    'target_table'   => 'shop_categories',
+                    'operation'      => 'delete',
+                    'key'            => $shopCode . '/' . $catCode,
+                    'before'         => ['shop_code' => $shopCode, 'category_code' => $catCode],
+                    'changed_fields' => [],
+                    'apply_date'     => $applyDate,
+                ];
+            }
+        }
+    }
+    return $extras;
 }
 
 /**
