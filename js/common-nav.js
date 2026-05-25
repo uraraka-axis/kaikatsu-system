@@ -49,7 +49,9 @@ window.hideLoading = function() {
       }
 
       var user = data.user;
-      var isAdmin = user.role === 'admin';
+      // admin / system は管理側ナビ、system はさらに監査ログを追加
+      var isAdmin = user.role === 'admin' || user.role === 'system';
+      var isSystem = user.role === 'system';
 
       // ヘッダーのユーザー名を設定
       var userSpan = document.querySelector('.header-user');
@@ -97,7 +99,12 @@ window.hideLoading = function() {
         { href: 'admin-menu.html', label: '管理メニュー' }
       ];
 
-      var navItems = isAdmin ? adminNav : storeNav;
+      // system は管理ナビに監査ログを追加
+      var systemNav = adminNav.concat([
+        { href: 'master-change-log.html', label: '監査ログ' }
+      ]);
+
+      var navItems = isSystem ? systemNav : (isAdmin ? adminNav : storeNav);
 
       if (nav) {
         var activePage = nav.getAttribute('data-active') || '';
