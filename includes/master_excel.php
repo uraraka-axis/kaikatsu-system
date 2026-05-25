@@ -205,6 +205,21 @@ function validateAndNormalize(array $rows, array $columns, array $extraRules = [
                     }
                     break;
 
+                case 'date_optional':
+                    // マスタ予約更新用「適用日」列。
+                    // 空欄→ null（即時扱い）、日付→ DateTimeImmutable に正規化。
+                    // 値は別キー __apply_date に格納する（DBカラムと混同しないよう field 自体は null のまま残す）
+                    require_once __DIR__ . '/master_scheduling.php';
+                    $parsed = parseScheduledAt($rawVal);
+                    if ($parsed === false) {
+                        $errors[] = ['row' => $rowNum, 'column' => $header, 'value' => (string)$rawVal, 'message' => '日付として認識できません (YYYY-MM-DD 形式で入力してください)'];
+                        $normalizedRow[$field] = null;
+                        continue 2;
+                    }
+                    $normalizedRow['__apply_date'] = $parsed;  // DateTimeImmutable or null
+                    $converted = null;  // 実テーブル側には保存しない
+                    break;
+
                 default:
                     $converted = $rawVal;
             }
@@ -915,6 +930,15 @@ function handleMasterUpload(array $config, bool $dryRun): array
         // 4) 差分検出と現状取得に使うフィールドリスト
         // compare_fields が指定されていればそれを使う（cat_*等のテーブル外フィールドを除外する用途）
         $compareFields = $config['compare_fields'] ?? array_column($config['columns'], 'field');
+        // apply_date 列（date_optional 型）は実テーブルに存在しないので必ず除外
+        $compareFields = array_values(array_filter($compareFields, function($f) use ($config) {
+            foreach ($config['columns'] as $c) {
+                if ($c['field'] === $f && ($c['type'] ?? 'string') === 'date_optional') {
+                    return false;
+                }
+            }
+            return true;
+        }));
 
         // 3) 現状取得（compare_fields = 実テーブルのカラムリスト と同じセットを使う）
         $selectFields = $compareFields;
@@ -933,26 +957,64 @@ function handleMasterUpload(array $config, bool $dryRun): array
             ['skip_fields_if_blank' => $config['skip_fields_if_blank'] ?? []]
         );
 
-        // 5) FK削除可否
+        // 4a) 予約振り分け: apply_date 列があるマスタの場合、即時/予約に分割
+        require_once __DIR__ . '/master_scheduling.php';
+        $hasApplyDateColumn = false;
+        foreach ($config['columns'] as $c) {
+            if (($c['type'] ?? 'string') === 'date_optional') {
+                $hasApplyDateColumn = true;
+                break;
+            }
+        }
+        $scheduled = [];
+        $immediateDiff = $diff;
+        if ($hasApplyDateColumn) {
+            // key_field でインデックス化（__apply_date 参照用）
+            $rowsByKey = [];
+            foreach ($validated['rows'] as $r) {
+                $k = (string)($r[$config['key_field']] ?? '');
+                if ($k !== '') {
+                    $rowsByKey[$k] = $r;
+                }
+            }
+            $split = splitDiffByApplyDate($diff, $rowsByKey, $config['key_field']);
+            $immediateDiff = $split['immediate_diff'];
+            $scheduled = $split['scheduled'];
+        }
+
+        // 5) FK削除可否（即時側 delete のみ対象）
         $warnings = [];
         $blocked = false;
         if (!empty($config['fk_checks_on_delete'])) {
-            $check = checkFkBlocks($diff['delete'], $config['key_field'], $config['fk_checks_on_delete']);
+            $check = checkFkBlocks($immediateDiff['delete'], $config['key_field'], $config['fk_checks_on_delete']);
             $warnings = $check['warnings'];
             $blocked = $check['blocked'];
         }
 
         // 付随する別テーブル更新の差分計算（例: 店舗マスタにおける shop_categories）
+        // 即時反映行のみ対象とする（予約された shop の shop_categories はフェーズ1スコープ外）
         $extraDiff = null;
         if (isset($config['compute_extra_diff']) && is_callable($config['compute_extra_diff'])) {
-            $extraDiff = $config['compute_extra_diff']($validated['rows'], $diff);
+            $immediateRows = [];
+            if ($hasApplyDateColumn) {
+                foreach ($validated['rows'] as $r) {
+                    $applyDate = $r['__apply_date'] ?? null;
+                    if (!($applyDate instanceof DateTimeImmutable) || !shouldSchedule($applyDate)) {
+                        $immediateRows[] = $r;
+                    }
+                }
+            } else {
+                $immediateRows = $validated['rows'];
+            }
+            $extraDiff = $config['compute_extra_diff']($immediateRows, $immediateDiff);
         }
 
         $summary = [
-            'insert' => count($diff['insert']),
-            'update' => count($diff['update']),
-            'delete' => count($diff['delete']),
-            'total'  => count($diff['insert']) + count($diff['update']) + count($diff['delete']),
+            'insert' => count($immediateDiff['insert']),
+            'update' => count($immediateDiff['update']),
+            'delete' => count($immediateDiff['delete']),
+            'total'  => count($immediateDiff['insert']) + count($immediateDiff['update']) + count($immediateDiff['delete']),
+            'scheduled' => count($scheduled),
         ];
 
         // extra_diff の件数を summary に反映 (UI で「変更なし」誤表示を避けるため)
@@ -966,15 +1028,47 @@ function handleMasterUpload(array $config, bool $dryRun): array
         }
 
         if ($dryRun) {
+            // 予約分のプレビュー用表示データを整形
+            $scheduledPreview = [];
+            foreach ($scheduled as $s) {
+                $scheduledPreview[] = [
+                    'operation'      => $s['operation'],
+                    'key'            => $s['key'],
+                    'apply_date'     => $s['apply_date']->format('Y-m-d'),
+                    'changed_fields' => $s['changed_fields'] ?? [],
+                    'after'          => array_diff_key($s['after'], array_flip(['__apply_date', '__row_num'])),
+                    'before'         => $s['before'] ?? null,
+                ];
+            }
+            // 競合する既存pendingの一覧（プレビュー警告用）
+            $conflicting = [];
+            if (!empty($scheduled)) {
+                $conflictingRows = findConflictingPendingChanges($config['table'], $scheduled);
+                foreach ($conflictingRows as $c) {
+                    $cd = json_decode((string)$c['change_data'], true);
+                    $conflicting[] = [
+                        'id'             => (int)$c['id'],
+                        'record_key'     => $c['record_key'],
+                        'scheduled_at'   => $c['scheduled_at'],
+                        'operation'      => $c['operation'],
+                        'changed_fields' => $cd['changed_fields'] ?? [],
+                        'after'          => $cd['after'] ?? [],
+                        'before'         => $cd['before'] ?? null,
+                    ];
+                }
+            }
+            $summary['scheduled_overwrites'] = count($conflicting);
             return [
                 'success' => !$blocked,
                 'error'   => $blocked ? '削除できないレコードがあります' : null,
                 'data'    => [
-                    'summary'   => $summary,
-                    'errors'    => [],
-                    'warnings'  => $warnings,
-                    'diff'      => $diff,
-                    'extra_diff' => $extraDiff,
+                    'summary'     => $summary,
+                    'errors'      => [],
+                    'warnings'    => $warnings,
+                    'diff'        => $immediateDiff,
+                    'extra_diff'  => $extraDiff,
+                    'scheduled'   => $scheduledPreview,
+                    'conflicting' => $conflicting,
                 ],
             ];
         }
@@ -988,10 +1082,11 @@ function handleMasterUpload(array $config, bool $dryRun): array
             ];
         }
 
+        // 即時反映分を適用（行数0なら applyDiff は空動作）
         $applied = applyDiff(
             $config['table'],
             $config['key_field'],
-            $diff,
+            $immediateDiff,
             $origName,
             $userId,
             [
@@ -1001,8 +1096,34 @@ function handleMasterUpload(array $config, bool $dryRun): array
         );
 
         // 適用後の追加処理（中間テーブル更新など）。事前計算した extraDiff も渡す
+        // 渡すのは即時反映行のみ（予約された行は cron 適用時に処理）
         if (isset($config['after_apply']) && is_callable($config['after_apply'])) {
-            $config['after_apply']($validated['rows'], $applied['batch_id'], $userId, $origName, $diff, $extraDiff);
+            $immediateRowsForAfter = [];
+            if ($hasApplyDateColumn) {
+                foreach ($validated['rows'] as $r) {
+                    $applyDate = $r['__apply_date'] ?? null;
+                    if (!($applyDate instanceof DateTimeImmutable) || !shouldSchedule($applyDate)) {
+                        $immediateRowsForAfter[] = $r;
+                    }
+                }
+            } else {
+                $immediateRowsForAfter = $validated['rows'];
+            }
+            $config['after_apply']($immediateRowsForAfter, $applied['batch_id'], $userId, $origName, $immediateDiff, $extraDiff);
+        }
+
+        // 予約分を master_scheduled_changes に登録
+        $scheduledResult = ['inserted' => 0, 'cancelled' => 0, 'ids' => []];
+        if (!empty($scheduled)) {
+            $scheduledResult = insertScheduledChanges(
+                $config['table'],
+                $scheduled,
+                $userId,
+                [
+                    'mask_fields' => $config['mask_fields'] ?? [],
+                    'transform'   => $config['transform'] ?? null,
+                ]
+            );
         }
 
         return [
@@ -1010,6 +1131,8 @@ function handleMasterUpload(array $config, bool $dryRun): array
             'data'    => [
                 'summary'  => $summary,
                 'batch_id' => $applied['batch_id'],
+                'scheduled_inserted'  => $scheduledResult['inserted'],
+                'scheduled_cancelled' => $scheduledResult['cancelled'],
             ],
         ];
     } finally {

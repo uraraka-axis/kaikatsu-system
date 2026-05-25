@@ -489,6 +489,7 @@ CREATE TABLE master_scheduled_changes (
   scheduled_at    DATETIME     NOT NULL COMMENT '反映予定日時',
   applied_at      DATETIME     NULL     COMMENT '反映実行日時',
   status          ENUM('pending','applied','cancelled','error') NOT NULL DEFAULT 'pending' COMMENT '状態',
+  error_message   TEXT         NULL     COMMENT 'cron反映失敗時のエラー詳細',
   created_by_id   INT          NULL     COMMENT '登録者ユーザーID',
   created_at      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -497,6 +498,7 @@ CREATE TABLE master_scheduled_changes (
   INDEX idx_scheduled_changes_scheduled_at (scheduled_at),
   INDEX idx_scheduled_changes_target (target_table),
   INDEX idx_scheduled_changes_created_by (created_by_id),
+  INDEX idx_scheduled_changes_lookup (target_table, record_key, status),
   CONSTRAINT fk_scheduled_changes_user FOREIGN KEY (created_by_id) REFERENCES users(id)
     ON UPDATE CASCADE ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci

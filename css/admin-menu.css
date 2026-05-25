@@ -280,10 +280,12 @@
   background: #f1f5f9;
   color: #475569;
 }
-.master-sum-insert { background: #dcfce7; color: #166534; }
-.master-sum-update { background: #dbeafe; color: #1e40af; }
-.master-sum-delete { background: #fee2e2; color: #991b1b; }
-.master-sum-warn   { background: #fef3c7; color: #92400e; }
+.master-sum-insert    { background: #dcfce7; color: #166534; }
+.master-sum-update    { background: #dbeafe; color: #1e40af; }
+.master-sum-delete    { background: #fee2e2; color: #991b1b; }
+.master-sum-warn      { background: #fef3c7; color: #92400e; }
+.master-sum-scheduled { background: #ede9fe; color: #5b21b6; }
+.master-sum-overwrite { background: #ffedd5; color: #9a3412; }
 
 .master-empty-msg {
   padding: 24px 16px;
@@ -303,10 +305,25 @@
   padding-left: 8px;
   border-left: 4px solid #cbd5e1;
 }
-.master-section-insert .master-section-title { border-color: #22c55e; color: #166534; }
-.master-section-update .master-section-title { border-color: #3b82f6; color: #1e40af; }
-.master-section-delete .master-section-title { border-color: #ef4444; color: #991b1b; }
-.master-section-warn   .master-section-title { border-color: #f59e0b; color: #92400e; }
+.master-section-insert    .master-section-title { border-color: #22c55e; color: #166534; }
+.master-section-update    .master-section-title { border-color: #3b82f6; color: #1e40af; }
+.master-section-delete    .master-section-title { border-color: #ef4444; color: #991b1b; }
+.master-section-warn      .master-section-title { border-color: #f59e0b; color: #92400e; }
+.master-section-scheduled .master-section-title { border-color: #8b5cf6; color: #5b21b6; }
+.master-section-overwrite .master-section-title { border-color: #f97316; color: #9a3412; }
+
+/* 予約反映: 日付バッジ */
+.master-scheduled-date {
+  display: inline-block;
+  padding: 2px 8px;
+  margin-right: 6px;
+  border-radius: 4px;
+  background: #ede9fe;
+  color: #5b21b6;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: 'Roboto Mono', monospace;
+}
 
 .master-diff-list,
 .master-warning-list,

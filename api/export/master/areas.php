@@ -22,6 +22,7 @@ $config = [
         ['field' => 'zone_code',  'header' => 'ゾーンコード', 'type' => 'string'],
         ['field' => 'is_active',  'header' => '有効',         'type' => 'bool'],
         ['field' => 'sort_order', 'header' => '表示順',       'type' => 'int'],
+        ['field' => 'apply_date', 'header' => '適用日',       'type' => 'date_optional'],
     ],
 ];
 

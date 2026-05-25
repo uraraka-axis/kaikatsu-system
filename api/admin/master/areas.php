@@ -59,6 +59,13 @@ $config = [
             'required' => true,
             'min'      => 0,
         ],
+        [
+            // 予約更新用「適用日」列
+            'field'    => 'apply_date',
+            'header'   => '適用日',
+            'type'     => 'date_optional',
+            'required' => false,
+        ],
     ],
     // アップロード時のFK参照チェック: zone_code は zones.code に存在しなければエラー
     'fk_checks_on_upload' => [

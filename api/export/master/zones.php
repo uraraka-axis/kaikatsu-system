@@ -21,6 +21,8 @@ $config = [
         ['field' => 'name',       'header' => 'ゾーン名', 'type' => 'string'],
         ['field' => 'is_active',  'header' => '有効',     'type' => 'bool'],
         ['field' => 'sort_order', 'header' => '表示順',   'type' => 'int'],
+        // 予約更新用「適用日」列（DL時は常に空欄）
+        ['field' => 'apply_date', 'header' => '適用日',   'type' => 'date_optional'],
     ],
 ];
 

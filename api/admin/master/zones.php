@@ -50,6 +50,13 @@ $config = [
             'required' => true,
             'min'      => 0,
         ],
+        [
+            // 予約更新用「適用日」列。空欄=即時、翌日以降=予約反映
+            'field'    => 'apply_date',
+            'header'   => '適用日',
+            'type'     => 'date_optional',
+            'required' => false,
+        ],
     ],
     'fk_checks_on_delete' => [
         ['table' => 'areas', 'column' => 'zone_code', 'label' => 'エリア'],

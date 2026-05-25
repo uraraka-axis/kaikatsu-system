@@ -13,3 +13,7 @@ _tmp_*.xlsx
 
 # DB バックアップダンプ（マイグレーション時等）
 database/_backup_*.sql
+backup_*.sql
+
+# cron 多重起動防止ロックファイル
+setup/.apply_scheduled_changes.lock

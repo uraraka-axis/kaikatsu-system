@@ -315,6 +315,10 @@
       var extraDiff = data.extra_diff || null;
       var extraInsert = summary.extra_insert || 0;
       var extraDelete = summary.extra_delete || 0;
+      var scheduled = data.scheduled || [];          // 予約反映行（apply_date 翌日以降）
+      var scheduledCount = summary.scheduled || scheduled.length || 0;
+      var conflicting = data.conflicting || [];      // 上書きされる既存pending予約
+      var overwritesCount = summary.scheduled_overwrites || conflicting.length || 0;
 
       var html = '';
       if (topMessage) {
@@ -328,12 +332,18 @@
         html += '<span class="master-sum-item master-sum-insert">カテゴリ追加 ' + extraInsert + '件</span>';
         html += '<span class="master-sum-item master-sum-delete">カテゴリ削除 ' + extraDelete + '件</span>';
       }
+      if (scheduledCount > 0) {
+        html += '<span class="master-sum-item master-sum-scheduled">予約 ' + scheduledCount + '件</span>';
+      }
+      if (overwritesCount > 0) {
+        html += '<span class="master-sum-item master-sum-overwrite">上書き ' + overwritesCount + '件</span>';
+      }
       if (warnings.length > 0) {
         html += '<span class="master-sum-item master-sum-warn">警告 ' + warnings.length + '件</span>';
       }
       html += '</div>';
 
-      if (summary.total === 0 && warnings.length === 0) {
+      if (summary.total === 0 && scheduledCount === 0 && warnings.length === 0) {
         html += '<div class="master-empty-msg">変更内容はありません（現在のDBと一致しています）</div>';
       }
 
@@ -385,10 +395,62 @@
         }), 'delete');
       }
 
+      // 既存予約の上書き警告（同一レコードに対する pending が既にある場合）
+      if (conflicting.length > 0) {
+        html += '<div class="master-section master-section-overwrite">';
+        html += '<div class="master-section-title">⚠ 既存の予約 ' + conflicting.length + '件を上書きします（既存予約は cancelled になります）</div>';
+        html += '<ul class="master-warning-list">';
+        conflicting.forEach(function(c) {
+          var dateOnly = (c.scheduled_at || '').substring(0, 10);
+          var changeSummary = '';
+          if (c.operation === 'update' && Array.isArray(c.changed_fields) && c.before && c.after) {
+            changeSummary = c.changed_fields.map(function(f) {
+              return f + ': ' + escapeHtml(String(c.before[f])) + ' → ' + escapeHtml(String(c.after[f]));
+            }).join(' / ');
+          } else if (c.operation === 'insert' && c.after) {
+            changeSummary = '新規追加: ' + escapeHtml(makeRowLabel(type, c.after));
+          }
+          html += '<li>';
+          html += '<div class="master-diff-label">' +
+                  '<span class="master-scheduled-date">' + escapeHtml(dateOnly) + '</span> ' +
+                  '[既存予約] ' + escapeHtml(String(c.record_key)) +
+                  '</div>';
+          if (changeSummary) html += '<div class="master-diff-detail">' + changeSummary + '</div>';
+          html += '</li>';
+        });
+        html += '</ul></div>';
+      }
+
+      // 予約反映分（apply_date 翌日以降）
+      if (scheduled.length > 0) {
+        html += '<div class="master-section master-section-scheduled">';
+        html += '<div class="master-section-title">📅 予約反映 (' + scheduled.length + '件)</div>';
+        html += '<ul class="master-diff-list">';
+        scheduled.forEach(function(s) {
+          var label = makeRowLabel(type, s.after);
+          var opLabel = s.operation === 'insert' ? '追加' : (s.operation === 'update' ? '変更' : s.operation);
+          var detail = '';
+          if (s.operation === 'update' && s.before && Array.isArray(s.changed_fields)) {
+            detail = s.changed_fields.map(function(f) {
+              return f + ': ' + escapeHtml(String(s.before[f])) + ' → ' + escapeHtml(String(s.after[f]));
+            }).join(' / ');
+          }
+          html += '<li>';
+          html += '<div class="master-diff-label">' +
+                  '<span class="master-scheduled-date">' + escapeHtml(s.apply_date) + '</span> ' +
+                  '[' + opLabel + '] ' + escapeHtml(label) +
+                  '</div>';
+          if (detail) html += '<div class="master-diff-detail">' + detail + '</div>';
+          html += '</li>';
+        });
+        html += '</ul></div>';
+      }
+
       bodyEl.innerHTML = html;
 
       // フッター: 確定可否
-      var canApply = summary.total > 0 && warnings.length === 0;
+      //   即時反映 or 予約反映どちらかが1件でもあって警告なしなら確定可能
+      var canApply = (summary.total > 0 || scheduledCount > 0) && warnings.length === 0;
       footerEl.innerHTML =
         '<button type="button" class="btn-secondary" onclick="closeMasterModal()">キャンセル</button>' +
         '<button type="button" class="btn-primary" id="btnApplyMaster"' + (canApply ? '' : ' disabled') + ' onclick="confirmMasterApply()">この内容で確定</button>';
@@ -455,7 +517,17 @@
         .then(function(r) {
           if (r.json && r.json.success) {
             var s = r.json.data.summary || {};
-            alert(getMasterLabel(type) + 'を更新しました\n追加: ' + s.insert + '件 / 変更: ' + s.update + '件 / 削除: ' + s.delete + '件');
+            var scheduledInserted = r.json.data.scheduled_inserted || 0;
+            var scheduledCancelled = r.json.data.scheduled_cancelled || 0;
+            var msg = getMasterLabel(type) + 'を更新しました\n';
+            msg += '即時反映 — 追加: ' + s.insert + '件 / 変更: ' + s.update + '件 / 削除: ' + s.delete + '件';
+            if (scheduledInserted > 0) {
+              msg += '\n予約登録: ' + scheduledInserted + '件';
+              if (scheduledCancelled > 0) {
+                msg += '（既存予約 ' + scheduledCancelled + '件を上書き）';
+              }
+            }
+            alert(msg);
             closeMasterModal();
             clearMasterInput(type);
           } else {
