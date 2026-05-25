@@ -72,12 +72,12 @@ try {
     $sheet->setTitle('予算マスタ');
 
     // ヘッダ
-    $headers = ['年度', '店舗コード', '部門', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月', '1月', '2月', '3月'];
+    $headers = ['年度', '店舗コード', '部門', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月', '1月', '2月', '3月', '適用日'];
     foreach ($headers as $i => $h) {
         $cell = chr(ord('A') + $i) . '1';
         $sheet->setCellValue($cell, $h);
     }
-    $sheet->getStyle('A1:O1')->applyFromArray([
+    $sheet->getStyle('A1:P1')->applyFromArray([
         'font' => ['bold' => true],
         'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'E8E8E8']],
         'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
@@ -108,7 +108,7 @@ try {
     }
 
     // 列幅自動調整
-    foreach (range('A', 'O') as $c) {
+    foreach (range('A', 'P') as $c) {
         $sheet->getColumnDimension($c)->setAutoSize(true);
     }
     $sheet->freezePane('D2');

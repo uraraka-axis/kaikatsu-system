@@ -501,7 +501,13 @@
       if (type === 'user')     return (row.login_id || '') + ' ' + (row.name || '');
       if (type === 'product')  return (row.code || '') + ' ' + (row.name || '');
       if (type === 'budget') {
-        // 予算: 年度 / 店舗コード / 部門 / 月 = 額
+        // 予算 (即時 = 月単位): 年度 / 店舗コード / 部門 / 月 = 額
+        // 予算 (予約 = 12ヶ月一括): 年度 / 店舗コード / 部門 / 12ヶ月分 (合計額)
+        if (row && row.months && typeof row.months === 'object') {
+          var total = 0;
+          Object.keys(row.months).forEach(function(k) { total += Number(row.months[k]) || 0; });
+          return (row.fiscal_year || '') + '年度 / 店舗' + (row.shop_code || '') + ' / ' + (row.department || '') + ' / 12ヶ月分 合計 ' + total.toLocaleString() + '円';
+        }
         return (row.fiscal_year || '') + '年度 / 店舗' + (row.shop_code || '') + ' / ' + (row.department || '') + ' / ' + (row.month || '') + '月 = ' + (row.budget_amount || 0).toLocaleString() + '円';
       }
       return JSON.stringify(row);

@@ -94,9 +94,12 @@ try {
         // 1件ごとに独立したトランザクション
         beginTransaction();
         try {
-            // shop_categories は複合キー (shop_code/category_code) のため特別扱い
+            // shop_categories: 複合キー (shop_code/category_code) で特別扱い
+            // budgets: ピボット (1予約=12ヶ月分の upsert) で特別扱い
             if ($table === 'shop_categories') {
                 applyScheduledShopCategoryChange($operation, $recordKey);
+            } elseif ($table === 'budgets') {
+                applyScheduledBudgetChange($recordKey, $after);
             } else {
                 $keyField = resolveKeyField($table);
                 if ($operation === 'insert') {
@@ -104,7 +107,6 @@ try {
                 } elseif ($operation === 'update') {
                     applyScheduledUpdate($table, $keyField, $recordKey, $after, $changedFields);
                 } elseif ($operation === 'delete') {
-                    // 通常マスタの delete 予約はフェーズ1未対応
                     throw new RuntimeException('delete 予約はフェーズ1未対応です');
                 } else {
                     throw new RuntimeException("未知の operation: {$operation}");
@@ -287,6 +289,58 @@ function applyScheduledShopCategoryChange(string $operation, string $recordKey):
         }
     } else {
         throw new RuntimeException("shop_categories の未対応 operation: {$operation}");
+    }
+}
+
+/**
+ * budgets の予約反映（ピボット upsert）
+ *
+ * record_key は 'year/shop/dept' 形式。
+ * change_data.after.months は {"4":1000, "5":1100, ..., "3":1500} の月別予算マップ。
+ *
+ * 12ヶ月分について、既存があれば UPDATE、なければ INSERT (upsert)。
+ * actual_amount は触らない。
+ */
+function applyScheduledBudgetChange(string $recordKey, array $after): void
+{
+    $parts = explode('/', $recordKey);
+    if (count($parts) !== 3) {
+        throw new RuntimeException("budgets の record_key 形式不正: {$recordKey}");
+    }
+    [$yearStr, $shop, $dept] = $parts;
+    $year = (int)$yearStr;
+    if ($year <= 0 || $shop === '' || $dept === '') {
+        throw new RuntimeException("budgets の record_key 形式不正: {$recordKey}");
+    }
+
+    $months = $after['months'] ?? null;
+    if (!is_array($months) || empty($months)) {
+        throw new RuntimeException('budgets 予約に months が含まれていません');
+    }
+
+    foreach ($months as $monthStr => $amount) {
+        $month = (int)$monthStr;
+        if ($month < 1 || $month > 12) {
+            throw new RuntimeException("budgets 予約の月が不正: {$monthStr}");
+        }
+        $existing = getOne(
+            "SELECT id FROM budgets
+              WHERE fiscal_year = :y AND shop_code = :s AND month = :m AND department = :d",
+            [':y' => $year, ':s' => $shop, ':m' => $month, ':d' => $dept]
+        );
+        if ($existing) {
+            execute(
+                "UPDATE budgets SET budget_amount = :a
+                  WHERE fiscal_year = :y AND shop_code = :s AND month = :m AND department = :d",
+                [':a' => (int)$amount, ':y' => $year, ':s' => $shop, ':m' => $month, ':d' => $dept]
+            );
+        } else {
+            execute(
+                "INSERT INTO budgets (shop_code, fiscal_year, month, department, budget_amount)
+                 VALUES (:s, :y, :m, :d, :a)",
+                [':s' => $shop, ':y' => $year, ':m' => $month, ':d' => $dept, ':a' => (int)$amount]
+            );
+        }
     }
 }
 

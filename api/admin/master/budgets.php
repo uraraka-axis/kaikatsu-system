@@ -22,6 +22,7 @@
 
 require_once __DIR__ . '/../../../includes/auth.php';
 require_once __DIR__ . '/../../../includes/master_excel.php';
+require_once __DIR__ . '/../../../includes/master_scheduling.php';
 
 requireAdmin();
 requireMethod('POST');
@@ -88,6 +89,8 @@ function handleBudgetUpload(bool $dryRun): array
             ['field' => 'm01', 'header' => '1月',  'type' => 'int', 'required' => true, 'min' => 0],
             ['field' => 'm02', 'header' => '2月',  'type' => 'int', 'required' => true, 'min' => 0],
             ['field' => 'm03', 'header' => '3月',  'type' => 'int', 'required' => true, 'min' => 0],
+            // 予約更新用「適用日」列（全マスタ共通: 一番右）
+            ['field' => 'apply_date', 'header' => '適用日', 'type' => 'date_optional', 'required' => false],
         ];
         $parsed = parseUploadedXlsx($filePath, $pivotColumns);
         if (!empty($parsed['errors'])) {
@@ -172,10 +175,42 @@ function handleBudgetUpload(bool $dryRun): array
             ];
         }
 
-        // 3) ピボット → 縦持ち展開
+        // 2e) apply_date による即時/予約振り分け（フェーズ2B）
+        //     1行 = 1店舗×1部門×12ヶ月 を「まるごと1予約」として登録する（フェーズ1判断 2a）
         $monthMap = ['m04'=>4,'m05'=>5,'m06'=>6,'m07'=>7,'m08'=>8,'m09'=>9,'m10'=>10,'m11'=>11,'m12'=>12,'m01'=>1,'m02'=>2,'m03'=>3];
-        $vertical = [];
+        $immediateRows = [];
+        $scheduledEntries = [];
         foreach ($rows as $r) {
+            $applyDate = $r['__apply_date'] ?? null;
+            if ($applyDate instanceof DateTimeImmutable && shouldSchedule($applyDate)) {
+                $year = (int)$r['fiscal_year'];
+                $shop = (string)$r['shop_code'];
+                $dept = (string)$r['department'];
+                $monthsMap = [];
+                foreach ($monthMap as $field => $monthNum) {
+                    $monthsMap[(string)$monthNum] = (int)$r[$field];
+                }
+                $scheduledEntries[] = [
+                    'target_table'   => 'budgets',
+                    'operation'      => 'update', // budgets は upsert（cron 側で INSERT or UPDATE 判定）
+                    'key'            => "{$year}/{$shop}/{$dept}",
+                    'after'          => [
+                        'fiscal_year' => $year,
+                        'shop_code'   => $shop,
+                        'department'  => $dept,
+                        'months'      => $monthsMap,
+                    ],
+                    'changed_fields' => ['budget_amount'],
+                    'apply_date'     => $applyDate,
+                ];
+            } else {
+                $immediateRows[] = $r;
+            }
+        }
+
+        // 3) ピボット → 縦持ち展開（即時行のみ）
+        $vertical = [];
+        foreach ($immediateRows as $r) {
             $year = (int)$r['fiscal_year'];
             $shop = (string)$r['shop_code'];
             $dept = (string)$r['department']; // categories.code (例: 'fitness', 'golf')
@@ -239,6 +274,7 @@ function handleBudgetUpload(bool $dryRun): array
             'no_change' => $noChange,
             'total'     => count($inserts) + count($updates),
             'years'     => $yearsInFile,
+            'scheduled' => count($scheduledEntries),
         ];
 
         // dry_run はここで返す（全件、共通レンダラ互換の形式）
@@ -273,6 +309,43 @@ function handleBudgetUpload(bool $dryRun): array
                 ];
             }, $updates);
 
+            // 予約プレビュー整形
+            $scheduledPreview = [];
+            foreach ($scheduledEntries as $s) {
+                $deptName = $codeToName[$s['after']['department']] ?? $s['after']['department'];
+                $scheduledPreview[] = [
+                    'operation'      => $s['operation'],
+                    'key'            => $s['key'],
+                    'apply_date'     => $s['apply_date']->format('Y-m-d'),
+                    'changed_fields' => $s['changed_fields'],
+                    'after'          => [
+                        'fiscal_year' => $s['after']['fiscal_year'],
+                        'shop_code'   => $s['after']['shop_code'],
+                        'department'  => $deptName,
+                        'months'      => $s['after']['months'],
+                    ],
+                ];
+            }
+
+            // 競合検出（既存pendingの上書き警告）
+            $conflicting = [];
+            if (!empty($scheduledEntries)) {
+                $conflictingRows = findConflictingPendingChanges('budgets', $scheduledEntries);
+                foreach ($conflictingRows as $c) {
+                    $cd = json_decode((string)$c['change_data'], true);
+                    $conflicting[] = [
+                        'id'             => (int)$c['id'],
+                        'target_table'   => 'budgets',
+                        'record_key'     => $c['record_key'],
+                        'scheduled_at'   => $c['scheduled_at'],
+                        'operation'      => $c['operation'],
+                        'changed_fields' => $cd['changed_fields'] ?? [],
+                        'after'          => $cd['after'] ?? [],
+                    ];
+                }
+            }
+            $summary['scheduled_overwrites'] = count($conflicting);
+
             return [
                 'success' => true,
                 'error'   => null,
@@ -285,6 +358,8 @@ function handleBudgetUpload(bool $dryRun): array
                         'update' => $updatePreview,
                         'delete' => [],
                     ],
+                    'scheduled'   => $scheduledPreview,
+                    'conflicting' => $conflicting,
                 ],
             ];
         }
@@ -342,11 +417,19 @@ function handleBudgetUpload(bool $dryRun): array
             throw $e;
         }
 
+        // 7) 予約分を master_scheduled_changes に登録
+        $scheduledResult = ['inserted' => 0, 'cancelled' => 0, 'ids' => []];
+        if (!empty($scheduledEntries)) {
+            $scheduledResult = insertScheduledChanges('budgets', $scheduledEntries, $userId);
+        }
+
         return [
             'success' => true,
             'data' => [
-                'summary'  => $summary,
-                'batch_id' => $batchId,
+                'summary'             => $summary,
+                'batch_id'            => $batchId,
+                'scheduled_inserted'  => $scheduledResult['inserted'],
+                'scheduled_cancelled' => $scheduledResult['cancelled'],
             ],
         ];
     } finally {
