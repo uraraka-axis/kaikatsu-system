@@ -108,7 +108,7 @@ if ($method === 'GET') {
 } elseif ($method === 'POST') {
 
     // 店舗ユーザーのみ
-    if ($user['role'] === 'admin') {
+    if (in_array($user['role'], ['admin', 'system'], true)) {
         jsonError('管理者は自店調達申請を作成できません', 403);
     }
 

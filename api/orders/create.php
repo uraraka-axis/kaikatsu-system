@@ -31,7 +31,7 @@ requireMethod('POST');
 $user = getCurrentUser();
 
 // 店舗ユーザーのみ発注可能
-if ($user['role'] === 'admin') {
+if (in_array($user['role'], ['admin', 'system'], true)) {
     jsonError('管理者は発注できません', 403);
 }
 

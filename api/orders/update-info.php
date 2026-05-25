@@ -33,8 +33,8 @@ $currentStatus = (int)$order['status'];
 $orderType     = $order['type'];
 
 // --- 権限チェック ---
-if ($user['role'] === 'admin') {
-    // 管理者: ステータス1以上（発注済以降）で編集可
+if (in_array($user['role'], ['admin', 'system'], true)) {
+    // 管理者 / システム管理者: ステータス1以上（発注済以降）で編集可
     if ($currentStatus < 1) {
         jsonError('発注済以降の発注のみ編集できます');
     }
@@ -73,8 +73,8 @@ if (isset($input['final_amount'])) {
 try {
     beginTransaction();
 
-    if ($user['role'] === 'admin') {
-        // 管理者: orders テーブルの各フィールドを更新
+    if (in_array($user['role'], ['admin', 'system'], true)) {
+        // 管理者 / システム管理者: orders テーブルの各フィールドを更新
         $updateCols = [];
         $updateVals = [':order_id' => $orderId];
 

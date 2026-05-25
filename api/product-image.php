@@ -44,7 +44,7 @@ try {
     $user = getCurrentUser();
 
     // 商品 + 該当スロットの画像ファイル名取得、店舗ユーザーは shop_categories で絞り込み
-    if ($user['role'] === 'admin') {
+    if (in_array($user['role'], ['admin', 'system'], true)) {
         $row = getOne(
             "SELECT {$imageCol} AS img FROM products WHERE code = :code AND is_active = 1",
             [':code' => $code]

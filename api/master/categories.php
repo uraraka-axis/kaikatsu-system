@@ -20,8 +20,8 @@ requireMethod('GET');
 
 $user = getCurrentUser();
 
-if ($user['role'] === 'admin') {
-    // 管理者: 全アクティブカテゴリ
+if (in_array($user['role'], ['admin', 'system'], true)) {
+    // 管理者 / システム管理者: 全アクティブカテゴリ
     $categories = query(
         'SELECT code, name, closing_type, closing_day
            FROM categories
