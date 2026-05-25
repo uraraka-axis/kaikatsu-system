@@ -286,6 +286,17 @@ function insertScheduledChanges(string $defaultTable, array $scheduledRows, ?int
                 foreach ($autoFields as $f) {
                     unset($after[$f]);
                 }
+                // mask_fields のうち changed_fields に含まれないものは ******** に置換
+                //   - 変更しないフィールド: cron 反映時に UPDATE 対象外なので、機密値を保存する必要がない
+                //   - 変更するフィールド: cron で UPDATE するため値が必要、マスクしない
+                //   例) パスワード変更しないユーザー予約: after.password='********' (情報漏洩リスク低減)
+                //       パスワード変更するユーザー予約:   after.password=bcrypt hash (機能維持)
+                $changedFieldsList = $entry['changed_fields'] ?? [];
+                foreach ($maskFields as $f) {
+                    if (array_key_exists($f, $after) && !in_array($f, $changedFieldsList, true)) {
+                        $after[$f] = '********';
+                    }
+                }
                 $changeData['after'] = $after;
                 if ($operation === 'update' && isset($entry['before'])) {
                     $beforeClean = $entry['before'];

@@ -1049,16 +1049,44 @@ function handleMasterUpload(array $config, bool $dryRun): array
         }
 
         if ($dryRun) {
-            // 予約分のプレビュー用表示データを整形
+            // mask_fields に含まれる機密列はプレビューレスポンスから物理的に削除する。
+            //   - 平文パスワード（Excel から）、bcrypt ハッシュ（DB から）どちらも画面に出さない
+            //   - レスポンスに masked_fields を含め、フロントは「変更あり」とだけ表示する
+            $maskFields = $config['mask_fields'] ?? [];
+            if (!empty($maskFields)) {
+                foreach ($immediateDiff['insert'] as &$ins) {
+                    foreach ($maskFields as $f) unset($ins[$f]);
+                }
+                unset($ins);
+                foreach ($immediateDiff['update'] as &$upd) {
+                    foreach ($maskFields as $f) {
+                        if (isset($upd['before'])) unset($upd['before'][$f]);
+                        if (isset($upd['after']))  unset($upd['after'][$f]);
+                    }
+                }
+                unset($upd);
+                foreach ($immediateDiff['delete'] as &$del) {
+                    foreach ($maskFields as $f) unset($del[$f]);
+                }
+                unset($del);
+            }
+
+            // 予約分のプレビュー用表示データを整形（マスク列は削除）
             $scheduledPreview = [];
             foreach ($scheduled as $s) {
+                $afterClean = array_diff_key($s['after'], array_flip(['__apply_date', '__row_num']));
+                $beforeClean = $s['before'] ?? null;
+                foreach ($maskFields as $f) {
+                    unset($afterClean[$f]);
+                    if (is_array($beforeClean)) unset($beforeClean[$f]);
+                }
                 $scheduledPreview[] = [
                     'operation'      => $s['operation'],
                     'key'            => $s['key'],
                     'apply_date'     => $s['apply_date']->format('Y-m-d'),
                     'changed_fields' => $s['changed_fields'] ?? [],
-                    'after'          => array_diff_key($s['after'], array_flip(['__apply_date', '__row_num'])),
-                    'before'         => $s['before'] ?? null,
+                    'after'          => $afterClean,
+                    'before'         => $beforeClean,
                 ];
             }
             // 予約Extras（shop_categories 等）のプレビュー整形
@@ -1119,6 +1147,18 @@ function handleMasterUpload(array $config, bool $dryRun): array
                     }
                 }
             }
+            // conflicting 内の after/before からも mask_fields を削除（既存予約の機密値露出防止）
+            if (!empty($maskFields)) {
+                foreach ($conflicting as &$cf) {
+                    if (isset($cf['after']) && is_array($cf['after'])) {
+                        foreach ($maskFields as $f) unset($cf['after'][$f]);
+                    }
+                    if (isset($cf['before']) && is_array($cf['before'])) {
+                        foreach ($maskFields as $f) unset($cf['before'][$f]);
+                    }
+                }
+                unset($cf);
+            }
             $summary['scheduled_overwrites'] = count($conflicting);
             return [
                 'success' => !$blocked,
@@ -1132,6 +1172,7 @@ function handleMasterUpload(array $config, bool $dryRun): array
                     'scheduled'         => $scheduledPreview,
                     'scheduled_extras'  => $scheduledExtrasPreview,
                     'conflicting'       => $conflicting,
+                    'masked_fields'     => array_values($maskFields),  // フロント側で「変更あり」表示用
                 ],
             ];
         }

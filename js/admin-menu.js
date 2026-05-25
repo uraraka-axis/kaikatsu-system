@@ -321,6 +321,7 @@
       var scheduledExtrasCount = summary.scheduled_extras || scheduledExtras.length || 0;
       var conflicting = data.conflicting || [];      // 上書きされる既存pending予約
       var overwritesCount = summary.scheduled_overwrites || conflicting.length || 0;
+      var maskedFields = data.masked_fields || [];   // password等のマスク列：値表示せず「変更あり」とだけ出す
 
       var html = '';
       if (topMessage) {
@@ -387,6 +388,10 @@
       if (diff.update && diff.update.length > 0) {
         html += renderDiffSection('変更', diff.update.map(function(u) {
           var changedSummary = u.changed_fields.map(function(f) {
+            // マスク対象列 (password等) は「変更あり」とだけ表示し、値は出さない
+            if (maskedFields.indexOf(f) >= 0) {
+              return f + ': 変更あり';
+            }
             var b = u.before[f], a = u.after[f];
             return f + ': ' + escapeHtml(String(b)) + ' → ' + escapeHtml(String(a));
           }).join(' / ');
@@ -410,6 +415,9 @@
           var changeSummary = '';
           if (c.operation === 'update' && Array.isArray(c.changed_fields) && c.before && c.after) {
             changeSummary = c.changed_fields.map(function(f) {
+              if (maskedFields.indexOf(f) >= 0) {
+                return f + ': 変更あり';
+              }
               return f + ': ' + escapeHtml(String(c.before[f])) + ' → ' + escapeHtml(String(c.after[f]));
             }).join(' / ');
           } else if (c.operation === 'insert' && c.after) {
@@ -437,6 +445,9 @@
           var detail = '';
           if (s.operation === 'update' && s.before && Array.isArray(s.changed_fields)) {
             detail = s.changed_fields.map(function(f) {
+              if (maskedFields.indexOf(f) >= 0) {
+                return f + ': 変更あり';
+              }
               return f + ': ' + escapeHtml(String(s.before[f])) + ' → ' + escapeHtml(String(s.after[f]));
             }).join(' / ');
           }
