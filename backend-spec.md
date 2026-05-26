@@ -2,6 +2,8 @@
 
 快活フロンティア フィットネス／ゴルフ 発注管理・予算管理システム
 
+最終更新: 2026-05-25
+
 ---
 
 ## 1. システム概要
@@ -11,25 +13,30 @@
 
 ### ロール
 
-| ロール | 説明 | 識別方法（現在） |
-|--------|------|------------------|
-| 店舗 | 各店舗のスタッフ。発注の作成・自店の一覧閲覧 | URLパラメータなし |
-| 管理者（商品部） | 本部の管理者。全店舗の発注管理・マスタ管理 | `?role=admin` |
+| ロール | 説明 | 識別 |
+|--------|------|------|
+| `shop` | 各店舗のスタッフ。発注の作成・自店の一覧閲覧 | セッション `role` |
+| `admin` | 本部の商品部。全店舗の発注管理・マスタ管理 | セッション `role` |
+| `system` | IT 管理者。admin 全権限 + 監査ログ閲覧 ※2026-05 追加 | セッション `role` |
+
+権限ガードは `includes/auth.php` の `requireLogin()` / `requireAdmin()` / `requireSystem()` を使用。
+`requireAdmin()` は admin と system の両方を許可する（system が admin に上位互換）。
 
 ### 画面一覧
 
-| # | 画面 | ファイル | 店舗 | 管理者 | 概要 |
-|---|------|---------|:----:|:------:|------|
-| 1 | ログイン | login.html | o | o | 認証（現在はモック） |
-| 2 | メニュー | menu.html | o | o | ロール別のメニュー表示 |
-| 3 | 修理発注 | repair-order.html | o | - | 修理依頼フォーム |
-| 4 | 備品発注 | equipment-order.html | o | - | 商品カタログからカート形式で発注 |
-| 5 | 部品発注 | parts-order.html | o | - | 部品の個別発注フォーム |
-| 6 | 発注一覧 | order-list.html | o | o | 発注の一覧・詳細・ステータス管理 |
-| 7 | 予算管理 | budget-management.html | o | o | 予算消化状況の確認 |
-| 8 | 自店調達 | procurement-history.html | o | o | 自店調達申請の履歴・管理 |
-| 9 | 管理メニュー | admin-menu.html | - | o | マスタアップロード・データ出力 |
-| 10 | システム設定 | system-settings.html | - | o | カテゴリ管理・締め曜日設定 |
+| # | 画面 | ファイル | 店舗 | 管理者 | system | 概要 |
+|---|------|---------|:----:|:------:|:------:|------|
+| 1 | ログイン | login.html | o | o | o | 認証（bcrypt + login_history 記録） |
+| 2 | メニュー | menu.html | o | o | o | ロール別メニュー（system は監査ログ追加） |
+| 3 | 修理発注 | repair-order.html | o | - | - | 修理依頼フォーム |
+| 4 | 備品発注 | equipment-order.html | o | - | - | 商品カタログからカート形式で発注 |
+| 5 | 部品発注 | parts-order.html | o | - | - | 部品の個別発注フォーム |
+| 6 | 発注一覧 | order-list.html | o | o | o | 一覧/詳細/ステータス管理/Excel出力/メール下書き |
+| 7 | 予算管理 | budget-management.html | o | o | o | 予算消化状況・Excel出力 |
+| 8 | 自店調達 | procurement-history.html | o | o | o | 自店調達申請の履歴・管理 |
+| 9 | 管理メニュー | admin-menu.html | - | o | o | 7 種マスタ Excel UL/DL・予約更新・データ出力 |
+| 10 | システム設定 | system-settings.html | - | o | o | カテゴリ管理・期間設定 |
+| 11 | 監査ログ | master-change-log.html | - | - | o | マスタ変更/予約更新/ログイン履歴の 3 タブ |
 
 ---
 
@@ -366,15 +373,13 @@
 
 | メソッド | エンドポイント | 説明 | 権限 |
 |---------|--------------|------|------|
-| GET | /api/orders | 発注一覧取得 | 店舗:自店のみ / 管理者:全店 |
-| GET | /api/orders/{id} | 発注詳細取得 | 同上 |
-| POST | /api/orders/repair | 修理発注を作成 | 店舗 |
-| POST | /api/orders/equipment | 備品発注を作成 | 店舗 |
-| POST | /api/orders/parts | 部品発注を作成 | 店舗 |
-| PUT | /api/orders/{id}/status | ステータス変更 | 遷移ルールに従う |
-| PUT | /api/orders/{id}/response-info | 対応情報の編集 | 編集権限に従う |
-| POST | /api/orders/bulk-status | 一括ステータス変更 | 管理者 |
-| POST | /api/orders/{id}/photos | 写真アップロード | 店舗 |
+| GET | /api/orders.php | 発注一覧取得 | 店舗:自店のみ / 管理者:全店 |
+| POST | /api/orders/create.php | 発注作成（3種別統一） | 店舗 |
+| POST | /api/orders/status.php | ステータス変更 | 遷移ルールに従う |
+| POST | /api/orders/update-info.php | 対応情報の編集 | 編集権限に従う |
+| POST | /api/orders/bulk-status.php | 一括ステータス変更 | 管理者 |
+| GET | /api/orders/draft-mails.php | ★発注メール下書き取得（仕入先別集計） | 管理者 |
+| GET | /api/photo.php?id={id} | 発注写真取得 | 認証済 |
 
 **GET /api/orders クエリパラメータ:**
 
@@ -457,25 +462,56 @@
 | GET | /api/procurement | 申請一覧取得 | 店舗:自店 / 管理者:全店 |
 | POST | /api/procurement | 自店調達申請を作成 | 店舗 |
 
-### 6.6 マスタ管理
+### 6.6 マスタ管理（参照）
 
 | メソッド | エンドポイント | 説明 | 権限 |
 |---------|--------------|------|------|
-| GET | /api/master/zones | ゾーン一覧 | 全ロール |
-| GET | /api/master/areas | エリア一覧 | 全ロール |
-| GET | /api/master/shops | 店舗一覧 | 全ロール |
-| POST | /api/master/{type}/upload | CSVアップロード | 管理者 |
-| GET | /api/master/categories | カテゴリ一覧 | 全ロール |
-| POST | /api/master/categories | カテゴリ追加 | 管理者 |
-| DELETE | /api/master/categories/{code} | カテゴリ削除 | 管理者 |
-| PUT | /api/settings/{key} | システム設定更新 | 管理者 |
+| GET | /api/master/zones.php | ゾーン一覧 | 全ロール |
+| GET | /api/master/areas.php | エリア一覧 | 全ロール |
+| GET | /api/master/shops.php | 店舗一覧 | 全ロール |
+| GET | /api/master/categories.php | カテゴリ一覧 | 全ロール |
+
+### 6.6.2 マスタ CRUD（Excel UL/DL）— 管理者
+
+| メソッド | エンドポイント | 説明 |
+|---------|--------------|------|
+| POST | /api/admin/master/zones.php | ゾーン UL（`dry_run=1` でプレビュー） |
+| POST | /api/admin/master/areas.php | エリア UL |
+| POST | /api/admin/master/shops.php | 店舗 UL |
+| POST | /api/admin/master/suppliers.php | 仕入先 UL |
+| POST | /api/admin/master/users.php | ユーザー UL（password はマスク扱い） |
+| POST | /api/admin/master/products.php | 商品 UL |
+| POST | /api/admin/master/budgets.php | 予算 UL（ピボット形式） |
+| GET | /api/export/master/{type}.php | 現状の各マスタ DL（Excel） |
+| POST | /api/admin/categories.php | カテゴリ追加/編集 |
+| DELETE | /api/admin/categories.php | カテゴリ削除（使用中チェック） |
+| GET/PUT | /api/admin/system-settings.php | 期間設定 |
+
+### 6.6.3 マスタ予約更新 — 管理者
+
+| メソッド | エンドポイント | 説明 |
+|---------|--------------|------|
+| GET | /api/admin/scheduled-changes/list.php | 予約一覧 |
+| POST | /api/admin/scheduled-changes/create.php | 予約作成（target_table/scheduled_at/change_data） |
+| POST | /api/admin/scheduled-changes/cancel.php | 予約取消 |
+
+cron バッチは `setup/apply_scheduled_changes.php`（5 分間隔想定）。
+
+### 6.6.4 system 専用（監査ログ） — system ロールのみ
+
+| メソッド | エンドポイント | 説明 |
+|---------|--------------|------|
+| GET | /api/system/master-change-log.php | マスタ変更履歴 |
+| GET | /api/system/master-scheduled-changes.php | マスタ予約更新一覧 |
+| GET | /api/system/login-history.php | ログイン履歴 |
 
 ### 6.7 データ出力
 
 | メソッド | エンドポイント | 説明 | 権限 |
 |---------|--------------|------|------|
-| GET | /api/export/orders | 発注データCSV出力 | 管理者 |
-| GET | /api/export/budgets | 予算データCSV出力（年度別・部門別、月別明細付き） | 全ロール |
+| GET | /api/export/orders.php | 発注データ Excel 出力（チェック行 or フィルタ） | 管理者 |
+| GET | /api/export/budgets.php | 予算データ Excel 出力（年度別・部門別、月別明細付き） | 全ロール |
+| GET | /api/export/master/{type}.php | マスタ Excel DL（現状データ + テンプレ） | 管理者 |
 
 ---
 
@@ -483,15 +519,74 @@
 
 バックエンドで定期実行が必要な処理：
 
-| 処理 | タイミング | 対象 | 動作 |
-|------|-----------|------|------|
-| 備品自動発注 | カテゴリの締め日 0:00 | ステータス0の備品発注（該当カテゴリのみ） | → ステータス1へ。見積金額=カート合計 |
-| 配達中自動遷移 | カテゴリの締め日翌日 0:00 | ステータス1の備品発注（該当カテゴリのみ） | → ステータス2へ。納品予定日を設定 |
-| 納品済自動遷移 | 毎日 0:00 | ステータス2かつ納品予定日=当日 | → ステータス3へ |
-| 完了自動遷移 | 毎日 0:00 | ステータス3かつ納品予定日の翌日=当日 | → ステータス4へ。最終金額=見積金額 |
+| 処理 | タイミング | 対象 | 動作 | 状況 |
+|------|-----------|------|------|------|
+| ~~備品自動発注~~ | ~~カテゴリの締め日 0:00~~ | ~~ステータス0の備品発注~~ | ~~→ ステータス1へ~~ | **対象外**（手動運用で代替） |
+| 配達中自動遷移（備品のみ） | カテゴリ締め日翌日 0:00 | ステータス1の備品発注（該当カテゴリのみ） | → ステータス2へ。delivery_date 未設定なら **締め日+4日** で仮設定 | **完成** `setup/auto_advance_status.php` |
+| 納品済/修理済自動遷移 | 毎日 0:00 | ステータス2かつ「予定日=当日」 | → ステータス3へ。actual_delivery_date / repair_completed_date を当日でセット（未設定時のみ） | **完成** 同上 |
+| 完了自動遷移 | 毎日 0:00 | ステータス3かつ「予定日翌日=当日」 | → ステータス4へ。final_amount 未設定なら estimate_amount を適用 + 予算実績に差分反映 | **完成** 同上 |
+| ~~予算実績締め処理~~ | ~~カテゴリ締め日 0:00~~ | ~~budgets テーブル~~ | ~~発注確定額を actual_amount に集計反映~~ | **設計変更**（下記） |
+| マスタ予約更新の自動反映 | 5 分間隔 | master_scheduled_changes | pending を検出して反映 | **完成** `setup/apply_scheduled_changes.php` |
 
 全ての自動遷移で `order_status_history` にレコードを追加する。
-`changed_by` は `'system'` とする。
+`changed_by` は `'system_batch'` とする。
+
+### 備品自動発注を対象外とした理由
+
+カテゴリ締め日に「依頼中の備品発注を一括で発注済化」する仕組みを当初計画していたが、以下の理由で対象外とする：
+
+- 商品部の運用では「**実際に業者へ発注したタイミング**で `発注済` にしたい」というニーズが強い
+- 締め日ピッタリに業者発注が完了するわけではないため、自動化するとシステム上のステータスと実態がずれる
+- 発注一覧画面の「ステータス一括変更」＋「📧 メール下書き → この仕入先分を発注済にする」で十分対応可能
+
+### ステータス自動遷移バッチ（`setup/auto_advance_status.php`）
+
+#### 引数
+
+| オプション | 用途 |
+|---|---|
+| `--date=YYYY-MM-DD` | 任意の日付を「当日」として実行（テスト用、省略時は今日） |
+| `--dry-run` | DB 変更なしで対象だけ表示 |
+| `--only=1to2,2to3,3to4` | 実行する遷移を限定（カンマ区切り） |
+
+#### 1→2 遷移ルール（備品のみ）
+
+| カテゴリ | closing_type | closing_day | 自動実行日 |
+|---|---|---|---|
+| フィットネス備品 | monthly | 8 | 毎月 9 日 |
+| ゴルフ備品 | weekly | 2 (火曜) | 毎週水曜 |
+
+`delivery_date` 未設定時は「締め日 + 4 日」で仮設定する（既存値は維持）。修理・部品の 1→2 は手動運用（`api/orders/bulk-status.php` の `action=to-delivering`）のまま。
+
+#### 2→3 遷移ルール（全種別）
+
+| 種別 | 予定日フィールド | 完了日の自動セット |
+|---|---|---|
+| 修理 | `order_repair_details.repair_schedule_date` | `repair_completed_date = 当日`（未設定時） |
+| 備品 | `orders.delivery_date` | `actual_delivery_date = 当日`（未設定時） |
+| 部品 | `orders.delivery_date` | （なし） |
+
+#### 3→4 遷移ルール（全種別）
+
+- 「予定日 + 1 = 当日」の発注を対象
+- `final_amount` 未設定なら `estimate_amount` をコピー
+- 既存の `applyBudgetActualDelta()` を呼んで `budgets.actual_amount` に差分を反映
+
+### 予算実績締め処理の設計変更（Plan B / 2026-05-23）
+
+当初は「カテゴリ締め日 0:00 のバッチで `budgets.actual_amount` を集計反映」する設計だったが、2026-05-23 から **status 遷移時にリアルタイムで反映する設計（Plan B）** に変更済。
+
+| 設計 | 反映タイミング | 反映ロジック |
+|---|---|---|
+| Plan A（旧） | 締め日 0:00 のバッチ | 当日までの発注合計を actual_amount に上書き |
+| **Plan B（現行）** | status 0→1、3→4 の各遷移時 | `applyBudgetActualDelta()` で差分加算 |
+
+メリット:
+- `budgets.actual_amount` が常に最新値（DB と画面表示が一致）
+- 別バッチ不要、cron 不要
+- 1 status 遷移 = 1 トランザクションで一貫性確保
+
+詳細: `includes/budget.php` の `applyBudgetActualDelta()` および `api/orders/status.php` / `api/orders/bulk-status.php` 参照。
 
 ---
 

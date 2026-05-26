@@ -1,27 +1,32 @@
 # マスタCRUD（Excelアップロード方式）仕様書
 
-最終更新: 2026-05-21
+最終更新: 2026-05-25
 対象: 快活フロンティア 発注管理システム / develop ブランチ
+ステータス: **本仕様の範囲は実装完了**（次フェーズの予約更新も別途完成済）
 
 ## 0. 概要
 
-管理メニュー画面（admin-menu.html）から、Excel ファイルのアップロードにより 6 種のマスタを一括更新する機能を実装する。
+管理メニュー画面（admin-menu.html）から、Excel ファイルのアップロードにより 7 種のマスタを一括更新する機能。
 
 ### 対象マスタ（実装順）
 
-| 順 | マスタ | テーブル | 主キー（マッチング） | FK依存 |
-|---|---|---|---|---|
-| 1 | ゾーン | zones | code (VARCHAR 3) | なし |
-| 2 | エリア | areas | code (VARCHAR 3) | zones |
-| 3 | 店舗 | shops | code (VARCHAR 5) | areas |
-| 4 | 仕入先 | suppliers | code (VARCHAR 20) | なし |
-| 5 | ユーザー | users | login_id (VARCHAR 50) | shops |
-| 6 | 商品 | products | code (VARCHAR 20) | categories, suppliers |
+| 順 | マスタ | テーブル | 主キー（マッチング） | FK依存 | 状況 |
+|---|---|---|---|---|---|
+| 1 | ゾーン | zones | code (VARCHAR 3) | なし | 完了 |
+| 2 | エリア | areas | code (VARCHAR 3) | zones | 完了 |
+| 3 | 店舗 | shops | code (VARCHAR 5) | areas | 完了 |
+| 4 | 仕入先 | suppliers | code (VARCHAR 20) | なし | 完了 |
+| 5 | ユーザー | users | login_id (VARCHAR 50) | shops | 完了（password マスク／system ロール対応） |
+| 6 | 商品 | products | code (VARCHAR 20) | categories, suppliers | 完了（JAN・仕入先商品コード列追加済） |
+| 7 | 予算 | budgets | (shop, year, month, dept) 複合 | shops | 完了（ピボット形式） |
 
 ### 本仕様の範囲
 
 - ✅ 含む: Excel アップロード／プレビュー／確定／現状ダウンロード／監査ログ／products テーブル拡張
-- ❌ 含まない: 予約更新（master_scheduled_changes は次フェーズ）／画像ファイル本体のアップロード（FTP 直配置運用）／インラインCRUD
+- ✅ 含む: 予約更新（フェーズ1: zones/areas/suppliers、フェーズ2A: shops/users/products/shop_categories、フェーズ2B: budgets）
+- ✅ 含む: 監査ログ閲覧UI（B-3、system ロール専用、master-change-log.html）
+- ✅ 含む: 機密列（password 等）のマスク（プレビュー／予約レコード／監査ログのすべて）
+- ❌ 含まない: 画像ファイル本体のアップロード（FTP 直配置運用）／インライン CRUD
 
 ---
 
@@ -250,9 +255,15 @@ CREATE TABLE master_change_log (
 - ユーザーパスワードは `change_data` に含めない（マスクする）
 - `upload_batch_id`: 同一アップロードで生成された行に同じ UUID を付与（ロールバック用途、当面表示専用）
 
-### 閲覧 UI
+### 閲覧 UI（2026-05 実装済）
 
-本仕様の範囲外（次フェーズ）。当面は phpMyAdmin / SQL で確認可能とする。
+`master-change-log.html` で 3 タブ構成の監査ログ閲覧画面を提供（system ロール専用）。
+
+- **タブ 1**: マスタ変更履歴（`master_change_log`）— target_table・operation・record_key・changed_at・upload_batch_id でフィルタ／ページング、detail モーダルで before/after JSON 確認
+- **タブ 2**: マスタ予約更新（`master_scheduled_changes`）— 反映予定の確認・状態（pending/applied/cancelled/error）
+- **タブ 3**: ログイン履歴（`login_history`）— 成功/失敗の試行履歴（user_id・login_id・IP・User-Agent・failure_reason）
+
+メニュー画面では `role === 'system'` のときだけ「監査ログ」リンクが表示される。
 
 ---
 

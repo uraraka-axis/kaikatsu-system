@@ -1,19 +1,22 @@
 # 引継ぎドキュメント — 快活フロンティア 発注管理システム
 
-最終更新: 2026-04-28
-最新コミット: `75e3820 カテゴリ別締めルール対応`（develop ブランチ push 済み）
+最終更新: 2026-05-25
+最新コミット: `0625490 発注メール下書き機能 (Phase 1) + 管理画面 UI 微修正`（develop ブランチ push 済み）
 
 ---
 
 ## 1. プロジェクト概要
 
-店舗向け発注管理システム（修理・備品・部品の3種別 + 予算管理 + 自店調達申請）。
-快活CLUB等の店舗運営における発注業務の効率化が目的。
+店舗向け発注管理システム（修理・備品・部品の3種別 + 予算管理 + 自店調達申請 + マスタメンテ + 監査ログ）。
+快活フロンティア（旧 快活CLUB）等の店舗運営における発注業務の効率化が目的。
 
-- **業務領域**: 発注管理 / 予算管理 / 自店調達申請 / 各種マスタメンテ
+- **業務領域**: 発注管理 / 予算管理 / 自店調達申請 / 各種マスタメンテ / 監査ログ
 - **発注タイプ**: 修理発注 / 備品発注（フィットネス・ゴルフ）/ 部品発注
 - **ステータス**: 依頼中(0) → 発注済(1) → 配達中/修理待ち(2) → 納品済/修理済(3) → 完了(4)
-- **ロール**: `admin`（商品部） / `shop`（店舗）
+- **ロール**:
+  - `shop` — 店舗スタッフ（自店データのみ）
+  - `admin` — 本部商品部（全店データ・マスタ管理）
+  - `system` — IT 管理者（admin 全権限 + 監査ログ閲覧）※ 2026-05 追加
 
 ---
 
@@ -91,10 +94,16 @@ Alias /kaikatsu-system "C:/Users/<ユーザー名>/kaikatsu-system"
    mysql -u root kaikatsu < database/schema.sql
    mysql -u root kaikatsu < database/seed.sql
    ```
-4. 既存DBがある場合は追加で:
+4. 既存DBがある場合は、必要な migration を順次適用:
    ```bash
    mysql -u root kaikatsu < database/migration_categories_closing.sql
+   mysql -u root kaikatsu < database/migration_products_codes.sql       # JAN/仕入先商品コード列追加
+   mysql -u root kaikatsu < database/migration_master_change_log.sql    # マスタ変更履歴
+   mysql -u root kaikatsu < database/migration_master_scheduled_changes.sql  # マスタ予約更新
+   mysql -u root kaikatsu < database/migration_user_manager_emails.sql  # ゾンマネ/エリマネ通知メアド
+   mysql -u root kaikatsu < database/migration_login_history.sql        # ログイン履歴
    ```
+   ※ 2026-05-25 時点で `schema.sql` には上記すべて統合済み。新規構築時は schema.sql 一本で OK。
 
 ### 4-5. パスワードハッシュ化
 seed.sql ではパスワードがプレーンテキスト `password` で投入されるため、ハッシュ化スクリプトを実行:
@@ -126,9 +135,10 @@ kaikatsu-system/uploads/
 | login_id | password | role | 備考 |
 |---|---|---|---|
 | admin | password | admin | 商品部 |
+| system | password | system | IT 管理者（監査ログ閲覧可） |
 | 10301 | password | shop | 新宿東口店 |
-| 10101 | password | shop | 札幌店 |
-| (他の店舗コードも全て password) | | shop | seed.sql 参照 |
+| 10101 | pass001 | shop | 札幌店（マスタ UL でパスワード変更済） |
+| (他の店舗コードも基本は password) | | shop | seed.sql 参照、マスタ UL で個別変更可能 |
 
 ---
 
@@ -136,41 +146,58 @@ kaikatsu-system/uploads/
 
 ```
 kaikatsu-system/
-├── api/                  # APIエンドポイント
-│   ├── admin/            # 管理者向けマスタ更新API（categories, system-settings）
-│   ├── export/           # Excel出力API（budgets, orders）
-│   ├── master/           # マスタ参照API（categories, shops, zones, areas...）
-│   ├── orders/           # 発注関連API（create, status, bulk-status, update-info）
-│   ├── budgets.php       # 予算API
+├── api/                          # APIエンドポイント
+│   ├── admin/
+│   │   ├── master/               # マスタCRUD（Excel UL/DL）: zones/areas/shops/suppliers/users/products/budgets
+│   │   ├── scheduled-changes/    # マスタ予約更新の一覧/作成/取消
+│   │   ├── categories.php        # カテゴリCRUD
+│   │   └── system-settings.php   # 期間設定（会計年度開始月）
+│   ├── export/
+│   │   ├── master/               # マスタDL（テンプレ + 現状データ）
+│   │   ├── orders.php            # 発注Excel出力（チェック行/フィルタ）
+│   │   └── budgets.php           # 予算Excel出力
+│   ├── master/                   # マスタ参照API（zones/areas/shops/categories）
+│   ├── orders/                   # 発注関連API
+│   │   ├── create.php
+│   │   ├── status.php / bulk-status.php
+│   │   ├── update-info.php
+│   │   └── draft-mails.php       # ★発注メール下書き（Phase 1, 2026-05-25 追加）
+│   ├── system/                   # ★system 専用API
+│   │   ├── master-change-log.php
+│   │   ├── master-scheduled-changes.php
+│   │   └── login-history.php
+│   ├── budgets.php / orders.php / procurement.php / products.php
 │   ├── login.php / logout.php / me.php
-│   ├── orders.php        # 発注一覧API
-│   ├── procurement.php   # 自店調達申請API
-│   └── products.php      # 商品API
-├── css/                  # スタイルシート
+│   └── photo.php / product-image.php
+├── css/                          # スタイルシート
 ├── database/
-│   ├── schema.sql                          # DBスキーマ（22テーブル）
+│   ├── schema.sql                          # DBスキーマ（24テーブル）
 │   ├── seed.sql                            # 初期データ
-│   ├── migration_categories_closing.sql    # カテゴリ締めルール追加マイグレーション
-│   ├── fix_comments.sql                    # カラムコメント修正
+│   ├── migration_*.sql                     # 既存DB追従用の差分
 │   ├── db-spec.md                          # DBスキーマ仕様書
 │   └── db-guide.md                         # DB運用ガイド（非エンジニア向け）
-├── includes/             # PHP共通基盤
-│   ├── config.php        # 設定（DB接続情報など）
-│   ├── db.php            # PDO接続
-│   ├── auth.php          # 認証
-│   ├── csrf.php          # CSRF対策
-│   └── functions.php     # 共通関数
-├── js/                   # フロントエンドJS
+├── includes/                     # PHP共通基盤
+│   ├── config.php / db.php / auth.php / csrf.php / functions.php
+│   ├── master_excel.php          # マスタExcel UL/DL 共通フレームワーク
+│   ├── master_scheduling.php     # マスタ予約更新 共通フレームワーク
+│   ├── budget.php / budget_notify.php
+│   └── mail.php                  # PHPMailer 経由メール送信ヘルパ
+├── js/                           # フロントエンドJS
 ├── setup/
-│   └── hash_passwords.php  # パスワードハッシュ化スクリプト
-├── uploads/              # 写真アップロード保存先（gitignore）
-├── vendor/               # Composer依存（gitignore）
-├── docs/                 # 画面設計書・SVGスライド・ダイアログキャプチャ（gitignore）
-├── backup/               # 古いバックアップ（gitignore）
-├── *.html                # 各画面（login, menu, order-list, ...）
-├── backend-spec.md       # バックエンド仕様書（必読）
+│   ├── hash_passwords.php           # パスワードハッシュ化スクリプト
+│   └── apply_scheduled_changes.php  # マスタ予約更新の cron 適用バッチ
+├── tools/                        # 開発・テスト補助スクリプト
+│   ├── seed_draft_mail_test_data.php    # 発注メール下書き動作確認用
+│   └── seed_supplier_emails.sql
+├── uploads/                      # 写真アップロード保存先（gitignore）
+├── vendor/                       # Composer依存（gitignore）
+├── docs/                         # 画面設計書・SVGスライド・ダイアログキャプチャ（gitignore）
+├── backup/                       # 古いバックアップ（gitignore）
+├── *.html                        # 各画面
+├── backend-spec.md               # バックエンド仕様書（必読）
+├── master-crud-spec.md           # マスタCRUD（Excel UL/DL）仕様書
 ├── composer.json / composer.lock / composer.phar
-└── HANDOVER.md           # 本ファイル
+└── HANDOVER.md                   # 本ファイル
 ```
 
 ---
@@ -180,9 +207,12 @@ kaikatsu-system/
 | ファイル | 内容 |
 |---|---|
 | `backend-spec.md` | バックエンド全体仕様（API一覧・締めルール・バッチ処理・ステータス遷移） |
-| `database/db-spec.md` | DBスキーマ仕様（全22テーブル定義） |
+| `master-crud-spec.md` | マスタCRUD（Excel UL/DL）仕様 — 監査ログ・予約更新含む |
+| `database/db-spec.md` | DBスキーマ仕様（全 24 テーブル定義） |
 | `database/db-guide.md` | DB運用ガイド（非エンジニア向けの解説、初期データ含む） |
 | `docs/screen-design.html` | 画面設計書（master ブランチ参照） |
+| `docs/快活システム_画面機能一覧_開発状況.xlsx` | 進捗ダッシュボード（画面・API・要件トレーサビリティ） |
+| `docs/快活システム_DB定義書.xlsx` | DB定義書（全テーブルの列・型・コメント） |
 
 ---
 
@@ -206,7 +236,7 @@ kaikatsu-system/
 ### 7-2. 締め日計算ロジックの実装位置
 - **PHP**: `api/budgets.php`（予算計上月の判定）
 - **JS**: `js/equipment-order.js`（備品発注画面の予算アラート）
-- **JS**: `js/order-list.js`（管理者モーダルの納品予定日初期値）— 今回追加
+- **JS**: `js/order-list.js`（管理者モーダルの納品予定日初期値）
 
 ### 7-3. 年度規約
 - 日本の会計年度（4月開始3月終了）
@@ -217,6 +247,44 @@ kaikatsu-system/
 budgets テーブルの `department` 列:
 - フィットネス系 → `fit`
 - ゴルフ系 → `ig`
+
+### 7-5. マスタCRUD（Excel UL/DL）— 完成（2026-05 完成）
+管理メニュー（admin-menu.html）から、Excel ファイル一括 UL/DL 方式で 7 種マスタを更新。
+
+- **対象**: zones / areas / shops / suppliers / users / products / budgets
+- **共通フレームワーク**: `includes/master_excel.php`
+- **手順**: ファイル選択 → `dry_run=1` でプレビュー（追加/変更/削除/エラー集計） → 「確定」で反映
+- **監査**: 確定時に `master_change_log` に 1 レコード/件で記録。同一バッチは UUID で連結
+- **機密列**: `users.password` 等は監査ログ・予約レコード・プレビューでマスク（`********`）
+- **仕様詳細**: `master-crud-spec.md`
+
+### 7-6. マスタ予約更新（2026-05 完成）
+未来日時を指定して反映予定を登録し、cron バッチで適用するフロー。
+
+- **対象**: 7 種マスタすべて（フェーズ 1: zones/areas/suppliers、フェーズ 2A: shops/users/products/shop_categories、フェーズ 2B: budgets）
+- **テーブル**: `master_scheduled_changes`
+- **バッチ**: `setup/apply_scheduled_changes.php`（cron 5 分間隔想定、`setup/.apply_scheduled_changes.lock` で多重起動防止）
+- **API**: `/api/admin/scheduled-changes/*`（一覧/作成/取消）
+
+### 7-7. system ロールと監査ログ閲覧UI（2026-05 追加）
+IT 管理者向けの新ロール `system`。admin の全権限に加え、以下が追加で可能:
+
+- 監査ログ閲覧画面（`master-change-log.html`）
+  - **タブ 1**: マスタ変更履歴（`master_change_log`）
+  - **タブ 2**: マスタ予約更新（`master_scheduled_changes`）
+  - **タブ 3**: ログイン履歴（`login_history`）
+- メニュー画面で system ロールのときだけ「監査ログ」リンクが出現
+- 既存 PHP 6 ファイルの権限チェックを `$user['role'] === 'admin'` から `in_array($user['role'], ['admin','system'], true)` に統一
+
+### 7-8. 発注メール下書き機能 Phase 1（2026-05-25 追加）
+発注一覧（admin）に「📧 メール下書き作成」ボタン。
+
+- 「依頼中（status=0）」の備品発注を `supplier` 単位に集計（行チェックがあれば対象限定、なければ画面フィルタを引き継ぎ）
+- 仕入先タブごとに To / 件名 / 本文を生成（仕入先マスタから連絡先補完）
+- 「メーラーで開く」（`mailto:`、2000 字超で警告） / 「本文コピー」 / 「この仕入先分を発注済にする」
+- 「発注済にする」は既存 `api/orders/bulk-status.php` を再利用
+- **API**: `api/orders/draft-mails.php`
+- **テストデータ**: `tools/seed_draft_mail_test_data.php`（45 件の依頼中・備品発注を生成）
 
 ---
 
@@ -255,25 +323,35 @@ budgets テーブルの `department` 列:
 ## 9. 残タスク・継続課題
 
 ### 9-1. 直近の未完了タスク
-- [ ] **ブラウザでの動作確認**（カテゴリ別締めルール対応）
-  - 備品発注画面の予算オーバーアラート（カテゴリ締め日基準で計上月が変わるか）
-  - 発注一覧（管理者）モーダルの「納品予定日」初期値
-    - 2026-04-28（火）時点での期待値:
-      - フィットネス備品 → 2026-05-09
-      - ゴルフ備品 → 2026-04-29
+- [ ] **発注メール下書き Phase 1 動作確認** — モーダル/メーラー起動/コピー/発注済化の通し動作
+- [ ] **iPad レイアウト調整 4 項目** — 発注一覧右切れ・タッチターゲット 44px・iPad Pro breakpoint・iOS ズーム対策
+- [ ] **業務フロー設計書 v2.0 PPTX の手動「図形変換」** — 14 スライド分（PowerPoint で各スライド選択 → グラフィックス形式 → 図形に変換）
 
-### 9-2. 中期で残っている開発項目（見積明細ベース）
+### 9-2. 中期で残っている開発項目
 
-詳細は **[docs/快活システム_画面機能一覧_開発状況.xlsx](docs/快活システム_画面機能一覧_開発状況.xlsx)** を参照（2026-04-28 時点）。
+詳細は **[docs/快活システム_画面機能一覧_開発状況.xlsx](docs/快活システム_画面機能一覧_開発状況.xlsx)** を参照（2026-05-25 時点）。
 
 5シート構成:
-1. **画面一覧** — 全10画面のフロント/バック開発状況
-2. **API一覧** — 全25エンドポイントのメソッド・権限・状況
-3. **機能要件** — ビジネスルール36項目の実装状況
-4. **要件トレーサビリティ** — 元要件・見積明細・設計事項・バッチ処理27項目の対応表
-5. **サマリー** — カテゴリ別進捗 + 見積金額ベース進捗（¥1,900,000 / ¥2,100,000 = 90%）+ 主な残作業リスト
+1. **画面一覧** — 全画面のフロント/バック開発状況
+2. **API一覧** — 全エンドポイントのメソッド・権限・状況
+3. **機能要件** — ビジネスルールの実装状況
+4. **要件トレーサビリティ** — 元要件・見積明細・設計事項・バッチ処理の対応表
+5. **サマリー** — カテゴリ別進捗 + 見積金額ベース進捗 + 主な残作業リスト
 
 > 更新方法: `docs/generate_status_excel.py` を編集して `python generate_status_excel.py` で再生成。
+
+#### 主な残作業（2026-05-26 時点）
+- 予算超過通知のゾンマネ／エリマネ自動メール通知（メール送信基盤は完成済）
+- 発注メール下書き Phase 2: SMTP 直送 + 仕入先別テンプレ
+- レスポンシブ対応（iPad 4 項目）
+- 本番デプロイ（さくらレンタルサーバー）準備（cron 登録含む）
+
+#### 対象外（手動運用で代替）
+- **備品自動発注**: 締め日に status=0 → 1 を自動化する想定だったが、商品部の手動「ステータス一括変更」＋「発注メール下書き → 発注済化」で代替できるため対象外とする
+
+#### 完了済（cron 登録は本番デプロイ時）
+- **ステータス自動遷移**: `setup/auto_advance_status.php` 実装完了。1→2（備品・カテゴリ締め日翌日）/ 2→3（予定日）/ 3→4（予定日翌日、final_amount 確定 + 予算実績反映）
+- **予算実績締め処理**: 当初の cron バッチは廃止。2026-05-23 から `applyBudgetActualDelta()` が status 遷移時にリアルタイム反映する設計（Plan B）に変更済
 
 ---
 

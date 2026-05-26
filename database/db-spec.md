@@ -2,6 +2,7 @@
 
 **システム名:** 快活フロンティア 発注管理・予算管理システム
 **作成日:** 2026-03-26
+**最終更新:** 2026-05-25
 **対応DB:** MySQL 8.0
 
 ---
@@ -53,16 +54,28 @@
 | 9 | procurement_requests | 自店調達申請 | 店舗が自ら調達する場合の申請 |
 | 10 | budgets | 予算 | 店舗ごとの月次予算・実績 ※マスタ兼トランザクション |
 
-#### ユーティリティテーブル（2テーブル）
+#### ユーティリティテーブル（4テーブル）
 
 システムの運用を支援するテーブル群です。
 
 | # | テーブル名 | 日本語名 | 概要 |
 |---|-----------|---------|------|
 | 1 | order_sequences | 採番管理 | 発注番号の連番を管理 |
-| 2 | master_scheduled_changes | マスタ予約更新 | CSVアップロード等による予約反映を管理 |
+| 2 | master_scheduled_changes | マスタ予約更新 | 指定日時に cron で反映するマスタ変更を保持 |
+| 3 | master_change_log | マスタ変更履歴 | マスタ Excel UL の確定時に追加/変更/削除を記録 |
+| 4 | login_history | ログイン履歴 | ユーザーログイン試行（成功/失敗）の監査ログ |
 
 ---
+
+### 2026-05 時点での主な追加・変更
+
+- `users.role` に `system` を追加（ENUM('shop','admin','system')）
+- `users` に `zone_manager_email` / `area_manager_email` を追加（予算超過通知用）
+- `suppliers` に `email` / `contact` / `phone` 列を追加（発注メール下書きで利用）
+- `products` に `jan_code` / `supplier_product_code` を追加
+- `master_change_log` テーブル新設
+- `master_scheduled_changes` テーブル新設
+- `login_history` テーブル新設
 
 ## 2. ER図（テキストベース）
 
@@ -309,9 +322,11 @@
 | code | VARCHAR(20) | NO | - | 商品コード（MAT-001 等） |
 | price | INT | NO | - | 単価（税込・円） |
 | supplier_id | INT | YES | NULL | 仕入先ID |
+| supplier_product_code | VARCHAR(50) | YES | NULL | 仕入先商品コード |
+| jan_code | VARCHAR(13) | YES | NULL | JANコード（8 or 13桁） |
 | category_code | VARCHAR(20) | NO | - | カテゴリコード |
 | recommended | BOOLEAN | NO | FALSE | おすすめフラグ |
-| image_path | VARCHAR(255) | YES | NULL | 商品画像パス |
+| image_path | VARCHAR(255) | YES | NULL | 商品画像ファイル名（uploads/products 配下） |
 | description | TEXT | YES | NULL | 商品説明 |
 | is_active | BOOLEAN | NO | TRUE | 有効フラグ |
 | sort_order | INT | NO | 0 | 表示順 |
@@ -326,13 +341,15 @@
   - `idx_products_category` (category_code)
   - `idx_products_supplier` (supplier_id)
   - `idx_products_recommended` (recommended)
+  - `idx_products_jan` (jan_code)
+  - `idx_products_supplier_product` (supplier_product_code)
 - **ユニーク制約:** `uk_products_code` (code)
 
 ---
 
 ### 3.8 users（ユーザーマスタ）
 
-**用途:** システムにログインするユーザーの情報を管理します。店舗ユーザーと管理者の2種類のロールがあります。
+**用途:** システムにログインするユーザーの情報を管理します。店舗・管理者・system の 3 ロールがあります。
 
 #### カラム一覧
 
@@ -340,10 +357,12 @@
 |---------|-----|------|----------|------|
 | id | INT (AUTO_INCREMENT) | NO | 自動採番 | ユーザーID |
 | login_id | VARCHAR(50) | NO | - | ログインID |
-| password | VARCHAR(255) | NO | - | パスワード（ハッシュ化して保存） |
+| password | VARCHAR(255) | NO | - | パスワード（bcryptハッシュ） |
+| zone_manager_email | VARCHAR(255) | YES | NULL | ゾーンマネージャー通知先メアド（予算超過通知用） |
+| area_manager_email | VARCHAR(255) | YES | NULL | エリアマネージャー通知先メアド |
 | name | VARCHAR(50) | NO | - | ユーザー名 |
-| role | ENUM('shop','admin') | NO | 'shop' | ロール（shop=店舗ユーザー, admin=管理者） |
-| shop_code | VARCHAR(5) | YES | NULL | 所属店舗コード（管理者はNULL可） |
+| role | ENUM('shop','admin','system') | NO | 'shop' | ロール（shop=店舗 / admin=商品部 / system=IT管理者） |
+| shop_code | VARCHAR(5) | YES | NULL | 所属店舗コード（管理者・system は NULL 可） |
 | is_active | BOOLEAN | NO | TRUE | 有効フラグ |
 | sort_order | INT | NO | 0 | 表示順 |
 | created_at | DATETIME | NO | CURRENT_TIMESTAMP | 作成日時 |
@@ -691,7 +710,7 @@
 
 ### 3.21 master_scheduled_changes（マスタ予約更新）
 
-**用途:** マスタデータの予約更新を管理します。CSVアップロードによる一括変更を、指定日時に自動反映する仕組みで使用されます。
+**用途:** マスタデータの予約更新を管理します。Excelアップロード等による一括変更を、指定日時に cron バッチで自動反映する仕組みで使用されます。
 
 #### カラム一覧
 
@@ -701,10 +720,11 @@
 | target_table | VARCHAR(50) | NO | - | 対象テーブル名 |
 | operation | ENUM('insert','update','delete') | NO | - | 操作種別 |
 | record_key | VARCHAR(100) | NO | - | 対象レコードのキー |
-| change_data | JSON | YES | NULL | 変更内容（JSON形式） |
+| change_data | JSON | YES | NULL | 変更内容（JSON形式、機密列はマスク） |
 | scheduled_at | DATETIME | NO | - | 反映予定日時 |
 | applied_at | DATETIME | YES | NULL | 反映実行日時 |
 | status | ENUM('pending','applied','cancelled','error') | NO | 'pending' | 状態 |
+| error_message | TEXT | YES | NULL | cron反映失敗時のエラー詳細 |
 | created_by_id | INT | YES | NULL | 登録者ユーザーID |
 | created_at | DATETIME | NO | CURRENT_TIMESTAMP | 作成日時 |
 | updated_at | DATETIME | NO | CURRENT_TIMESTAMP (自動更新) | 更新日時 |
@@ -716,7 +736,71 @@
   - `idx_scheduled_changes_scheduled_at` (scheduled_at)
   - `idx_scheduled_changes_target` (target_table)
   - `idx_scheduled_changes_created_by` (created_by_id)
+  - `idx_scheduled_changes_lookup` (target_table, record_key, status)
 - **ユニーク制約:** なし
+
+---
+
+### 3.22 master_change_log（マスタ変更履歴）
+
+**用途:** マスタ Excel アップロード確定時に、追加/変更/削除レコード 1 件につき 1 行を記録する監査ログ。
+
+#### カラム一覧
+
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|-----|------|----------|------|
+| id | INT (AUTO_INCREMENT) | NO | 自動採番 | ID |
+| target_table | VARCHAR(50) | NO | - | 対象テーブル名 (zones/areas/shops/suppliers/users/products) |
+| operation | ENUM('insert','update','delete') | NO | - | 操作種別 |
+| record_key | VARCHAR(100) | NO | - | 対象レコードのキー（code, login_id 等） |
+| change_data | JSON | YES | NULL | 変更内容（before/after の JSON、password はマスク） |
+| changed_by_id | INT | YES | NULL | 変更者ユーザーID |
+| changed_at | DATETIME | NO | CURRENT_TIMESTAMP | 変更日時 |
+| upload_filename | VARCHAR(255) | YES | NULL | アップロード元ファイル名 |
+| upload_batch_id | VARCHAR(40) | YES | NULL | 同一アップロードのバッチID（UUID） |
+
+- **主キー:** `id` (AUTO_INCREMENT)
+- **外部キー:** `changed_by_id` -> `users.id` (ON DELETE SET NULL)
+- **インデックス:**
+  - `idx_master_change_log_table` (target_table)
+  - `idx_master_change_log_changed_at` (changed_at)
+  - `idx_master_change_log_changed_by` (changed_by_id)
+  - `idx_master_change_log_batch` (upload_batch_id)
+
+#### change_data の構造
+
+- `insert`: `{"after": {…}}`
+- `update`: `{"before": {…}, "after": {…}, "changed_fields": ["name", "sort_order"]}`
+- `delete`: `{"before": {…}}`
+
+`users.password` 等の機密列は `********` でマスクされる。
+
+---
+
+### 3.23 login_history（ログイン履歴）
+
+**用途:** ユーザーログインの試行履歴（成功・失敗）を記録する監査ログ。
+
+#### カラム一覧
+
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|-----|------|----------|------|
+| id | INT (AUTO_INCREMENT) | NO | 自動採番 | ID |
+| user_id | INT | YES | NULL | 成功時のユーザーID（失敗時 NULL） |
+| login_id | VARCHAR(50) | NO | - | 入力されたログインID |
+| ip_address | VARCHAR(45) | YES | NULL | IPv4/IPv6 両対応 |
+| user_agent | VARCHAR(500) | YES | NULL | ブラウザの User-Agent |
+| success | TINYINT(1) | NO | - | 1=成功 / 0=失敗 |
+| failure_reason | VARCHAR(100) | YES | NULL | 失敗理由（invalid_password / user_not_found 等） |
+| attempted_at | DATETIME | NO | CURRENT_TIMESTAMP | 試行日時 |
+
+- **主キー:** `id` (AUTO_INCREMENT)
+- **外部キー:** `user_id` -> `users.id` (ON DELETE SET NULL)
+- **インデックス:**
+  - `idx_login_history_user` (user_id)
+  - `idx_login_history_login_id` (login_id)
+  - `idx_login_history_attempted` (attempted_at)
+  - `idx_login_history_success` (success)
 
 ---
 
