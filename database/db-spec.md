@@ -347,6 +347,33 @@
 
 ---
 
+### 3.7-2 product_images（商品画像）
+
+**用途:** 商品マスタに紐づく画像（最大3枚）を保持します。メイン画像フラグと表示順で並び順を管理します。
+
+#### カラム一覧
+
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|-----|------|----------|------|
+| id | INT (AUTO_INCREMENT) | NO | 自動採番 | ID |
+| product_id | INT | NO | - | 商品ID |
+| file_path | VARCHAR(255) | NO | - | ファイルパス（uploads/products/ 配下） |
+| is_main | BOOLEAN | NO | FALSE | メイン画像フラグ |
+| sort_order | TINYINT | NO | 0 | 表示順 |
+| created_at | DATETIME | NO | CURRENT_TIMESTAMP | 作成日時 |
+| updated_at | DATETIME | NO | CURRENT_TIMESTAMP ON UPDATE | 更新日時 |
+
+#### キー
+- **主キー:** id
+- **インデックス:** `idx_product_images_product` (product_id)
+- **外部キー:** `fk_product_images_product` (product_id → products.id, ON DELETE CASCADE)
+
+#### 補足
+- 配信は `api/product-image.php` 経由（パストラバーサル対策のため直接 URL アクセスは不可）
+- アップロード時は preview と本登録の 2 段階（マスタ Excel UL では参照のみ、画像追加は商品マスタ UI から）
+
+---
+
 ### 3.8 users（ユーザーマスタ）
 
 **用途:** システムにログインするユーザーの情報を管理します。店舗・管理者・system の 3 ロールがあります。
