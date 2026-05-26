@@ -327,7 +327,7 @@ IT 管理者向けの新ロール `system`。admin の全権限に加え、以�
 
 ### 9-2. 中期で残っている開発項目
 
-詳細は **[docs/快活システム_画面機能一覧_開発状況.xlsx](docs/快活システム_画面機能一覧_開発状況.xlsx)** を参照（2026-05-25 時点）。
+詳細は **[docs/快活システム_画面機能一覧_開発状況.xlsx](docs/快活システム_画面機能一覧_開発状況.xlsx)** を参照（2026-05-26 時点）。
 
 5シート構成:
 1. **画面一覧** — 全画面のフロント/バック開発状況
@@ -350,6 +350,16 @@ IT 管理者向けの新ロール `system`。admin の全権限に加え、以�
 - **予算実績締め処理**: 当初の cron バッチは廃止。2026-05-23 から `applyBudgetActualDelta()` が status 遷移時にリアルタイム反映する設計（Plan B）に変更済
 - **予算超過通知の条件検証**: `tools/test_budget_notify.php` で 9 ケース網羅テスト全 PASS（境界クロス・既超過・delta=0/負・メアド未設定 など）
 - **iPad レスポンシブ対応 4 項目**: breakpoint を 1024→1280px に拡張、テーブル横スクロール、タッチターゲット 44px、iOS Safari ズーム対策（input/select 16px）— iPad 9/10 の portrait/landscape 計 4 ビューポートで実機サイズ検証済
+- **自店調達のハードコード解消**: 年度プルダウンを DB 由来化（`GET /api/procurement.php?action=years` 追加）、カテゴリフィルタを categories マスタから動的構築、カテゴリ・role バリデーションをマスタ参照に変更、admin の「商品部様」表示を共通ナビ任せに統一
+- **3 画面のフィルタバー UI 統一**: 発注一覧 admin/store・予算管理・自店調達の全 5 フィルタを `.admin-filter-bar > .admin-filter-row > .filter-group > .filter-label + control` の共通レイアウトに統一（スタイル本体は `common.css` に集約）
+- **予算管理のプルダウン挙動を発注一覧に整合**: ゾーン未選択時に全エリア・全店舗を表示、ゾーン/エリア選択時のみ絞り込み（カスケード）。option ラベルも「ゾーン/エリア/店舗」→「すべて」に統一
+- **備品発注フィルタラベル統一**: `.filter-label` を `.form-label`（14px / #334155）に揃え、修理・部品発注のフォームラベルと同じ見た目に
+- **発注済モーダルの納品予定日デフォルトを「締め日+4日」に統一**: 画面側 `getEquipmentDeliveryDate()` をバッチ `auto_advance_status.php` の 1→2 自動遷移フォールバック値と同じ「締め日+4日」に変更（配達 4 日想定）
+- **ステータス履歴メモの改行表示 + XSS 対策**: `.timeline-memo` に `white-space: pre-wrap` を追加して入力時の改行を画面で再現、同時に memo / changed_at / changed_by を `escapeHtml()` で安全に出力
+- **テストデータ整備**:
+  - `tools/seed_yokohama_test_data.php` — 横浜店(10303)で 3 種別 × 5 ステータス + 備品 10 明細サンプル = 計 16 件
+  - `tools/seed_draft_mail_test_data.php` — 依頼中履歴の changed_by/created_by を「商品部」固定から店舗ユーザーに修正（実運用に整合）
+  - `tools/seed_expand_to_30_shops.php` — 既存 11 → 全国 30 店舗に拡張（shops / shop_categories / users / budgets 3 年分一括投入。`--reset` 付）
 
 ---
 

@@ -271,10 +271,10 @@
   ├─ [修理] 店舗が手動 ──→ 3 (修理済)
   │   入力: 修理完了日（必須）、メモ
   │
-  ├─ [備品・部品] 店舗が手動 ──→ 3 (納品済)
+  ├─ [備品・部品] 商品部が手動 ──→ 3 (納品済)
   │   入力: メモ
   │
-  └─ [備品] システム自動（納品予定日到来）──→ 3 (納品済)
+  └─ [全種別] バッチ自動（予定日 = 当日）──→ 3 (納品済/修理済)
 
 3 (修理済 / 納品済)
   │
@@ -282,8 +282,8 @@
   │   入力: 最終金額（修理は必須、他は任意）、メモ
   │   未入力時: 最終金額 = 見積金額を自動適用
   │
-  └─ [備品] システム自動（納品予定日翌日）──→ 4 (完了)
-      最終金額 = 見積金額を自動適用
+  └─ [全種別] バッチ自動（予定日翌日 = 当日）──→ 4 (完了)
+      最終金額未設定なら見積金額を適用 + 予算実績反映
 
 4 (完了)
   └─ 最終状態。変更不可。
@@ -318,10 +318,12 @@
   - `closing_type`: `none`（都度）/ `monthly`（月次）/ `weekly`（週次）
   - `closing_day`: monthly なら日(1-31)、weekly なら曜日(0=日〜6=土)
 - 初期値: フィットネス備品=毎月8日、ゴルフ備品=毎週火曜日
-- 締め日に、依頼中（ステータス0）の備品発注をカテゴリごとにまとめて自動発注
-- 締め日の翌日に自動で「配達中」へ遷移
-- 納品予定日に自動で「納品済」へ遷移
-- 納品予定日の翌日に自動で「完了」へ遷移（最終金額 = 見積金額）
+- 締め日の翌日に、商品部が「発注済にする」操作で 0→1 に進める（自動発注は対象外運用 — 9-2参照）
+- バッチ `setup/auto_advance_status.php` が以下を実行（cron 想定）:
+  - **1→2**: 備品のみ、カテゴリ締め日の翌日に自動遷移。`delivery_date` 未設定なら **「締め日+4日」** で仮設定
+  - **2→3**: 全種別、`delivery_date`（修理は `repair_schedule_date`）= 当日の発注を遷移
+  - **3→4**: 全種別、予定日翌日 = 当日の発注を遷移。`final_amount` 未設定なら見積金額を適用し、`applyBudgetActualDelta()` で予算実績反映
+- 画面「発注済にする」モーダルの納品予定日デフォルトも **「締め日+4日」** で統一（`js/order-list.js` `getEquipmentDeliveryDate()`、配達 4 日想定）
 - カテゴリの `closing_type = 'none'` の場合は都度発注（自動バッチ対象外）
 
 ### 5.2 修理発注の対応不可日
@@ -459,8 +461,12 @@
 
 | メソッド | エンドポイント | 説明 | 権限 |
 |---------|--------------|------|------|
-| GET | /api/procurement | 申請一覧取得 | 店舗:自店 / 管理者:全店 |
-| POST | /api/procurement | 自店調達申請を作成 | 店舗 |
+| GET | /api/procurement.php | 申請一覧取得（`?year=&category=&shop=`） | 店舗:自店 / 管理者:全店 |
+| GET | /api/procurement.php?action=years | 実在年度の降順リスト（データ無しは現在年度フォールバック） | 全ロール |
+| POST | /api/procurement.php | 自店調達申請を作成 | 店舗 |
+
+- `category` バリデーションは categories マスタの `is_active=1` を参照（ハードコード廃止）。
+- POST 時は `shop_categories` の所属チェックも実施（自店所属カテゴリ以外は 400）。
 
 ### 6.6 マスタ管理（参照）
 
@@ -615,3 +621,22 @@ kaikatsu-system/
 
 各JSファイルの先頭にサンプルデータが配列として定義されています。
 バックエンド化する際は、この配列部分をAPI呼び出しに置き換えてください。
+
+### 8.1 共通フィルタバー（発注一覧 / 予算管理 / 自店調達）
+
+3 画面（発注一覧 admin/store・予算管理・自店調達）のフィルタは以下の共通 HTML 構造で統一されています。スタイル本体は `css/common.css` に集約。
+
+```html
+<div class="admin-filter-bar" id="[xxxFilterBar]">
+  <div class="admin-filter-row">
+    <div class="filter-group">
+      <span class="filter-label">ラベル</span>
+      <select|input class="form-select|form-input">
+    </div>
+    ...
+  </div>
+</div>
+```
+
+- 共通スタイル: `.admin-filter-bar` / `.admin-filter-row` / `.filter-group` / `.filter-label` / `.date-range` 一式は `common.css` 参照
+- 初期非表示が必要な画面（発注一覧の admin/store 切替）は ID 指定で `display:none` を上書き、JS で `display = 'block'` をセットして表示
