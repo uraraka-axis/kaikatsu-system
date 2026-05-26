@@ -7,7 +7,8 @@
   flex-wrap: wrap;
 }
 .filter-group { display: flex; flex-direction: column; gap: 6px; }
-.filter-label { font-size: 13px; font-weight: 600; color: #64748b; }
+/* 修理/部品発注の .form-label と同じ色・サイズに統一 */
+.filter-label { font-size: 14px; font-weight: 600; color: #334155; }
 .search-input { width: 300px; }
 
 /* ===== Product Grid ===== */
@@ -446,12 +447,23 @@
 .cart-item-remove svg { width: 14px; height: 14px; }
 
 /* ===== Responsive: iPad / Tablet ===== */
-@media (min-width: 601px) and (max-width: 1024px) {
+@media (min-width: 601px) and (max-width: 1280px) {
   .product-grid { grid-template-columns: repeat(2, 1fr); }
   .filter-bar { flex-direction: row; }
   .cart-bar-summary { padding: 14px 20px; }
   .cart-items { padding: 8px 20px 12px; }
   .cart-detail-header { padding: 16px 20px 8px; }
+  /* 数量増減ボタンを 44px に */
+  .qty-btn {
+    width: 44px;
+    height: 44px;
+    font-size: 20px;
+  }
+  .qty-input {
+    height: 44px;
+    width: 56px;
+    font-size: 16px;          /* iOS ズーム対策 */
+  }
 }
 
 /* ===== Responsive: Phone ===== */
