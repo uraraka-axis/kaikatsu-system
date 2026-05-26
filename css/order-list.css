@@ -1,8 +1,9 @@
 /* ===== Wide Layout (table page) ===== */
 .main { max-width: 1400px; }
 
-/* ===== Admin Filter Bar (発注一覧固有: 初期非表示。スタイル本体は common.css) ===== */
-.admin-filter-bar { display: none; }
+/* ===== Filter Bars (admin/store とも初期非表示。JS で role に応じて表示。スタイル本体は common.css) ===== */
+#adminFilterBar,
+#storeFilterBar { display: none; }
 
 /* Action bars */
 .admin-action-bar {

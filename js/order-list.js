@@ -304,7 +304,7 @@ function restoreFilters() {
 
 // ===== Init =====
 function initView() {
-  document.getElementById('storeFilterBar').style.display = viewMode === 'store' ? '' : 'none';
+  document.getElementById('storeFilterBar').style.display = viewMode === 'store' ? 'block' : 'none';
   document.getElementById('storeActionBar').style.display = viewMode === 'store' ? 'flex' : 'none';
   document.getElementById('adminFilterBar').style.display = viewMode === 'admin' ? 'block' : 'none';
   document.getElementById('adminActionBar').style.display = viewMode === 'admin' ? 'flex' : 'none';

@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/common.css?v=20260526b">
-  <link rel="stylesheet" href="css/order-list.css?v=20260526b">
+  <link rel="stylesheet" href="css/order-list.css?v=20260526c">
 </head>
 <body>
   <header class="header" data-title="発注一覧画面"></header>
@@ -87,30 +87,41 @@
     </div>
 
     <!-- Store Filter Bar -->
-    <div class="toolbar" id="storeFilterBar">
-      <div class="toolbar-left">
-        <select class="form-select" id="filterCategory" onchange="applyFilters()">
-          <option value="">すべてのカテゴリ</option>
-          <!-- カテゴリは JS で動的に追加 -->
-        </select>
-        <select class="form-select" id="filterType" onchange="applyFilters()">
-          <option value="">種別</option>
-          <option value="repair">修理</option>
-          <option value="equipment">備品</option>
-          <option value="parts">部品</option>
-        </select>
-        <select class="form-select" id="filterStatus" onchange="applyFilters()">
-          <option value="">ステータス</option>
-          <option value="0">依頼中</option>
-          <option value="1">発注済</option>
-          <option value="2">配達中/修理待ち</option>
-          <option value="3">納品済/修理済</option>
-          <option value="4">完了</option>
-        </select>
-        <button type="button" class="btn-action btn-primary" onclick="applyFilters()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-          検索
-        </button>
+    <div class="admin-filter-bar" id="storeFilterBar">
+      <div class="admin-filter-row">
+        <div class="filter-group">
+          <span class="filter-label">カテゴリ</span>
+          <select class="form-select" id="filterCategory" onchange="applyFilters()">
+            <option value="">すべてのカテゴリ</option>
+            <!-- カテゴリは JS で動的に追加 -->
+          </select>
+        </div>
+        <div class="filter-group">
+          <span class="filter-label">種別</span>
+          <select class="form-select" id="filterType" onchange="applyFilters()">
+            <option value="">すべて</option>
+            <option value="repair">修理</option>
+            <option value="equipment">備品</option>
+            <option value="parts">部品</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <span class="filter-label">ステータス</span>
+          <select class="form-select" id="filterStatus" onchange="applyFilters()">
+            <option value="">すべて</option>
+            <option value="0">依頼中</option>
+            <option value="1">発注済</option>
+            <option value="2">配達中/修理待ち</option>
+            <option value="3">納品済/修理済</option>
+            <option value="4">完了</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <button type="button" class="btn-action btn-primary" onclick="applyFilters()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            検索
+          </button>
+        </div>
       </div>
     </div>
 
@@ -196,6 +207,6 @@
     </div>
   </div>
 
-  <script src="js/order-list.js?v=20260525f"></script>
+  <script src="js/order-list.js?v=20260526"></script>
 </body>
 </html>
