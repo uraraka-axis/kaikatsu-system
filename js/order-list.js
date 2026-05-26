@@ -48,7 +48,8 @@ var categoriesMap = {}; // code -> { closing_type, closing_day }
 
 // ===== Date Helpers =====
 // 備品の納品予定日デフォルト値
-// カテゴリの締めルールから「次の締め日 + 1日」を返す。
+// カテゴリの締めルールから「次の締め日 + 4日」を返す（配達に約4日かかる前提）。
+// setup/auto_advance_status.php の 1→2 自動遷移フォールバック値（締め日+4日）と同じロジック。
 // none の場合は空文字を返し、admin に手入力させる。
 function getEquipmentDeliveryDate(order) {
   if (!order || !order.category_code) return '';
@@ -61,12 +62,12 @@ function getEquipmentDeliveryDate(order) {
     var year = today.getFullYear();
     var month = today.getMonth(); // 0-based
     if (day > closing.closing_day) month += 1;
-    return formatDate(new Date(year, month, closing.closing_day + 1));
+    return formatDate(new Date(year, month, closing.closing_day + 4));
   }
 
   if (closing.closing_type === 'weekly') {
     var currentDow = today.getDay();
-    var daysUntil = ((closing.closing_day - currentDow + 7) % 7) + 1;
+    var daysUntil = ((closing.closing_day - currentDow + 7) % 7) + 4;
     var d = new Date(today);
     d.setDate(today.getDate() + daysUntil);
     return formatDate(d);
