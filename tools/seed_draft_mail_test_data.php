@@ -73,7 +73,15 @@ foreach ($products as $p) {
     $bySupplier[(int)$p['supplier_id']][] = $p;
 }
 
-$adminUserId = 1; // admin/商品部
+// 店舗ユーザー（依頼者）を引くためのマップ: shop_code => ['id' => ..., 'name' => ...]
+$shopUsers = [];
+foreach (query("SELECT id, name, shop_code FROM users WHERE role = 'shop' AND shop_code IS NOT NULL") as $u) {
+    if (!isset($shopUsers[$u['shop_code']])) {
+        $shopUsers[$u['shop_code']] = ['id' => (int)$u['id'], 'name' => $u['name']];
+    }
+}
+
+$adminUserId = 1; // フォールバック用（店舗ユーザー未登録の場合）
 
 // ---- 発注テンプレート定義 ----
 // 各エントリ: [shop_code, day_offset(-N=N日前), category, [items: [product_id, qty], ...]]
@@ -156,6 +164,10 @@ try {
         // 発注番号生成
         $orderId = generateOrderNumber('equipment', $shopCode, $date);
 
+        // 依頼者 = 店舗ユーザー（実運用は店舗ユーザーが依頼するため）
+        // 店舗ユーザーが未登録の店舗は admin(1) にフォールバック
+        $requester = $shopUsers[$shopCode] ?? ['id' => $adminUserId, 'name' => '商品部'];
+
         // 発注本体
         execute(
             "INSERT INTO orders
@@ -167,12 +179,12 @@ try {
                 ':category'   => $category,
                 ':shop'       => $shopCode,
                 ':date'       => $date,
-                ':uid'        => $adminUserId,
+                ':uid'        => $requester['id'],
                 ':created_at' => $date . ' 09:30:00',
             ]
         );
 
-        // ステータス履歴
+        // ステータス履歴（依頼中 = 店舗ユーザーが起票）
         execute(
             "INSERT INTO order_status_history
                 (order_id, status, changed_by, memo, changed_at)
@@ -180,7 +192,7 @@ try {
                 (:order_id, 0, :changed_by, :memo, :changed_at)",
             [
                 ':order_id'   => $orderId,
-                ':changed_by' => '商品部',
+                ':changed_by' => $requester['name'],
                 ':memo'       => $seedMemo,
                 ':changed_at' => $date . ' 09:30:00',
             ]

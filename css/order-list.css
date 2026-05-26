@@ -237,6 +237,8 @@
   margin-top: 2px;
   padding-left: 8px;
   border-left: 2px solid #e2e8f0;
+  white-space: pre-wrap;     /* 入力時の改行をそのまま表示 */
+  word-break: break-word;
 }
 
 /* Detail action buttons */

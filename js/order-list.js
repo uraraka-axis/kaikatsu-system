@@ -635,9 +635,9 @@ function renderStatusHistory(o) {
     html += '<div class="timeline-item">';
     html += '<div class="timeline-dot ' + (isCurrent ? 'current' : 'past') + '"></div>';
     html += '<div class="timeline-status ' + (isCurrent ? 'current' : 'past') + '">' + getStatusLabel(h.status, o.type) + (isCurrent ? ' ← 現在' : '') + '</div>';
-    html += '<div class="timeline-meta">' + h.changed_at + ' — ' + h.changed_by + '</div>';
+    html += '<div class="timeline-meta">' + escapeHtml(h.changed_at) + ' — ' + escapeHtml(h.changed_by || '') + '</div>';
     if (h.memo) {
-      html += '<div class="timeline-memo">' + h.memo + '</div>';
+      html += '<div class="timeline-memo">' + escapeHtml(h.memo) + '</div>';
     }
     html += '</div>';
   }
