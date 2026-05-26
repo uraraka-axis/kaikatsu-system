@@ -85,4 +85,7 @@ define('MAIL_FROM',     'noreply@kaikatsu.local');
 define('MAIL_FROM_NAME','快活システム');
 // ローカル開発時に Mailpit 等を起動していない場合、true にすると
 // 送信を試みず logs/mail.log に追記するだけにできる (障害切り分け用)。
-define('MAIL_LOG_ONLY', false);
+// テストスクリプトから先に define されている場合はそちらを優先する（!defined ガード）。
+if (!defined('MAIL_LOG_ONLY')) {
+    define('MAIL_LOG_ONLY', false);
+}

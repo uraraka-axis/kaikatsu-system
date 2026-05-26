@@ -240,6 +240,60 @@ body {
 .empty-state svg { width: 48px; height: 48px; margin-bottom: 16px; }
 .empty-state p { font-size: 14px; }
 
+/* ===== Shared Filter Bar (発注一覧 / 予算管理 / 自店調達 共通) =====
+   構造: .admin-filter-bar > .admin-filter-row > .filter-group > .filter-label + control */
+.admin-filter-bar {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 20px 24px;
+  margin-bottom: 20px;
+}
+.admin-filter-row {
+  display: flex;
+  gap: 16px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+.admin-filter-row + .admin-filter-row {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #f1f5f9;
+}
+.admin-filter-bar .filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.admin-filter-bar .filter-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+}
+.admin-filter-bar .form-select {
+  width: auto;
+  min-width: 140px;
+  padding: 8px 14px;
+  font-size: 14px;
+  padding-right: 36px;
+  background-position: right 12px center;
+}
+.admin-filter-bar .form-input {
+  padding: 8px 14px;
+  font-size: 14px;
+}
+.filter-actions {
+  justify-content: flex-end;
+  margin-left: auto;
+}
+.date-range {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.date-input { width: 150px; }
+.date-separator { font-size: 14px; color: #94a3b8; }
+
 /* ===== Photo Upload (shared: repair-order, parts-order) ===== */
 .photo-upload-area {
   border: 2px dashed #d1d5db;
@@ -295,15 +349,47 @@ body {
 .photo-remove:hover { background-color: rgba(239, 68, 68, 0.8); }
 .photo-remove svg { width: 14px; height: 14px; }
 
-/* ===== Responsive: iPad / Tablet (601px–1024px) ===== */
-@media (min-width: 601px) and (max-width: 1024px) {
+/* ===== Responsive: iPad / Tablet (601px–1280px) ===== */
+/* iPad 9世代 portrait 810px / landscape 1080px / 10世代 portrait 820px / landscape 1180px をカバー */
+@media (min-width: 601px) and (max-width: 1280px) {
   .header { padding: 0 20px; }
   .header h1 { font-size: 18px; }
   .nav { padding: 0 12px; gap: 2px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  .nav-btn { padding: 8px 14px; font-size: 13px; white-space: nowrap; }
+  .nav-btn {
+    padding: 10px 16px;
+    font-size: 14px;
+    white-space: nowrap;
+    min-height: 44px;        /* タッチターゲット 44px (Apple HIG / WCAG) */
+    display: inline-flex;
+    align-items: center;
+  }
   .main { padding: 24px 20px; max-width: 100%; }
-  .table-container { overflow-x: auto; }
+  .table-container { overflow-x: auto; -webkit-overflow-scrolling: touch; }
   .form-group { margin-bottom: 20px; }
+  /* iOS Safari 自動ズーム対策: フォーム部品の font-size を 16px 以上に */
+  .form-select,
+  .form-input,
+  input[type="text"],
+  input[type="number"],
+  input[type="date"],
+  input[type="email"],
+  input[type="password"],
+  input[type="search"],
+  input[type="tel"],
+  textarea,
+  select {
+    font-size: 16px;
+  }
+  /* 汎用ボタンのタッチターゲット */
+  .btn-action,
+  .btn-submit {
+    min-height: 44px;
+  }
+  /* 共通フィルタバー: iPad では余白を詰める */
+  .admin-filter-bar { padding: 16px 20px; }
+  .admin-filter-row { gap: 12px; }
+  .admin-filter-bar .form-select { min-width: 120px; }
+  .date-input { width: 130px; }
 }
 
 /* ===== Responsive: Phone (600px以下) ===== */
@@ -322,6 +408,13 @@ body {
   .table-container { overflow-x: auto; }
   .submit-section { justify-content: center; }
   .btn-submit { width: 100%; }
+  /* 共通フィルタバー: スマホ縦並び */
+  .admin-filter-bar { padding: 14px 16px; }
+  .admin-filter-row { flex-direction: column; gap: 10px; align-items: stretch; }
+  .admin-filter-bar .form-select { min-width: 100%; }
+  .date-input { width: 100%; }
+  .date-range { flex-wrap: wrap; }
+  .filter-actions { margin-left: 0; }
 }
 
 /* ===== Notify Modal (shared) ===== */

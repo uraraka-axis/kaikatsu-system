@@ -3,6 +3,7 @@ docs/
 uploads/
 vendor/
 composer.phar
+logs/
 
 # 作業バックアップファイル（.bak_YYYYMMDD / .bak2_YYYYMMDD 等）
 *.bak*
