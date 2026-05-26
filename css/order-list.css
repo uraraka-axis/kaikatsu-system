@@ -1,66 +1,8 @@
 /* ===== Wide Layout (table page) ===== */
 .main { max-width: 1400px; }
 
-/* ===== Admin Filter Bar ===== */
-.admin-filter-bar {
-  display: none;
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 20px 24px;
-  margin-bottom: 20px;
-}
-.admin-filter-row {
-  display: flex;
-  gap: 16px;
-  align-items: flex-end;
-  flex-wrap: wrap;
-}
-.admin-filter-row + .admin-filter-row {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid #f1f5f9;
-}
-.admin-filter-bar .filter-group {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.admin-filter-bar .filter-label {
-  font-size: 12px;
-  font-weight: 600;
-  color: #64748b;
-}
-.admin-filter-bar .form-select {
-  width: auto;
-  min-width: 140px;
-  padding: 8px 14px;
-  font-size: 14px;
-  padding-right: 36px;
-  background-position: right 12px center;
-}
-.admin-filter-bar .form-input {
-  padding: 8px 14px;
-  font-size: 14px;
-}
-.filter-actions {
-  justify-content: flex-end;
-  margin-left: auto;
-}
-
-/* Date range */
-.date-range {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.date-input {
-  width: 150px;
-}
-.date-separator {
-  font-size: 14px;
-  color: #94a3b8;
-}
+/* ===== Admin Filter Bar (発注一覧固有: 初期非表示。スタイル本体は common.css) ===== */
+.admin-filter-bar { display: none; }
 
 /* Action bars */
 .admin-action-bar {
@@ -660,16 +602,45 @@
 .copy-feedback.show { opacity: 1; }
 
 /* ===== Responsive: iPad / Tablet ===== */
-@media (min-width: 601px) and (max-width: 1024px) {
+@media (min-width: 601px) and (max-width: 1280px) {
   .toolbar { flex-direction: row; }
   .detail-grid { grid-template-columns: 1fr 1fr; }
   .detail-two-col { grid-template-columns: 1fr 1fr; gap: 16px; }
   .order-table { font-size: 13px; }
   .order-row td { padding: 10px 12px; }
-  .admin-filter-bar { padding: 16px 20px; }
-  .admin-filter-row { gap: 12px; }
-  .admin-filter-bar .form-select { min-width: 120px; }
-  .date-input { width: 130px; }
+
+  /* 発注一覧テーブルは iPad 縦持ち(810/820px)では右切れするため、
+     横スクロール許可 + min-width で全列見れる状態に */
+  .table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .order-table {
+    min-width: 920px;       /* admin は 11 列なのでこれで全列見える */
+  }
+  /* 詳細展開ボタンのタッチターゲット 44px */
+  .btn-sm {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 6px 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  /* チェックボックスもタッチしやすく */
+  .order-table input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+  }
+  .td-checkbox {
+    padding: 8px 12px;
+  }
+  /* iOS ズーム対策: toolbar 側のフォーム部品（store 用）にも 16px 強制 */
+  .toolbar .form-select,
+  .toolbar .form-input {
+    font-size: 16px;
+  }
 }
 
 /* ===== Responsive: Phone ===== */
@@ -678,10 +649,4 @@
   .toolbar-left, .toolbar-right { flex-wrap: wrap; }
   .detail-grid { grid-template-columns: 1fr; }
   .detail-two-col { grid-template-columns: 1fr; }
-  .admin-filter-bar { padding: 14px 16px; }
-  .admin-filter-row { flex-direction: column; gap: 10px; }
-  .admin-filter-bar .form-select { min-width: 100%; }
-  .date-input { width: 100%; }
-  .date-range { flex-wrap: wrap; }
-  .filter-actions { margin-left: 0; }
 }

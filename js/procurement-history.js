@@ -24,25 +24,25 @@ document.addEventListener('DOMContentLoaded', function() {
         currentUser = data.user;
         viewMode = currentUser.role === 'admin' ? 'admin' : 'store';
         setupView();
-        // カテゴリを動的ロード（店舗ユーザーは自店所属のみ、admin は全件）
-        loadCategories().then(function() {
-          if (viewMode === 'admin') {
-            loadShops().then(function() { loadData(); });
-          } else {
-            loadData();
-          }
-        });
+        // カテゴリ → 年度の順に動的ロード後、データ取得
+        loadCategories()
+          .then(populateYearFilter)
+          .then(function() {
+            if (viewMode === 'admin') {
+              loadShops().then(function() { loadData(); });
+            } else {
+              loadData();
+            }
+          });
       })
       .catch(function() { location.href = 'login.html'; });
   }
 
   // ===== 画面セットアップ =====
   function setupView() {
-    // ヘッダユーザー表示
-    var header = document.querySelector('.header-user');
-    if (header) {
-      header.textContent = currentUser.name + '様';
-    }
+    // ヘッダのユーザー名は common-nav.js が設定するため、ここでは設定しない
+    // （以前は user.name + '様' を独自に上書きしていたが、admin の name は組織名
+    //  「商品部」なので「商品部様」と表示されてしまうため共通実装に統一）
 
     // 店舗ユーザーのみ申請フォーム表示
     document.getElementById('procurementSection').style.display = viewMode === 'store' ? '' : 'none';
@@ -61,6 +61,7 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   // ===== カテゴリ動的ロード（店舗ユーザーは自店所属、admin は全件） =====
+  // 申請フォーム(procCategory) と フィルタ(filterCategory) の両方に反映
   function loadCategories() {
     return fetch('api/master/categories.php', { credentials: 'same-origin' })
       .then(function(r) { return r.json(); })
@@ -71,43 +72,76 @@ document.addEventListener('DOMContentLoaded', function() {
           categoryLabels[c.code] = c.name;
         });
         // 申請フォームのカテゴリプルダウンを動的構築
-        var sel = document.getElementById('procCategory');
-        if (sel) {
-          while (sel.options.length > 1) sel.remove(1);
-          cats.forEach(function(c) {
-            var opt = document.createElement('option');
-            opt.value = c.code;
-            opt.textContent = c.name;
-            sel.appendChild(opt);
-          });
-        }
+        appendCategoryOptions(document.getElementById('procCategory'), cats);
+        // フィルタのカテゴリプルダウンを動的構築（buildFilters 実行後の場合のみ）
+        appendCategoryOptions(document.getElementById('filterCategory'), cats);
       })
       .catch(function(e) { console.error('Failed to fetch categories:', e); });
   }
 
+  // option[0]（「選択してください」「すべてのカテゴリ」など）を残して以降を作り直す
+  function appendCategoryOptions(sel, cats) {
+    if (!sel) return;
+    while (sel.options.length > 1) sel.remove(1);
+    cats.forEach(function(c) {
+      var opt = document.createElement('option');
+      opt.value = c.code;
+      opt.textContent = c.name;
+      sel.appendChild(opt);
+    });
+  }
+
+  // ===== 年度プルダウン動的ロード（実際に申請データが存在する年度のみ） =====
+  function populateYearFilter() {
+    return fetch('api/procurement.php?action=years', { credentials: 'same-origin' })
+      .then(function(r) {
+        if (r.status === 401) { location.href = 'login.html'; return; }
+        return r.json();
+      })
+      .then(function(data) {
+        var sel = document.getElementById('filterYear');
+        if (!sel) return;
+        var years = (data && data.years) || [];
+        if (years.length === 0) {
+          sel.innerHTML = '<option value="">（年度データなし）</option>';
+          return;
+        }
+        var html = '';
+        years.forEach(function(y, i) {
+          html += '<option value="' + y + '"' + (i === 0 ? ' selected' : '') + '>' + y + '年度</option>';
+        });
+        sel.innerHTML = html;
+      })
+      .catch(function(e) { console.error('Failed to fetch fiscal years:', e); });
+  }
+
   // ===== フィルタ構築 =====
+  // 発注一覧 / 予算管理と同じ共通レイアウト (.admin-filter-bar > .admin-filter-row > .filter-group)
+  // 中身（option）は populateYearFilter / loadCategories が後から注入する
   function buildFilters() {
-    var html = '';
+    var groups = '';
 
     if (viewMode === 'admin') {
-      html += '<select class="form-select" id="filterShop"><option value="">すべての店舗</option></select>';
+      groups +=
+        '<div class="filter-group">' +
+          '<span class="filter-label">店舗</span>' +
+          '<select class="form-select" id="filterShop"><option value="">すべて</option></select>' +
+        '</div>';
     }
+    groups +=
+      '<div class="filter-group">' +
+        '<span class="filter-label">年度</span>' +
+        '<select class="form-select" id="filterYear"></select>' +
+      '</div>' +
+      '<div class="filter-group">' +
+        '<span class="filter-label">カテゴリ</span>' +
+        '<select class="form-select" id="filterCategory">' +
+          '<option value="">すべてのカテゴリ</option>' +
+        '</select>' +
+      '</div>';
 
-    // 年度フィルタ
-    var fy = getCurrentFiscalYear();
-    html += '<select class="form-select" id="filterYear">';
-    for (var y = fy; y >= fy - 2; y--) {
-      html += '<option value="' + y + '"' + (y === fy ? ' selected' : '') + '>' + y + '年度</option>';
-    }
-    html += '</select>';
-
-    html += '<select class="form-select" id="filterCategory">' +
-      '<option value="">すべてのカテゴリ</option>' +
-      '<option value="fitness">フィットネス</option>' +
-      '<option value="golf">インドアゴルフ</option>' +
-      '</select>';
-
-    document.getElementById('filterBar').innerHTML = html;
+    document.getElementById('filterBar').innerHTML =
+      '<div class="admin-filter-row">' + groups + '</div>';
 
     // イベント設定
     document.getElementById('filterYear').addEventListener('change', loadData);
@@ -296,13 +330,6 @@ document.addEventListener('DOMContentLoaded', function() {
     var div = document.createElement('div');
     div.textContent = str;
     return div.innerHTML;
-  }
-
-  function getCurrentFiscalYear() {
-    var now = new Date();
-    var y = now.getFullYear();
-    var m = now.getMonth() + 1;
-    return m >= 4 ? y : y - 1;
   }
 
   // ===== 起動 =====

@@ -7,6 +7,11 @@
  *   - 店舗ユーザー: 自店のみ
  *   - 管理者: 全店舗 or 絞り込み
  *
+ * GET  /api/procurement.php?action=years
+ *   - 実際に申請データが存在する年度の降順リストを返す
+ *   - 店舗ユーザー: 自店データから集計 / 管理者: 全店データから集計
+ *   - データなしの場合は現在年度を返す
+ *
  * POST /api/procurement.php
  *   - 店舗ユーザーのみ
  *   - { "category_code": "fitness", "amount": 15000, "reason": "..." }
@@ -22,6 +27,40 @@ $user = getCurrentUser();
 $method = $_SERVER['REQUEST_METHOD'];
 
 // ============================
+// GET: 年度一覧（?action=years）
+// ============================
+if ($method === 'GET' && (($_GET['action'] ?? '') === 'years')) {
+
+    // 店舗ユーザーは自店のみ、管理者は全店
+    $where = '';
+    $params = [];
+    if (!in_array($user['role'], ['admin', 'system'], true)) {
+        $where = ' WHERE shop_code = :sc';
+        $params[':sc'] = $user['shop_code'] ?? '';
+    }
+
+    // 年度 = 4月始まり: MONTH(date) >= 4 なら YEAR(date)、それ未満は YEAR(date)-1
+    $sql = "SELECT DISTINCT
+              CASE WHEN MONTH(date) >= 4 THEN YEAR(date) ELSE YEAR(date) - 1 END AS fy
+            FROM procurement_requests"
+         . $where
+         . " ORDER BY fy DESC";
+
+    $rows = query($sql, $params);
+    $years = array_map(static fn($r) => (int)$r['fy'], $rows);
+
+    // データなしの場合は現在年度のみ返す
+    if (empty($years)) {
+        $years = [getCurrentFiscalYear()];
+    }
+
+    jsonResponse([
+        'success' => true,
+        'years'   => $years,
+    ]);
+}
+
+// ============================
 // GET: 申請一覧
 // ============================
 if ($method === 'GET') {
@@ -31,13 +70,19 @@ if ($method === 'GET') {
     $shopCode   = $_GET['shop'] ?? '';
 
     // 店舗ユーザーは自店のみ
-    if ($user['role'] !== 'admin') {
+    if (!in_array($user['role'], ['admin', 'system'], true)) {
         $shopCode = $user['shop_code'];
     }
 
-    // バリデーション
-    if ($category !== '' && !in_array($category, ['fitness', 'golf'], true)) {
-        jsonError('不正なカテゴリパラメータです');
+    // バリデーション: カテゴリはマスタ存在チェック（is_active=1）
+    if ($category !== '') {
+        $catRow = getOne(
+            'SELECT code FROM categories WHERE code = :c AND is_active = 1',
+            [':c' => $category]
+        );
+        if (!$catRow) {
+            jsonError('不正なカテゴリパラメータです');
+        }
     }
 
     // 年度期間（4月始まり）
@@ -122,7 +167,15 @@ if ($method === 'GET') {
     if ($categoryCode === '') {
         jsonError('カテゴリを選択してください');
     }
-    if (!in_array($categoryCode, ['fitness', 'golf'], true)) {
+    // カテゴリはマスタ存在チェック（is_active=1） + 自店所属チェック
+    $catRow = getOne(
+        'SELECT c.code
+           FROM categories c
+           JOIN shop_categories sc ON sc.category_code = c.code
+          WHERE c.code = :c AND c.is_active = 1 AND sc.shop_code = :sc',
+        [':c' => $categoryCode, ':sc' => $user['shop_code']]
+    );
+    if (!$catRow) {
         jsonError('不正なカテゴリです');
     }
     if ($amount === null || $amount === '') {

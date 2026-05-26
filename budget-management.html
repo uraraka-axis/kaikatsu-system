@@ -9,8 +9,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/common.css?v=20260521">
-  <link rel="stylesheet" href="css/budget-management.css?v=20260525">
+  <link rel="stylesheet" href="css/common.css?v=20260526b">
+  <link rel="stylesheet" href="css/budget-management.css?v=20260526b">
 </head>
 <body>
   <header class="header" data-title="予算管理画面"></header>
@@ -18,45 +18,70 @@
   <script src="js/common-nav.js?v=20260521"></script>
   <main class="main">
     <!-- Admin Filters -->
-    <div class="toolbar" id="adminToolbar">
-      <div class="toolbar-filters">
-        <select class="form-select" id="filterZone" onchange="onZoneChange()">
-          <option value="">ゾーン</option>
-          <option value="100">100:東日本</option>
-          <option value="200">200:西日本</option>
-        </select>
-        <select class="form-select" id="filterArea" onchange="onAreaChange()">
-          <option value="">エリア</option>
-        </select>
-        <select class="form-select" id="filterShop" onchange="filterBudget()">
-          <option value="">店舗</option>
-        </select>
-        <select class="form-select" id="filterDept" onchange="filterBudget()">
-          <option value="">すべてのカテゴリ</option>
-          <!-- カテゴリは JS で動的に追加 -->
-        </select>
-        <select class="form-select" id="filterYear" onchange="filterBudget()">
-        </select>
-        <button type="button" class="btn-action btn-primary" onclick="filterBudget()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-          検索
-        </button>
+    <div class="admin-filter-bar" id="adminToolbar">
+      <div class="admin-filter-row">
+        <div class="filter-group">
+          <span class="filter-label">ゾーン</span>
+          <select class="form-select" id="filterZone" onchange="onZoneChange()">
+            <option value="">すべて</option>
+            <option value="100">100:東日本</option>
+            <option value="200">200:西日本</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <span class="filter-label">エリア</span>
+          <select class="form-select" id="filterArea" onchange="onAreaChange()">
+            <option value="">すべて</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <span class="filter-label">店舗</span>
+          <select class="form-select" id="filterShop" onchange="filterBudget()">
+            <option value="">すべて</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <span class="filter-label">カテゴリ</span>
+          <select class="form-select" id="filterDept" onchange="filterBudget()">
+            <option value="">すべてのカテゴリ</option>
+            <!-- カテゴリは JS で動的に追加 -->
+          </select>
+        </div>
+        <div class="filter-group">
+          <span class="filter-label">年度</span>
+          <select class="form-select" id="filterYear" onchange="filterBudget()">
+          </select>
+        </div>
+        <div class="filter-group">
+          <button type="button" class="btn-action btn-primary" onclick="filterBudget()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            検索
+          </button>
+        </div>
       </div>
     </div>
 
     <!-- Store Filters -->
-    <div class="toolbar" id="storeToolbar" style="display:none">
-      <div class="toolbar-filters">
-        <select class="form-select" id="storeDept" onchange="filterBudget()">
-          <option value="">すべてのカテゴリ</option>
-          <!-- カテゴリは JS で動的に追加 -->
-        </select>
-        <select class="form-select" id="storeYear" onchange="filterBudget()">
-        </select>
-        <button type="button" class="btn-action btn-primary" onclick="filterBudget()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-          検索
-        </button>
+    <div class="admin-filter-bar" id="storeToolbar" style="display:none">
+      <div class="admin-filter-row">
+        <div class="filter-group">
+          <span class="filter-label">カテゴリ</span>
+          <select class="form-select" id="storeDept" onchange="filterBudget()">
+            <option value="">すべてのカテゴリ</option>
+            <!-- カテゴリは JS で動的に追加 -->
+          </select>
+        </div>
+        <div class="filter-group">
+          <span class="filter-label">年度</span>
+          <select class="form-select" id="storeYear" onchange="filterBudget()">
+          </select>
+        </div>
+        <div class="filter-group">
+          <button type="button" class="btn-action btn-primary" onclick="filterBudget()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            検索
+          </button>
+        </div>
       </div>
     </div>
 
@@ -121,6 +146,6 @@
     </div>
   </main>
 
-  <script src="js/budget-management.js?v=20260525"></script>
+  <script src="js/budget-management.js?v=20260526c"></script>
 </body>
 </html>

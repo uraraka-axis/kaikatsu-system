@@ -173,10 +173,31 @@
         // Populate zone select
         var zoneSelect = document.getElementById('filterZone');
         if (zoneSelect) {
-          zoneSelect.innerHTML = '<option value="">ゾーン</option>';
+          zoneSelect.innerHTML = '<option value="">すべて</option>';
           zones.forEach(function(z) {
             zoneSelect.innerHTML += '<option value="' + z.zone_code + '">' + z.zone_code + ':' + z.zone_name + '</option>';
           });
+          // 初期表示時に全エリア/全店舗を populate（zone未選択時の状態）
+          // ただし filterBudget の二重呼び出しを避けるため、直接 select を埋めるだけ
+          var areaSel = document.getElementById('filterArea');
+          if (areaSel) {
+            areaSel.innerHTML = '<option value="">すべて</option>';
+            Object.keys(areasByZone).forEach(function(k) {
+              areasByZone[k].forEach(function(a) {
+                areaSel.innerHTML += '<option value="' + a[0] + '">' + a[1] + '</option>';
+              });
+            });
+          }
+          var shopSel = document.getElementById('filterShop');
+          if (shopSel) {
+            shopSel.innerHTML = '<option value="">すべて</option>';
+            Object.keys(shopsByArea).forEach(function(k) {
+              shopsByArea[k].forEach(function(s) {
+                var code = s.split(':')[0];
+                shopSel.innerHTML += '<option value="' + code + '">' + s + '</option>';
+              });
+            });
+          }
         }
         // Populate dept(category) selects (admin / store 両方対応)
         ['filterDept', 'storeDept'].forEach(function(id) {
@@ -358,26 +379,46 @@
     function onZoneChange() {
       var zone = document.getElementById('filterZone').value;
       var areaSelect = document.getElementById('filterArea');
-      areaSelect.innerHTML = '<option value="">エリア</option>';
+      areaSelect.innerHTML = '<option value="">すべて</option>';
+      // zone 未選択時は全エリアを表示（発注一覧と同じ仕様）
+      var list = [];
       if (zone && areasByZone[zone]) {
-        areasByZone[zone].forEach(function(a) {
-          areaSelect.innerHTML += '<option value="' + a[0] + '">' + a[1] + '</option>';
+        list = areasByZone[zone];
+      } else {
+        Object.keys(areasByZone).forEach(function(k) {
+          areasByZone[k].forEach(function(a) { list.push(a); });
         });
       }
+      list.forEach(function(a) {
+        areaSelect.innerHTML += '<option value="' + a[0] + '">' + a[1] + '</option>';
+      });
       updateShopOptions();
       filterBudget();
     }
 
     function updateShopOptions() {
       var area = document.getElementById('filterArea').value;
+      var zone = document.getElementById('filterZone').value;
       var shopSelect = document.getElementById('filterShop');
-      shopSelect.innerHTML = '<option value="">店舗</option>';
+      shopSelect.innerHTML = '<option value="">すべて</option>';
+      // area選択時=その area の店舗 / zoneのみ=その zone 配下全店舗 / 両方未選択=全店舗
+      var list = [];
       if (area && shopsByArea[area]) {
-        shopsByArea[area].forEach(function(s) {
-          var code = s.split(':')[0];
-          shopSelect.innerHTML += '<option value="' + code + '">' + s + '</option>';
+        list = shopsByArea[area];
+      } else if (zone && areasByZone[zone]) {
+        areasByZone[zone].forEach(function(a) {
+          var ac = a[0];
+          if (shopsByArea[ac]) shopsByArea[ac].forEach(function(s) { list.push(s); });
+        });
+      } else {
+        Object.keys(shopsByArea).forEach(function(k) {
+          shopsByArea[k].forEach(function(s) { list.push(s); });
         });
       }
+      list.forEach(function(s) {
+        var code = s.split(':')[0];
+        shopSelect.innerHTML += '<option value="' + code + '">' + s + '</option>';
+      });
     }
 
     function onAreaChange() {

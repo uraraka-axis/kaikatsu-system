@@ -58,34 +58,7 @@
 .pagination-controls .form-select { min-width: 90px; }
 .pagination-controls .btn-action { padding: 6px 16px; font-size: 13px; }
 
-/* ===== Toolbar / Filters ===== */
-.toolbar { margin-bottom: 20px; }
-.toolbar-filters {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  align-items: center;
-}
-.toolbar-filters .form-select {
-  width: auto;
-  min-width: 130px;
-}
-.btn-search {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 10px 20px;
-  background: #3b82f6;
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  font-family: inherit;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-.btn-search:hover { background: #2563eb; box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3); }
+/* フィルタバーは .admin-filter-bar に統一（common.css 参照） */
 
 /* ===== Action Bar ===== */
 .budget-action-bar {
@@ -323,17 +296,22 @@
 }
 
 /* ===== Responsive ===== */
-@media (min-width: 601px) and (max-width: 1024px) {
+@media (min-width: 601px) and (max-width: 1280px) {
   .summary-grid { grid-template-columns: repeat(2, 1fr); }
-  .toolbar-filters .form-select { min-width: 110px; }
   .detail-content { padding: 12px 12px 12px 24px; overflow-x: auto; }
   .detail-header { flex-direction: column; align-items: flex-start; }
   .monthly-table { min-width: 750px; }
+  /* 予算管理テーブルは 12 列で横長なのでスクロール許可 */
+  .table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .budget-table {
+    min-width: 1100px;
+  }
 }
 @media (max-width: 600px) {
   .summary-grid { grid-template-columns: 1fr 1fr; }
-  .toolbar-filters { gap: 6px; }
-  .toolbar-filters .form-select { min-width: 100px; font-size: 14px; }
   .summary-card-value { font-size: 20px; }
   .detail-content { padding: 10px; overflow-x: auto; }
   .detail-header { flex-direction: column; align-items: flex-start; }
