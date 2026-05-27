@@ -1582,10 +1582,6 @@ function buildMailBody(sup) {
   lines.push('ご連絡くださいますようお願いいたします。');
   lines.push('');
   lines.push('以上、よろしくお願いいたします。');
-  lines.push('');
-  lines.push('────────────────────────');
-  lines.push('快活フロンティア 商品部');
-  lines.push('────────────────────────');
 
   return lines.join('\n');
 }
