@@ -22,7 +22,9 @@ document.addEventListener('DOMContentLoaded', function() {
       .then(function(data) {
         if (!data || !data.success) return;
         currentUser = data.user;
-        viewMode = currentUser.role === 'admin' ? 'admin' : 'store';
+        // admin/system/zone/area は admin ビュー（複数店舗横断）。shop は store ビュー
+        var managerRoles = ['admin', 'system', 'zone', 'area'];
+        viewMode = managerRoles.indexOf(currentUser.role) !== -1 ? 'admin' : 'store';
         setupView();
         // カテゴリ → 年度の順に動的ロード後、データ取得
         loadCategories()
@@ -52,12 +54,31 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   // ===== 店舗一覧読み込み（管理者用フィルタ） =====
+  // zone/area ロールは管轄外の店舗を選択肢から除外（Backend でも絞り込み済みだが UI 上の整合性のため）
   function loadShops() {
-    return fetch('api/master/shops.php', { credentials: 'same-origin' })
-      .then(function(r) { return r.json(); })
-      .then(function(data) {
-        if (data.success) shops = data.data || [];
-      });
+    var fetches = [fetch('api/master/shops.php', { credentials: 'same-origin' }).then(function(r) { return r.json(); })];
+    // area ロールの判定に areas マスタが必要
+    if (currentUser && currentUser.role === 'zone') {
+      fetches.push(fetch('api/master/areas.php', { credentials: 'same-origin' }).then(function(r) { return r.json(); }));
+    }
+    return Promise.all(fetches).then(function(results) {
+      var shopData  = results[0];
+      var areasData = results[1];
+      var allShops  = shopData && shopData.success ? (shopData.data || []) : [];
+
+      if (currentUser && currentUser.role === 'zone' && currentUser.zone_code) {
+        // 自分の zone 配下の areas に属する店舗のみ
+        var areasInZone = (areasData && areasData.success ? areasData.data : []).filter(function(a) {
+          return a.zone_code === currentUser.zone_code;
+        });
+        var validAreaCodes = areasInZone.map(function(a) { return a.area_code; });
+        shops = allShops.filter(function(s) { return validAreaCodes.indexOf(s.area_code) !== -1; });
+      } else if (currentUser && currentUser.role === 'area' && currentUser.area_code) {
+        shops = allShops.filter(function(s) { return s.area_code === currentUser.area_code; });
+      } else {
+        shops = allShops;
+      }
+    });
   }
 
   // ===== カテゴリ動的ロード（店舗ユーザーは自店所属、admin は全件） =====

@@ -1,6 +1,7 @@
     // ===== Role Detection (from API via userLoaded event) =====
     var viewMode = 'store';       // default until userLoaded
     var storeShopCode = '';
+    var currentUser = null;       // bootBudget で代入
 
     var fiscalMonths = [4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3];
 
@@ -158,6 +159,22 @@
       function checkDone() {
         done++;
         if (done < total) return;
+        // ロール別の管轄スコープを zones/areas/shops に適用
+        if (currentUser && currentUser.role === 'zone' && currentUser.zone_code) {
+          zones = zones.filter(function(z) { return z.zone_code === currentUser.zone_code; });
+          areas = areas.filter(function(a) { return a.zone_code === currentUser.zone_code; });
+          var validAreaCodes = areas.map(function(a) { return a.area_code; });
+          shops = shops.filter(function(s) { return validAreaCodes.indexOf(s.area_code) !== -1; });
+        } else if (currentUser && currentUser.role === 'area' && currentUser.area_code) {
+          var myArea = null;
+          for (var ia = 0; ia < areas.length; ia++) {
+            if (areas[ia].area_code === currentUser.area_code) { myArea = areas[ia]; break; }
+          }
+          var myZoneCode = myArea ? myArea.zone_code : null;
+          zones = zones.filter(function(z) { return z.zone_code === myZoneCode; });
+          areas = areas.filter(function(a) { return a.area_code === currentUser.area_code; });
+          shops = shops.filter(function(s) { return s.area_code === currentUser.area_code; });
+        }
         // Build areasByZone
         areasByZone = {};
         areas.forEach(function(a) {
@@ -171,22 +188,41 @@
           shopsByArea[s.area_code].push(s.shop_code + ':' + s.shop_name);
         });
         // Populate zone select
+        var isManagerScope = currentUser && (currentUser.role === 'zone' || currentUser.role === 'area');
+        var isAreaScope = currentUser && currentUser.role === 'area';
         var zoneSelect = document.getElementById('filterZone');
         if (zoneSelect) {
-          zoneSelect.innerHTML = '<option value="">すべて</option>';
-          zones.forEach(function(z) {
-            zoneSelect.innerHTML += '<option value="' + z.zone_code + '">' + z.zone_code + ':' + z.zone_name + '</option>';
-          });
+          if (isManagerScope) {
+            zoneSelect.innerHTML = '';
+            zones.forEach(function(z) {
+              zoneSelect.innerHTML += '<option value="' + z.zone_code + '">' + z.zone_code + ':' + z.zone_name + '</option>';
+            });
+            zoneSelect.disabled = true;
+            if (zones[0]) zoneSelect.value = zones[0].zone_code;
+          } else {
+            zoneSelect.innerHTML = '<option value="">すべて</option>';
+            zones.forEach(function(z) {
+              zoneSelect.innerHTML += '<option value="' + z.zone_code + '">' + z.zone_code + ':' + z.zone_name + '</option>';
+            });
+          }
           // 初期表示時に全エリア/全店舗を populate（zone未選択時の状態）
-          // ただし filterBudget の二重呼び出しを避けるため、直接 select を埋めるだけ
           var areaSel = document.getElementById('filterArea');
           if (areaSel) {
-            areaSel.innerHTML = '<option value="">すべて</option>';
-            Object.keys(areasByZone).forEach(function(k) {
-              areasByZone[k].forEach(function(a) {
-                areaSel.innerHTML += '<option value="' + a[0] + '">' + a[1] + '</option>';
+            if (isAreaScope) {
+              areaSel.innerHTML = '';
+              areas.forEach(function(a) {
+                areaSel.innerHTML += '<option value="' + a.area_code + '">' + a.area_code + ':' + a.area_name + '</option>';
               });
-            });
+              areaSel.disabled = true;
+              if (areas[0]) areaSel.value = areas[0].area_code;
+            } else {
+              areaSel.innerHTML = '<option value="">すべて</option>';
+              Object.keys(areasByZone).forEach(function(k) {
+                areasByZone[k].forEach(function(a) {
+                  areaSel.innerHTML += '<option value="' + a[0] + '">' + a[1] + '</option>';
+                });
+              });
+            }
           }
           var shopSel = document.getElementById('filterShop');
           if (shopSel) {
@@ -782,7 +818,12 @@
     // ===== Boot: wait for userLoaded event from common-nav.js =====
     function bootBudget(user) {
       if (viewMode !== 'store' || storeShopCode) return; // 二重起動防止
-      viewMode = user.role === 'admin' ? 'admin' : 'store';
+      // admin/system/zone/area は admin ビュー（複数店舗横断）。shop は store ビュー（自店のみ）
+      var managerRoles = ['admin', 'system', 'zone', 'area'];
+      viewMode = managerRoles.indexOf(user.role) !== -1 ? 'admin' : 'store';
+      // fetchMasterData / restoreBudgetFilters でロール別フィルタを適用するため
+      // ユーザー情報をモジュールスコープに保持
+      currentUser = user;
       if (viewMode === 'store') {
         storeShopCode = user.shop_code;
       }

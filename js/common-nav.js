@@ -49,14 +49,27 @@ window.hideLoading = function() {
       }
 
       var user = data.user;
-      // admin / system は管理側ナビ、system はさらに監査ログを追加
+      // ロール判定
+      //  - admin / system : 全機能管理ナビ（system は監査ログ追加）
+      //  - zone / area    : 閲覧3画面のみのナビ（管轄スコープ付き）
+      //  - shop           : 店舗ナビ
       var isAdmin = user.role === 'admin' || user.role === 'system';
       var isSystem = user.role === 'system';
+      var isZone = user.role === 'zone';
+      var isArea = user.role === 'area';
+      var isManager = isAdmin || isZone || isArea;
 
-      // ヘッダーのユーザー名を設定
+      // ヘッダーのユーザー名を設定。zone/area で user.name に管轄名が含まれていない場合のみ
+      // 「(○○ゾーン)」「(○○エリア)」を補記する。重複表示は避ける。
       var userSpan = document.querySelector('.header-user');
       if (userSpan) {
-        userSpan.textContent = user.name;
+        var label = user.name;
+        if (isZone && user.zone_name && user.name.indexOf(user.zone_name) === -1) {
+          label = user.name + '（' + user.zone_name + 'ゾーンマネージャー）';
+        } else if (isArea && user.area_name && user.name.indexOf(user.area_name) === -1) {
+          label = user.name + '（' + user.area_name + 'エリアマネージャー）';
+        }
+        userSpan.textContent = label;
       }
 
       // ログアウトボタン
@@ -104,7 +117,19 @@ window.hideLoading = function() {
         { href: 'master-change-log.html', label: '監査ログ' }
       ]);
 
-      var navItems = isSystem ? systemNav : (isAdmin ? adminNav : storeNav);
+      // zone / area は閲覧3画面のみ（管理メニュー無し）
+      var managerScopedNav = [
+        { href: 'menu.html', label: 'メニュー' },
+        { href: 'order-list.html', label: '発注一覧' },
+        { href: 'budget-management.html', label: '予算管理' },
+        { href: 'procurement-history.html', label: '自店調達' }
+      ];
+
+      var navItems;
+      if (isSystem) navItems = systemNav;
+      else if (isAdmin) navItems = adminNav;
+      else if (isZone || isArea) navItems = managerScopedNav;
+      else navItems = storeNav;
 
       if (nav) {
         var activePage = nav.getAttribute('data-active') || '';

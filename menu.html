@@ -147,6 +147,20 @@
         // システム管理者: 管理者メニュー全部 + 監査ログ閲覧カードも表示
         document.getElementById('adminSection').style.display = '';
         document.getElementById('systemMenuCard').style.display = '';
+      } else if (user.role === 'zone' || user.role === 'area') {
+        // ゾーン / エリアマネージャー: 発注セクション・管理者メニューは非表示のまま。
+        // 「管理（発注一覧 / 予算管理 / 自店調達申請管理）」セクションのみ常時表示。
+        // セクションタイトルに管轄を併記する。
+        var managerSection = document.querySelectorAll('.menu-section .menu-section-title');
+        for (var i = 0; i < managerSection.length; i++) {
+          if (managerSection[i].textContent === '管理') {
+            var scopeLabel = user.role === 'zone'
+              ? '（' + (user.zone_name || '-') + 'ゾーンマネージャー）'
+              : '（' + (user.area_name || '-') + 'エリアマネージャー）';
+            managerSection[i].textContent = '管理' + scopeLabel;
+            break;
+          }
+        }
       } else {
         // 店舗ユーザー: 発注セクション表示
         document.getElementById('orderSection').style.display = '';

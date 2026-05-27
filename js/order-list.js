@@ -159,16 +159,48 @@ function fetchMasterData(callback) {
   function checkDone() {
     done++;
     if (done < total) return;
+    // ロール別に zones/areas/shops を管轄スコープに絞り込む
+    applyRoleScopeToMasters();
     // Populate zone select
     var zoneSelect = document.getElementById('filterZone');
     if (zoneSelect) {
-      zoneSelect.innerHTML = '<option value="">すべて</option>';
-      zones.forEach(function(z) {
-        zoneSelect.innerHTML += '<option value="' + z.zone_code + '">' + z.zone_code + ':' + z.zone_name + '</option>';
-      });
+      // zone/area ロールは管轄ゾーン 1 つだけ表示 + disabled
+      if (currentUser && (currentUser.role === 'zone' || currentUser.role === 'area')) {
+        zoneSelect.innerHTML = '';
+        zones.forEach(function(z) {
+          zoneSelect.innerHTML += '<option value="' + z.zone_code + '">' + z.zone_code + ':' + z.zone_name + '</option>';
+        });
+        zoneSelect.disabled = true;
+        if (zones[0]) zoneSelect.value = zones[0].zone_code;
+      } else {
+        zoneSelect.innerHTML = '<option value="">すべて</option>';
+        zones.forEach(function(z) {
+          zoneSelect.innerHTML += '<option value="' + z.zone_code + '">' + z.zone_code + ':' + z.zone_name + '</option>';
+        });
+      }
     }
     // area/shop の初期化は initView の restoreFilters 内で行う（applyFiltersの二重発火防止）
     callback();
+  }
+
+  // ロール別の管轄スコープを zones/areas/shops に適用
+  function applyRoleScopeToMasters() {
+    if (!currentUser) return;
+    if (currentUser.role === 'zone' && currentUser.zone_code) {
+      zones = zones.filter(function(z) { return z.zone_code === currentUser.zone_code; });
+      areas = areas.filter(function(a) { return a.zone_code === currentUser.zone_code; });
+      var validAreaCodes = areas.map(function(a) { return a.area_code; });
+      shops = shops.filter(function(s) { return validAreaCodes.indexOf(s.area_code) !== -1; });
+    } else if (currentUser.role === 'area' && currentUser.area_code) {
+      var myArea = null;
+      for (var i = 0; i < areas.length; i++) {
+        if (areas[i].area_code === currentUser.area_code) { myArea = areas[i]; break; }
+      }
+      var myZoneCode = myArea ? myArea.zone_code : null;
+      zones = zones.filter(function(z) { return z.zone_code === myZoneCode; });
+      areas = areas.filter(function(a) { return a.area_code === currentUser.area_code; });
+      shops = shops.filter(function(s) { return s.area_code === currentUser.area_code; });
+    }
   }
 
   apiGet('api/master/zones.php')
@@ -281,14 +313,31 @@ function restoreFilters() {
   var state;
   try { state = raw ? JSON.parse(raw) : {}; } catch (e) { state = {}; }
 
+  var isZone = currentUser && currentUser.role === 'zone';
+  var isArea = currentUser && currentUser.role === 'area';
+
   // adminの場合、zone→area→shop の順に値を設定しながらカスケード初期化
   if (viewMode === 'admin') {
     var zoneEl = document.getElementById('filterZone');
-    if (zoneEl) zoneEl.value = state.filterZone || '';
+    if (zoneEl) {
+      // zone/area は管轄コードを強制（前回フィルタの値で上書きされないように）
+      if (isZone || isArea) {
+        zoneEl.value = currentUser.zone_code || (zoneEl.options[0] && zoneEl.options[0].value) || '';
+      } else {
+        zoneEl.value = state.filterZone || '';
+      }
+    }
     onZoneChange(); // area選択肢を再生成（applyFiltersはisInitializingで抑止）
 
     var areaEl = document.getElementById('filterArea');
-    if (areaEl) areaEl.value = state.filterArea || '';
+    if (areaEl) {
+      if (isArea) {
+        // area ロールは管轄エリアを強制
+        areaEl.value = currentUser.area_code || (areaEl.options[0] && areaEl.options[0].value) || '';
+      } else {
+        areaEl.value = state.filterArea || '';
+      }
+    }
     onAreaChange(); // shop選択肢を再生成
 
     var shopEl = document.getElementById('filterShop');
@@ -308,7 +357,9 @@ function initView() {
   document.getElementById('storeFilterBar').style.display = viewMode === 'store' ? 'block' : 'none';
   document.getElementById('storeActionBar').style.display = viewMode === 'store' ? 'flex' : 'none';
   document.getElementById('adminFilterBar').style.display = viewMode === 'admin' ? 'block' : 'none';
-  document.getElementById('adminActionBar').style.display = viewMode === 'admin' ? 'flex' : 'none';
+  // 一括操作バーは admin/system のみ表示（zone/area は閲覧専用）
+  document.getElementById('adminActionBar').style.display =
+    (viewMode === 'admin' && window.__canOperate) ? 'flex' : 'none';
   renderTableHeader();
   loadPageSize();
   displayLimit = (pageSize === 'all') ? Number.MAX_SAFE_INTEGER : pageSize;
@@ -343,8 +394,18 @@ function onZoneChange() {
   var zoneVal = document.getElementById('filterZone').value;
   var areaSelect = document.getElementById('filterArea');
   var filtered = zoneVal ? areas.filter(function(a) { return a.zone_code === zoneVal; }) : areas;
-  areaSelect.innerHTML = '<option value="">すべて</option>' +
-    filtered.map(function(a) { return '<option value="' + a.area_code + '">' + a.area_code + ':' + a.area_name + '</option>'; }).join('');
+  var isArea = currentUser && currentUser.role === 'area';
+  if (isArea) {
+    // area ロールは管轄エリアのみ + disabled
+    areaSelect.innerHTML = filtered.map(function(a) {
+      return '<option value="' + a.area_code + '">' + a.area_code + ':' + a.area_name + '</option>';
+    }).join('');
+    areaSelect.disabled = true;
+    if (filtered[0]) areaSelect.value = filtered[0].area_code;
+  } else {
+    areaSelect.innerHTML = '<option value="">すべて</option>' +
+      filtered.map(function(a) { return '<option value="' + a.area_code + '">' + a.area_code + ':' + a.area_name + '</option>'; }).join('');
+  }
   onAreaChange();
 }
 
@@ -662,6 +723,10 @@ function renderActionButton(o) {
 }
 
 function getAvailableAction(o) {
+  // zone / area は閲覧専用なのでアクションボタン無し（API 側でも 403 で防御）
+  if (viewMode === 'admin' && !window.__canOperate) {
+    return null;
+  }
   // ①依頼中 → ②発注済: 商品部（全種別）
   if (o.status === STATUS.REQUESTING && viewMode === 'admin') {
     return { key: 'order', label: '発注済にする', btnClass: 'btn-sm-primary' };
@@ -1352,7 +1417,11 @@ function doBulkStatusChange() {
 function bootOrderList(user) {
   if (currentUser) return; // 二重起動防止
   currentUser = user;
-  viewMode = currentUser.role === 'admin' ? 'admin' : 'store';
+  // admin/system/zone/area は admin ビュー（複数店舗横断）。shop は store ビュー（自店のみ）
+  var managerRoles = ['admin', 'system', 'zone', 'area'];
+  viewMode = managerRoles.indexOf(currentUser.role) !== -1 ? 'admin' : 'store';
+  // ステータス操作・一括変更は admin/system のみ可能。zone/area は閲覧専用。
+  window.__canOperate = (currentUser.role === 'admin' || currentUser.role === 'system');
 
   // 店舗ユーザーの場合、取扱カテゴリのみをドロップダウンに表示（プレースホルダは「すべてのカテゴリ」）
   if (viewMode === 'store' && Array.isArray(user.categories)) {
