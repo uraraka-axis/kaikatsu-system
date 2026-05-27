@@ -21,7 +21,7 @@ INSERT INTO orders (id, type, category_code, status, shop_code, date, estimate_a
 -- ===== 新宿東口店 (10301 / S01) - 備品 × 5ステータス =====
 
 INSERT INTO orders (id, type, category_code, status, shop_code, date, estimate_amount, final_amount, delivery_date, actual_delivery_date) VALUES
-('EQU-S01-20260302-0001', 'equipment', 'fitness', 0, '10301', '2026-03-02', NULL,   NULL,  NULL,         NULL),
+('EQU-S01-20260302-0001', 'equipment', 'fitness', 0, '10301', '2026-03-02', 17500,  NULL,  NULL,         NULL),
 ('EQU-S01-20260226-0001', 'equipment', 'golf',    1, '10301', '2026-02-26', 72000,  NULL,  '2026-03-05', NULL),
 ('EQU-S01-20260224-0001', 'equipment', 'fitness', 1, '10301', '2026-02-24', 324000, NULL,  '2026-03-10', NULL),
 ('EQU-S01-20260222-0001', 'equipment', 'fitness', 2, '10301', '2026-02-22', 5400,   NULL,  '2026-03-01', NULL),

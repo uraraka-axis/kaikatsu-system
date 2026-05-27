@@ -199,6 +199,7 @@ try {
         );
 
         // 明細
+        $estimateTotal = 0;
         foreach ($items as $item) {
             [$productId, $qty] = $item;
             $p = $products[$productId] ?? null;
@@ -225,8 +226,15 @@ try {
                 ]
             );
 
+            $estimateTotal += (int)$p['price'] * (int)$qty;
             $bySupplierCount[$supplierName] = ($bySupplierCount[$supplierName] ?? 0) + 1;
         }
+
+        // 備品発注は api/orders/create.php と同様、起票時にカート合計を見積金額として保存
+        execute(
+            'UPDATE orders SET estimate_amount = :amount WHERE id = :id',
+            [':amount' => $estimateTotal, ':id' => $orderId]
+        );
 
         $createdCount++;
         echo "  ✓ {$orderId}  {$shops[$shopCode]['name']}  ({$category})  明細" . count($items) . "件\n";

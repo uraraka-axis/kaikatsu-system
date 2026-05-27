@@ -102,6 +102,12 @@ function buildStatusJourney(int $type, int $targetStatus, DateTime $today, strin
         'changed_at' => $start->format('Y-m-d') . ' 09:30:00',
     ];
 
+    // 備品(type=1)は api/orders/create.php と同様、起票時にカート合計を見積金額として保存
+    // 修理(0)/部品(2)は店舗が金額を知らないため NULL のまま（発注済化時に商品部が入力）
+    if ($type === 1) {
+        $orderUpdates['estimate_amount'] = $estimateBase;
+    }
+
     if ($targetStatus >= 1) {
         // status=1 発注済（admin）
         $d1 = (clone $start)->modify('+1 day');
