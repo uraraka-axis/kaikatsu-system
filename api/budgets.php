@@ -138,6 +138,27 @@ foreach ($budgetRows as $row) {
     ];
 }
 
+// --- 店舗の取扱カテゴリを取得 ---
+// 店舗ごとのタブを「その店舗が取り扱うカテゴリ」だけに絞り込むため、
+// shop_categories から各店舗のカテゴリコード一覧を取得する。
+$catMap = [];
+if (!empty($shopCodes)) {
+    $catSql = "SELECT sc.shop_code, sc.category_code
+                 FROM shop_categories sc
+                 JOIN categories c ON sc.category_code = c.code
+                WHERE c.is_active = 1
+                  AND sc.shop_code IN ({$placeholders})
+                ORDER BY c.sort_order, c.code";
+    $catParams = [];
+    foreach ($shopCodes as $i => $sc) {
+        $catParams[':sc' . $i] = $sc;
+    }
+    $catRows = query($catSql, $catParams);
+    foreach ($catRows as $row) {
+        $catMap[$row['shop_code']][] = $row['category_code'];
+    }
+}
+
 // --- 年度月配列（4月始まり） ---
 $fiscalMonths = [4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3];
 
@@ -164,6 +185,7 @@ foreach ($shops as $shop) {
         'zone_code'  => $shop['zone_code'],
         'area_code'  => $shop['area_code'],
         'monthly'    => $monthly,
+        'categories' => $catMap[$code] ?? [],
     ];
 }
 

@@ -340,6 +340,7 @@
           zone: d.zone_code,
           area: d.area_code,
           shopCode: d.shop_code,
+          categories: d.categories || [], // 店舗の取扱カテゴリ（タブ絞り込み用）
           details: details
         };
       });
@@ -406,7 +407,8 @@
         return {
           shop: d.shop, zone: d.zone, area: d.area, shopCode: d.shopCode,
           period: s.period, midterm: s.midterm, month: s.month,
-          details: d.details
+          details: d.details,
+          categories: d.categories || []
         };
       });
     }
@@ -586,16 +588,24 @@
         html += '</tr>';
 
         // Detail row
+        // 店舗の取扱カテゴリだけタブ表示。'all'（全体）は常に表示。
+        var shopCats = d.categories || [];
+        var shopDepartments = departments.filter(function(dp) {
+          return dp.key === 'all' || shopCats.indexOf(dp.key) !== -1;
+        });
+        // 現在選択中の dept がその店舗のタブにない場合は 'all' にフォールバック
+        var effectiveDept = shopDepartments.some(function(dp) { return dp.key === dept; }) ? dept : 'all';
+
         html += '<tr class="detail-row" id="detail-' + idx + '"><td colspan="' + detailColspan + '"><div class="detail-content">';
         html += '<div class="detail-header"><div class="detail-title">' + year + '年度 月別明細 — ' + d.shop + '</div>';
         html += '<div class="dept-toggles">';
-        departments.forEach(function(dp) {
-          var activeClass = dp.key === dept ? ' active' : '';
+        shopDepartments.forEach(function(dp) {
+          var activeClass = dp.key === effectiveDept ? ' active' : '';
           html += '<button class="dept-toggle' + activeClass + '" onclick="event.stopPropagation(); toggleDept(' + idx + ',\'' + dp.key + '\', this)">' + dp.label + '</button>';
         });
         html += '</div></div>';
-        departments.forEach(function(dp) {
-          var hideStyle = dp.key === dept ? '' : ' style="display:none"';
+        shopDepartments.forEach(function(dp) {
+          var hideStyle = dp.key === effectiveDept ? '' : ' style="display:none"';
           html += '<div class="dept-section" id="dept-' + idx + '-' + dp.key + '"' + hideStyle + '>';
           html += '<div class="dept-section-title">' + dp.label + '</div>';
           html += renderMonthlyTable(d.details[dp.key]);
