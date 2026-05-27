@@ -5,20 +5,22 @@
  *
  * 起動: CLI のみ（Web 経由は拒否）
  *
- * 遷移ルール:
+ * 遷移ルール（備品のみ自動進行。修理・部品は商品部の手動運用）:
+ *   0→1 (備品のみ): カテゴリ締め日の当日に status=0 の備品発注を 1 に遷移
  *   1→2 (備品のみ): カテゴリ締め日の翌日に status=1 の備品発注を 2 に遷移
  *                    delivery_date が未設定なら 締め日+4日 で仮設定
- *   2→3 (全種別)  : 「予定日 = 当日」の発注を 3 に遷移
- *                    備品: actual_delivery_date 未設定なら当日をセット
- *                    修理: repair_completed_date 未設定なら当日をセット
- *   3→4 (全種別)  : 「予定日翌日 = 当日」の発注を 4 に遷移
+ *   2→3 (備品のみ): 「予定日 = 当日」の備品発注を 3 に遷移
+ *                    actual_delivery_date 未設定なら当日をセット
+ *   3→4 (備品のみ): 「予定日翌日 = 当日」の備品発注を 4 に遷移
  *                    final_amount 未設定なら estimate_amount をコピー
  *                    予算実績(actual_amount)に差分を反映
+ *
+ * 修理発注・部品発注は最終金額が変動するため、すべての遷移を商品部が手動で行う。
  *
  * オプション:
  *   --date=YYYY-MM-DD  当日として扱う日付（テスト用、省略時は今日）
  *   --dry-run          DB変更なしで対象だけ表示
- *   --only=1to2,2to3,3to4  実行する遷移を限定（カンマ区切り）
+ *   --only=0to1,1to2,2to3,3to4  実行する遷移を限定（カンマ区切り）
  *
  * 設計:
  *   - 各発注を個別トランザクションで処理（1件失敗しても他に影響しない）
@@ -54,7 +56,7 @@ date_default_timezone_set('Asia/Tokyo');
 $opts = [
     'date'    => date('Y-m-d'),
     'dry_run' => false,
-    'only'    => ['1to2', '2to3', '3to4'],
+    'only'    => ['0to1', '1to2', '2to3', '3to4'],
 ];
 
 foreach (array_slice($argv ?? [], 1) as $arg) {
@@ -66,7 +68,7 @@ foreach (array_slice($argv ?? [], 1) as $arg) {
         $opts['only'] = array_filter(array_map('trim', explode(',', $m[1])));
     } else {
         fwrite(STDERR, "[ERROR] 不明な引数: {$arg}\n");
-        fwrite(STDERR, "Usage: php auto_advance_status.php [--date=YYYY-MM-DD] [--dry-run] [--only=1to2,2to3,3to4]\n");
+        fwrite(STDERR, "Usage: php auto_advance_status.php [--date=YYYY-MM-DD] [--dry-run] [--only=0to1,1to2,2to3,3to4]\n");
         exit(2);
     }
 }
@@ -101,6 +103,55 @@ $onlyFlag = implode(',', $opts['only']);
 fwrite(STDOUT, "[INFO] {$startedAt} 自動遷移バッチ開始 (date={$todayStr}, dry-run={$dryFlag}, only={$onlyFlag})\n");
 
 $total = ['advanced' => 0, 'errors' => 0, 'skipped' => 0];
+
+// ================================================================
+// 0→1: 備品のみ、カテゴリ締め日当日
+// ================================================================
+if (in_array('0to1', $opts['only'], true)) {
+    $cats = query("SELECT code, name, closing_type, closing_day FROM categories WHERE closing_type IN ('monthly', 'weekly')");
+    $eligibleCategoryCodes = [];
+
+    foreach ($cats as $cat) {
+        if (isClosingDateForDate($today, $cat['closing_type'], (int)$cat['closing_day'])) {
+            $eligibleCategoryCodes[] = $cat['code'];
+        }
+    }
+
+    if (empty($eligibleCategoryCodes)) {
+        fwrite(STDOUT, "[INFO] 0→1 対象: 0 件 (当日が締め日に該当するカテゴリなし)\n");
+    } else {
+        $placeholders = [];
+        $params = [];
+        foreach ($eligibleCategoryCodes as $i => $code) {
+            $key = ':cat' . $i;
+            $placeholders[] = $key;
+            $params[$key] = $code;
+        }
+        $sql = "SELECT id, type, category_code, shop_code, date
+                FROM orders
+                WHERE status = 0
+                  AND type = 'equipment'
+                  AND category_code IN (" . implode(',', $placeholders) . ")";
+        $targets = query($sql, $params);
+
+        fwrite(STDOUT, "[INFO] 0→1 対象: " . count($targets) . " 件 (カテゴリ: " . implode('/', $eligibleCategoryCodes) . ")\n");
+
+        foreach ($targets as $order) {
+            try {
+                if ($opts['dry_run']) {
+                    fwrite(STDOUT, "  [DRY-RUN] {$order['id']} (備品/{$order['category_code']}) status 0→1\n");
+                } else {
+                    advanceOrderStatusZeroToOne($order);
+                    fwrite(STDOUT, "  ✓ {$order['id']} (備品/{$order['category_code']}) status 0→1\n");
+                }
+                $total['advanced']++;
+            } catch (Throwable $e) {
+                fwrite(STDERR, "  [ERROR] {$order['id']}: " . $e->getMessage() . "\n");
+                $total['errors']++;
+            }
+        }
+    }
+}
 
 // ================================================================
 // 1→2: 備品のみ、カテゴリ締め日翌日
@@ -164,44 +215,29 @@ if (in_array('1to2', $opts['only'], true)) {
 }
 
 // ================================================================
-// 2→3: 全種別、「予定日 = 当日」
+// 2→3: 備品のみ、「納品予定日 = 当日」
 // ================================================================
 if (in_array('2to3', $opts['only'], true)) {
-    // 修理は order_repair_details.repair_schedule_date を使う
-    $repairTargets = query(
-        "SELECT o.id, o.type, o.category_code, o.shop_code, o.date,
-                rd.repair_schedule_date, rd.repair_completed_date
-         FROM orders o
-         JOIN order_repair_details rd ON rd.order_id = o.id
-         WHERE o.status = 2
-           AND o.type = 'repair'
-           AND rd.repair_schedule_date = :today",
-        [':today' => $todayStr]
-    );
-
-    // 備品・部品は orders.delivery_date を使う
-    $deliveryTargets = query(
+    $targets = query(
         "SELECT id, type, category_code, shop_code, date, delivery_date, actual_delivery_date
          FROM orders
          WHERE status = 2
-           AND type IN ('equipment', 'parts')
+           AND type = 'equipment'
            AND delivery_date = :today",
         [':today' => $todayStr]
     );
 
-    $targets = array_merge($repairTargets, $deliveryTargets);
     fwrite(STDOUT, "[INFO] 2→3 対象: " . count($targets) . " 件 (予定日=" . $todayStr . ")\n");
 
     foreach ($targets as $order) {
         try {
-            $typeLabel = orderTypeLabel($order['type']);
-            $dateField = $order['type'] === 'repair' ? "repair_schedule_date={$order['repair_schedule_date']}" : "delivery_date={$order['delivery_date']}";
+            $dateField = "delivery_date={$order['delivery_date']}";
 
             if ($opts['dry_run']) {
-                fwrite(STDOUT, "  [DRY-RUN] {$order['id']} ({$typeLabel}) status 2→3, {$dateField}\n");
+                fwrite(STDOUT, "  [DRY-RUN] {$order['id']} (備品) status 2→3, {$dateField}\n");
             } else {
                 advanceOrderStatusTwoToThree($order, $todayStr);
-                fwrite(STDOUT, "  ✓ {$order['id']} ({$typeLabel}) status 2→3, {$dateField}\n");
+                fwrite(STDOUT, "  ✓ {$order['id']} (備品) status 2→3, {$dateField}\n");
             }
             $total['advanced']++;
         } catch (Throwable $e) {
@@ -212,37 +248,23 @@ if (in_array('2to3', $opts['only'], true)) {
 }
 
 // ================================================================
-// 3→4: 全種別、「予定日翌日 = 当日」
+// 3→4: 備品のみ、「納品予定日翌日 = 当日」
+// ※ 修理・部品は最終金額の確定が変動するため自動進行せず、商品部が手動で運用する。
 // ================================================================
 if (in_array('3to4', $opts['only'], true)) {
-    // 修理: repair_schedule_date + 1 = 当日
-    $repairTargets = query(
-        "SELECT o.id, o.type, o.category_code, o.shop_code, o.date, o.estimate_amount, o.final_amount,
-                rd.repair_schedule_date
-         FROM orders o
-         JOIN order_repair_details rd ON rd.order_id = o.id
-         WHERE o.status = 3
-           AND o.type = 'repair'
-           AND rd.repair_schedule_date = :yesterday",
-        [':yesterday' => $yesterdayStr]
-    );
-
-    // 備品・部品: delivery_date + 1 = 当日
-    $deliveryTargets = query(
+    $targets = query(
         "SELECT id, type, category_code, shop_code, date, delivery_date, estimate_amount, final_amount
          FROM orders
          WHERE status = 3
-           AND type IN ('equipment', 'parts')
+           AND type = 'equipment'
            AND delivery_date = :yesterday",
         [':yesterday' => $yesterdayStr]
     );
 
-    $targets = array_merge($repairTargets, $deliveryTargets);
     fwrite(STDOUT, "[INFO] 3→4 対象: " . count($targets) . " 件 (予定日翌日=" . $todayStr . ")\n");
 
     foreach ($targets as $order) {
         try {
-            $typeLabel = orderTypeLabel($order['type']);
             $estimate = (int)($order['estimate_amount'] ?? 0);
             $finalRaw = $order['final_amount'];
             $isFinalSet = $finalRaw !== null;
@@ -250,16 +272,16 @@ if (in_array('3to4', $opts['only'], true)) {
             if ($opts['dry_run']) {
                 if ($isFinalSet) {
                     $delta = (int)$finalRaw - $estimate;
-                    fwrite(STDOUT, "  [DRY-RUN] {$order['id']} ({$typeLabel}) status 3→4, final_amount={$finalRaw}(手動), 予算差分={$delta}\n");
+                    fwrite(STDOUT, "  [DRY-RUN] {$order['id']} (備品) status 3→4, final_amount={$finalRaw}(手動), 予算差分={$delta}\n");
                 } else {
-                    fwrite(STDOUT, "  [DRY-RUN] {$order['id']} ({$typeLabel}) status 3→4, final_amount未設定→estimate({$estimate})適用\n");
+                    fwrite(STDOUT, "  [DRY-RUN] {$order['id']} (備品) status 3→4, final_amount未設定→estimate({$estimate})適用\n");
                 }
             } else {
                 $applied = advanceOrderStatusThreeToFour($order);
                 if ($applied['final_was_set']) {
-                    fwrite(STDOUT, "  ✓ {$order['id']} ({$typeLabel}) status 3→4, final={$applied['final_amount']}(手動), 予算差分={$applied['delta']}\n");
+                    fwrite(STDOUT, "  ✓ {$order['id']} (備品) status 3→4, final={$applied['final_amount']}(手動), 予算差分={$applied['delta']}\n");
                 } else {
-                    fwrite(STDOUT, "  ✓ {$order['id']} ({$typeLabel}) status 3→4, final={$applied['final_amount']}(estimate適用)\n");
+                    fwrite(STDOUT, "  ✓ {$order['id']} (備品) status 3→4, final={$applied['final_amount']}(estimate適用)\n");
                 }
             }
             $total['advanced']++;
@@ -310,6 +332,21 @@ function matchClosingDateForYesterday(DateTimeImmutable $yesterday, string $clos
     return null;
 }
 
+/**
+ * 指定日が closing_type/closing_day に該当する締め日なら true。
+ * 月次: 日付一致、週次: 曜日一致（PHP 'w': 0=日…6=土）。
+ */
+function isClosingDateForDate(DateTimeImmutable $date, string $closingType, int $closingDay): bool
+{
+    if ($closingType === 'monthly') {
+        return (int)$date->format('j') === $closingDay;
+    }
+    if ($closingType === 'weekly') {
+        return (int)$date->format('w') === $closingDay;
+    }
+    return false;
+}
+
 function orderTypeLabel(string $type): string
 {
     return match ($type) {
@@ -318,6 +355,25 @@ function orderTypeLabel(string $type): string
         'parts'     => '部品',
         default     => $type,
     };
+}
+
+/**
+ * 0→1 遷移を 1 トランザクションで実行。締め日当日に依頼中の備品発注を「発注済」へ進める。
+ */
+function advanceOrderStatusZeroToOne(array $order): void
+{
+    beginTransaction();
+    try {
+        execute(
+            'UPDATE orders SET status = 1 WHERE id = :oid',
+            [':oid' => $order['id']]
+        );
+        insertStatusHistory($order['id'], 1, '自動遷移バッチ: 0→1 (締め日当日)');
+        commit();
+    } catch (Throwable $e) {
+        rollback();
+        throw $e;
+    }
 }
 
 /**
@@ -349,24 +405,15 @@ function advanceOrderStatusOneToTwo(array $order, string $tempDeliveryDate): voi
 }
 
 /**
- * 2→3 遷移。備品: actual_delivery_date 未設定なら今日。修理: repair_completed_date 未設定なら今日。
+ * 2→3 遷移（備品のみ）。actual_delivery_date 未設定なら今日をセット。
  */
 function advanceOrderStatusTwoToThree(array $order, string $todayStr): void
 {
     beginTransaction();
     try {
-        if ($order['type'] === 'equipment' && empty($order['actual_delivery_date'])) {
+        if (empty($order['actual_delivery_date'])) {
             execute(
                 'UPDATE orders SET status = 3, actual_delivery_date = :d WHERE id = :oid',
-                [':d' => $todayStr, ':oid' => $order['id']]
-            );
-        } elseif ($order['type'] === 'repair' && empty($order['repair_completed_date'])) {
-            execute(
-                'UPDATE orders SET status = 3 WHERE id = :oid',
-                [':oid' => $order['id']]
-            );
-            execute(
-                'UPDATE order_repair_details SET repair_completed_date = :d WHERE order_id = :oid',
                 [':d' => $todayStr, ':oid' => $order['id']]
             );
         } else {
