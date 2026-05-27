@@ -131,7 +131,7 @@ CREATE TABLE suppliers (
 CREATE TABLE products (
   id                    INT           NOT NULL AUTO_INCREMENT COMMENT '商品ID',
   name                  VARCHAR(100)  NOT NULL COMMENT '商品名',
-  code                  VARCHAR(20)   NOT NULL COMMENT '商品コード（MAT-001 等）',
+  code                  VARCHAR(20)   NOT NULL COMMENT '商品コード（FIT-00001 等。{カテゴリ3文字}-{5桁連番}）',
   price                 INT           NOT NULL COMMENT '単価（税込・円）',
   supplier_id           INT           NULL     COMMENT '仕入先ID',
   category_code         VARCHAR(20)   NOT NULL COMMENT 'カテゴリコード',
