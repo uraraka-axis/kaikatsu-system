@@ -27,11 +27,22 @@ $category  = $_GET['category'] ?? '';
 $dateFrom  = $_GET['date_from'] ?? '';
 $dateTo    = $_GET['date_to'] ?? '';
 
-// --- 店舗ユーザーは自店のみ ---
-if ($user['role'] !== 'admin') {
+// --- ロール別の閲覧スコープ ---
+// shop: 自店のみ / admin/system: 全店 / zone: 管轄ゾーン配下 / area: 管轄エリア配下
+$scope = getRoleScopeSql($user, 's', 'o.shop_code');
+
+if ($user['role'] === 'shop') {
+    // shop はフロントから渡されたフィルタを無視して自店縛り
     $shopCode = $user['shop_code'];
     $zoneCode = '';
     $areaCode = '';
+} elseif ($user['role'] === 'zone') {
+    // zone はゾーン縛り（フロントの zone/area/shop はゾーン内の絞り込みとして許容）
+    $zoneCode = $user['zone_code'];
+} elseif ($user['role'] === 'area') {
+    // area はエリア縛り
+    $areaCode = $user['area_code'];
+    $zoneCode = '';
 }
 
 // --- バリデーション ---

@@ -47,16 +47,32 @@ $config = [
             'header'      => 'ロール',
             'type'        => 'string',
             'required'    => true,
-            'pattern'     => '/^(shop|admin|system)$/',
-            'pattern_msg' => 'shop / admin / system のいずれかで指定してください',
+            'pattern'     => '/^(shop|admin|system|zone|area)$/',
+            'pattern_msg' => 'shop / admin / system / zone / area のいずれかで指定してください',
         ],
         [
-            // role=shop時必須、role=admin時NULL（preprocess_rowsで強制）
+            // role=shop時必須、role=admin/system/zone/area時NULL（preprocess_rowsで強制）
             'field'      => 'shop_code',
             'header'     => '所属店舗コード',
             'type'       => 'string',
             'required'   => false,
             'max_length' => 5,
+        ],
+        [
+            // role=zone時必須、その他はNULL強制
+            'field'      => 'zone_code',
+            'header'     => '管轄ゾーンコード',
+            'type'       => 'string',
+            'required'   => false,
+            'max_length' => 3,
+        ],
+        [
+            // role=area時必須、その他はNULL強制
+            'field'      => 'area_code',
+            'header'     => '管轄エリアコード',
+            'type'       => 'string',
+            'required'   => false,
+            'max_length' => 3,
         ],
         [
             'field'      => 'password',
@@ -67,14 +83,14 @@ $config = [
         ],
         [
             'field'      => 'zone_manager_email',
-            'header'     => 'ゾーンマネージャーメアド',
+            'header'     => 'ゾーンマネージャーメールアドレス',
             'type'       => 'string',
             'required'   => false,
             'max_length' => 255,
         ],
         [
             'field'      => 'area_manager_email',
-            'header'     => 'エリアマネージャーメアド',
+            'header'     => 'エリアマネージャーメールアドレス',
             'type'       => 'string',
             'required'   => false,
             'max_length' => 255,
@@ -103,9 +119,11 @@ $config = [
     ],
     // login_id はユニーク
     'unique_fields' => ['login_id'],
-    // shop_code は shops.code に存在必須（NULL/空欄はスキップ）
+    // shop_code / zone_code / area_code はマスタに存在必須（NULL/空欄はスキップ）
     'fk_checks_on_upload' => [
         ['field' => 'shop_code', 'ref_table' => 'shops', 'ref_column' => 'code'],
+        ['field' => 'zone_code', 'ref_table' => 'zones', 'ref_column' => 'code'],
+        ['field' => 'area_code', 'ref_table' => 'areas', 'ref_column' => 'code'],
     ],
     // 削除時のFK参照チェック: id 経由で4テーブル
     'fk_checks_on_delete' => [
@@ -118,16 +136,25 @@ $config = [
     'skip_fields_if_blank' => ['password'],
     // 監査ログ書き込み時にマスク
     'mask_fields' => ['password'],
-    // 前処理: マスク値の正規化、role別の shop_code 整形
+    // 前処理: マスク値の正規化、role別の shop_code / zone_code / area_code 整形
     'preprocess_rows' => function(array $rows): array {
         foreach ($rows as &$row) {
             // DLマスク値 '********' は空欄扱い（既存維持→skip_fields_if_blankが効く）
             if (isset($row['password']) && $row['password'] === '********') {
                 $row['password'] = '';
             }
-            // role=admin / role=system の shop_code は強制的に NULL（店舗に紐づかない）
-            if (in_array($row['role'] ?? null, ['admin', 'system'], true)) {
+            $role = $row['role'] ?? null;
+            // role=shop 以外は shop_code を強制的に NULL
+            if ($role !== 'shop') {
                 $row['shop_code'] = null;
+            }
+            // role=zone 以外は zone_code を強制的に NULL
+            if ($role !== 'zone') {
+                $row['zone_code'] = null;
+            }
+            // role=area 以外は area_code を強制的に NULL
+            if ($role !== 'area') {
+                $row['area_code'] = null;
             }
         }
         unset($row);
@@ -153,6 +180,26 @@ $config = [
                     'column'  => '所属店舗コード',
                     'value'   => '',
                     'message' => 'ロール=shop の場合は所属店舗コードが必須です',
+                ];
+            }
+            // role=zone は zone_code 必須
+            $zoneCode = $row['zone_code'] ?? null;
+            if ($role === 'zone' && ($zoneCode === null || $zoneCode === '')) {
+                $errors[] = [
+                    'row'     => $rowNum,
+                    'column'  => '管轄ゾーンコード',
+                    'value'   => '',
+                    'message' => 'ロール=zone の場合は管轄ゾーンコードが必須です',
+                ];
+            }
+            // role=area は area_code 必須
+            $areaCode = $row['area_code'] ?? null;
+            if ($role === 'area' && ($areaCode === null || $areaCode === '')) {
+                $errors[] = [
+                    'row'     => $rowNum,
+                    'column'  => '管轄エリアコード',
+                    'value'   => '',
+                    'message' => 'ロール=area の場合は管轄エリアコードが必須です',
                 ];
             }
             // 新規ユーザーはパスワード必須（既存ユーザーは空欄OK = 既存維持）

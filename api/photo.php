@@ -42,9 +42,33 @@ try {
         exit;
     }
 
-    // 所有者チェック: 管理者でなく、自店以外の発注なら拒否
+    // 所有者チェック: ロール別の閲覧スコープ
+    //   - admin/system: 全店参照可
+    //   - shop: 自店のみ
+    //   - zone: 自分の zone 配下のエリアに属する店舗のみ
+    //   - area: 自分の area 配下の店舗のみ
     $user = getCurrentUser();
-    if ($user['role'] !== 'admin' && $user['shop_code'] !== $row['shop_code']) {
+    $allowed = false;
+    if (in_array($user['role'], ['admin', 'system'], true)) {
+        $allowed = true;
+    } elseif ($user['role'] === 'shop') {
+        $allowed = ($user['shop_code'] === $row['shop_code']);
+    } elseif ($user['role'] === 'zone' && !empty($user['zone_code'])) {
+        $check = getOne(
+            'SELECT 1 FROM shops s
+              JOIN areas a ON s.area_code = a.code
+             WHERE s.code = :sc AND a.zone_code = :zc',
+            [':sc' => $row['shop_code'], ':zc' => $user['zone_code']]
+        );
+        $allowed = ($check !== null);
+    } elseif ($user['role'] === 'area' && !empty($user['area_code'])) {
+        $check = getOne(
+            'SELECT 1 FROM shops WHERE code = :sc AND area_code = :ac',
+            [':sc' => $row['shop_code'], ':ac' => $user['area_code']]
+        );
+        $allowed = ($check !== null);
+    }
+    if (!$allowed) {
         http_response_code(403);
         exit;
     }

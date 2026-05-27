@@ -5,10 +5,11 @@
  *
  * GET /api/master/categories.php
  *   - 共通: is_active=1 のカテゴリを返す
- *   - admin: 全カテゴリ
- *   - 店舗ユーザー: 自店が shop_categories に持つカテゴリのみ
+ *   - admin / system / zone / area : 全カテゴリ（管轄範囲内の店舗を横断するため）
+ *   - shop                          : 自店が shop_categories に持つカテゴリのみ
  *
  * 2026-05-23: 店舗ユーザーは自店カテゴリで絞り込むよう変更（カテゴリ拡張対応）
+ * 2026-05-26: zone / area ロール追加に伴い、これらも全カテゴリを返すように拡張
  */
 
 require_once __DIR__ . '/../../includes/auth.php';
@@ -20,15 +21,7 @@ requireMethod('GET');
 
 $user = getCurrentUser();
 
-if (in_array($user['role'], ['admin', 'system'], true)) {
-    // 管理者 / システム管理者: 全アクティブカテゴリ
-    $categories = query(
-        'SELECT code, name, closing_type, closing_day
-           FROM categories
-          WHERE is_active = 1
-          ORDER BY sort_order, code'
-    );
-} else {
+if ($user['role'] === 'shop') {
     // 店舗ユーザー: 自店が持つカテゴリのみ（shop_categories から）
     $shopCode = $user['shop_code'] ?? null;
     if ($shopCode === null) {
@@ -41,6 +34,14 @@ if (in_array($user['role'], ['admin', 'system'], true)) {
           WHERE c.is_active = 1 AND sc.shop_code = :sc
           ORDER BY c.sort_order, c.code',
         [':sc' => $shopCode]
+    );
+} else {
+    // 管理者 / システム管理者 / ゾーン / エリアマネージャー: 全アクティブカテゴリ
+    $categories = query(
+        'SELECT code, name, closing_type, closing_day
+           FROM categories
+          WHERE is_active = 1
+          ORDER BY sort_order, code'
     );
 }
 

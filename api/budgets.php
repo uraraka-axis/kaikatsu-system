@@ -49,12 +49,18 @@ if (!in_array($dept, $validDeptValues, true)) {
     jsonError('不正な部門パラメータです');
 }
 
-// --- 店舗ユーザーは自店のみ ---
-if ($user['role'] !== 'admin') {
+// --- ロール別の閲覧スコープ ---
+// shop: 自店のみ / admin/system: 全店 / zone: 管轄ゾーン配下 / area: 管轄エリア配下
+if ($user['role'] === 'shop') {
     $shopCode = $user['shop_code'];
-    // 店舗ユーザーはゾーン・エリアフィルタ無効
     $zoneCode = '';
     $areaCode = '';
+} elseif ($user['role'] === 'zone') {
+    // zone は自身の管轄ゾーンに強制。配下エリア/店舗はフロントから絞り込み可。
+    $zoneCode = $user['zone_code'];
+} elseif ($user['role'] === 'area') {
+    $areaCode = $user['area_code'];
+    $zoneCode = '';
 }
 
 // --- 対象店舗を取得 ---

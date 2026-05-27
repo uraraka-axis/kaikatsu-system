@@ -30,9 +30,9 @@ requireMethod('POST');
 
 $user = getCurrentUser();
 
-// 店舗ユーザーのみ発注可能
-if (in_array($user['role'], ['admin', 'system'], true)) {
-    jsonError('管理者は発注できません', 403);
+// 店舗ユーザーのみ発注可能（admin/system/zone/area は閲覧のみ）
+if ($user['role'] !== 'shop') {
+    jsonError('店舗ユーザーのみ発注できます', 403);
 }
 
 $shopCode = $user['shop_code'];

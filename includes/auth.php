@@ -61,9 +61,15 @@ function recordLoginAttempt(string $loginId, ?int $userId, bool $success, ?strin
 function login(string $loginId, string $password): ?array
 {
     $user = getOne(
-        'SELECT u.id, u.login_id, u.password, u.name, u.role, u.shop_code, s.name AS shop_name
+        'SELECT u.id, u.login_id, u.password, u.name, u.role,
+                u.shop_code, u.zone_code, u.area_code,
+                s.name AS shop_name,
+                z.name AS zone_name,
+                a.name AS area_name
          FROM users u
          LEFT JOIN shops s ON u.shop_code = s.code
+         LEFT JOIN zones z ON u.zone_code = z.code
+         LEFT JOIN areas a ON u.area_code = a.code
          WHERE u.login_id = :login_id AND u.is_active = 1',
         [':login_id' => $loginId]
     );
@@ -105,7 +111,11 @@ function login(string $loginId, string $password): ?array
         'role'       => $user['role'],
         'shop_code'  => $user['shop_code'],
         'shop_name'  => $user['shop_name'],
-        'categories' => $categories, // 店舗ユーザーの取り扱いカテゴリ。admin/system は空配列
+        'zone_code'  => $user['zone_code'],
+        'zone_name'  => $user['zone_name'],
+        'area_code'  => $user['area_code'],
+        'area_name'  => $user['area_name'],
+        'categories' => $categories, // 店舗ユーザーの取り扱いカテゴリ。admin/system/zone/area は空配列
     ];
 
     recordLoginAttempt($loginId, (int)$user['id'], true);
@@ -176,6 +186,82 @@ function isAdmin(): bool
 }
 
 /**
+ * 管理側ロール判定（admin / system / zone / area）
+ *
+ * 「複数店舗を横断して閲覧する側」のロールを true とする。
+ * 発注一覧・予算管理・自店調達管理での「絞り込み付きの一覧表示」に使う。
+ * zone は管轄ゾーン配下、area は管轄エリア配下の店舗のみ参照可能。
+ *
+ * @return bool 管理側ロールなら true
+ */
+function isManager(): bool
+{
+    startSession();
+    $role = $_SESSION['user']['role'] ?? null;
+    return in_array($role, ['admin', 'system', 'zone', 'area'], true);
+}
+
+/**
+ * ログインユーザーのロールに応じた「閲覧可能 shop_code への絞り込み」SQL 断片を返す。
+ *
+ * 戻り値: ['where' => string|null, 'params' => array]
+ *   - where が null の場合は追加 WHERE 不要（admin / system）
+ *   - shop ロールは自店のみ
+ *   - zone ロールは自分の zone_code 配下のエリアに所属する店舗のみ
+ *   - area ロールは自分の area_code の店舗のみ
+ *   - 不正状態（zone_code/area_code 未設定など）の場合は 1=0 で全件除外
+ *
+ * @param array $user セッションのユーザー情報
+ * @param string $shopAlias shops テーブルのエイリアス（デフォルト 's'）。
+ *                          shop_code カラムを持つ別テーブルでフィルタしたい場合は
+ *                          $shopCodeColumn を上書きすること。
+ * @param string|null $shopCodeColumn shop_code を比較するカラム名（デフォルトは "{alias}.code"）
+ * @return array
+ */
+function getRoleScopeSql(array $user, string $shopAlias = 's', ?string $shopCodeColumn = null): array
+{
+    $role = $user['role'] ?? '';
+    $shopCol = $shopCodeColumn ?? ($shopAlias . '.code');
+    $areaCol = $shopAlias . '.area_code';
+
+    switch ($role) {
+        case 'admin':
+        case 'system':
+            return ['where' => null, 'params' => []];
+
+        case 'shop':
+            if (empty($user['shop_code'])) {
+                return ['where' => '1=0', 'params' => []];
+            }
+            return [
+                'where'  => "{$shopCol} = :_scope_shop_code",
+                'params' => [':_scope_shop_code' => $user['shop_code']],
+            ];
+
+        case 'zone':
+            if (empty($user['zone_code'])) {
+                return ['where' => '1=0', 'params' => []];
+            }
+            return [
+                'where'  => "{$areaCol} IN (SELECT code FROM areas WHERE zone_code = :_scope_zone_code)",
+                'params' => [':_scope_zone_code' => $user['zone_code']],
+            ];
+
+        case 'area':
+            if (empty($user['area_code'])) {
+                return ['where' => '1=0', 'params' => []];
+            }
+            return [
+                'where'  => "{$areaCol} = :_scope_area_code",
+                'params' => [':_scope_area_code' => $user['area_code']],
+            ];
+
+        default:
+            return ['where' => '1=0', 'params' => []];
+    }
+}
+
+/**
  * システム管理者判定（system のみ）
  *
  * @return bool system なら true
@@ -227,6 +313,32 @@ function requireAdmin(): void
         }
         http_response_code(403);
         echo '403 Forbidden: 管理者権限が必要です';
+        exit;
+    }
+}
+
+/**
+ * 管理側ロール（admin / system / zone / area）必須チェック
+ *
+ * 「複数店舗を横断して閲覧する画面・API」に使う。
+ * shop ロールはここで弾く。zone/area は管轄スコープ付きで通す。
+ */
+function requireManager(): void
+{
+    requireLogin();
+
+    if (!isManager()) {
+        if (isApiRequest()) {
+            http_response_code(403);
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode([
+                'success' => false,
+                'error'   => '権限がありません',
+            ], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+        http_response_code(403);
+        echo '403 Forbidden: 管理側権限が必要です';
         exit;
     }
 }

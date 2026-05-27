@@ -31,13 +31,28 @@ $method = $_SERVER['REQUEST_METHOD'];
 // ============================
 if ($method === 'GET' && (($_GET['action'] ?? '') === 'years')) {
 
-    // 店舗ユーザーは自店のみ、管理者は全店
+    // ロール別の閲覧スコープ
     $where = '';
     $params = [];
-    if (!in_array($user['role'], ['admin', 'system'], true)) {
+
+    if ($user['role'] === 'shop') {
         $where = ' WHERE shop_code = :sc';
         $params[':sc'] = $user['shop_code'] ?? '';
+    } elseif ($user['role'] === 'zone') {
+        // 自分の zone 配下のエリアに所属する店舗のみ
+        $where = ' WHERE shop_code IN (
+                    SELECT s.code FROM shops s
+                    JOIN areas a ON s.area_code = a.code
+                    WHERE a.zone_code = :zc
+                  )';
+        $params[':zc'] = $user['zone_code'] ?? '';
+    } elseif ($user['role'] === 'area') {
+        $where = ' WHERE shop_code IN (
+                    SELECT code FROM shops WHERE area_code = :ac
+                  )';
+        $params[':ac'] = $user['area_code'] ?? '';
     }
+    // admin / system は全件（追加 WHERE なし）
 
     // 年度 = 4月始まり: MONTH(date) >= 4 なら YEAR(date)、それ未満は YEAR(date)-1
     $sql = "SELECT DISTINCT
@@ -69,8 +84,8 @@ if ($method === 'GET') {
     $category   = $_GET['category'] ?? '';
     $shopCode   = $_GET['shop'] ?? '';
 
-    // 店舗ユーザーは自店のみ
-    if (!in_array($user['role'], ['admin', 'system'], true)) {
+    // ロール別の閲覧スコープ
+    if ($user['role'] === 'shop') {
         $shopCode = $user['shop_code'];
     }
 
@@ -108,6 +123,21 @@ if ($method === 'GET') {
     if ($category !== '') {
         $sql .= ' AND p.category_code = :category';
         $params[':category'] = $category;
+    }
+
+    // zone / area スコープ（shop ロールは shopCode で既に縛られている）
+    if ($user['role'] === 'zone' && !empty($user['zone_code'])) {
+        $sql .= ' AND p.shop_code IN (
+                    SELECT s2.code FROM shops s2
+                    JOIN areas a2 ON s2.area_code = a2.code
+                    WHERE a2.zone_code = :scope_zone
+                  )';
+        $params[':scope_zone'] = $user['zone_code'];
+    } elseif ($user['role'] === 'area' && !empty($user['area_code'])) {
+        $sql .= ' AND p.shop_code IN (
+                    SELECT code FROM shops WHERE area_code = :scope_area
+                  )';
+        $params[':scope_area'] = $user['area_code'];
     }
 
     $sql .= ' ORDER BY p.date DESC, p.id DESC';
@@ -152,9 +182,9 @@ if ($method === 'GET') {
 // ============================
 } elseif ($method === 'POST') {
 
-    // 店舗ユーザーのみ
-    if (in_array($user['role'], ['admin', 'system'], true)) {
-        jsonError('管理者は自店調達申請を作成できません', 403);
+    // 店舗ユーザーのみ作成可（admin/system/zone/area は閲覧のみ）
+    if ($user['role'] !== 'shop') {
+        jsonError('店舗ユーザーのみ自店調達申請を作成できます', 403);
     }
 
     $input = getJsonInput();

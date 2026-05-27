@@ -49,11 +49,17 @@ if ($idsParam !== '') {
     }
 }
 
-// --- 店舗ユーザーは自店のみ ---
-if ($user['role'] !== 'admin') {
+// --- ロール別の閲覧スコープ ---
+// shop: 自店のみ / admin/system: 全店 / zone: 管轄ゾーン強制 / area: 管轄エリア強制
+if ($user['role'] === 'shop') {
     $shopCode = $user['shop_code'];
     $zoneCode = '';
     $areaCode = '';
+} elseif ($user['role'] === 'zone') {
+    $zoneCode = $user['zone_code'] ?? '';
+} elseif ($user['role'] === 'area') {
+    $areaCode = $user['area_code'] ?? '';
+    $zoneCode = '';
 }
 
 // --- バリデーション ---

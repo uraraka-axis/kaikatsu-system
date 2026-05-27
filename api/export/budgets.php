@@ -57,12 +57,50 @@ foreach ($categoryRows as $cr) {
     $deptLabels[$cr['code']] = $cr['name'];
 }
 
-// --- 店舗ユーザーは自店のみ ---
-if ($user['role'] !== 'admin') {
+// --- ロール別の閲覧スコープ ---
+// shop : 自店のみ / admin/system : 全店（フィルタ通り）
+// zone : 自分の zone_code に強制（管轄外の zone/area/shop は弾く）
+// area : 自分の area_code に強制
+if ($user['role'] === 'shop') {
     $shopCode = $user['shop_code'];
     $zoneCode = '';
     $areaCode = '';
     $selectedShops = []; // 店舗ユーザーは複数選択不可
+} elseif ($user['role'] === 'zone') {
+    $zoneCode = $user['zone_code'] ?? '';
+    // 管轄外の店舗を selectedShops から除外
+    if (!empty($selectedShops) && !empty($zoneCode)) {
+        $placeholders = [];
+        $checkParams  = [':zc' => $zoneCode];
+        foreach ($selectedShops as $i => $sc) {
+            $key = ':ss' . $i;
+            $placeholders[] = $key;
+            $checkParams[$key] = $sc;
+        }
+        $valid = query(
+            'SELECT s.code FROM shops s JOIN areas a ON s.area_code = a.code
+              WHERE a.zone_code = :zc AND s.code IN (' . implode(',', $placeholders) . ')',
+            $checkParams
+        );
+        $selectedShops = array_column($valid, 'code');
+    }
+} elseif ($user['role'] === 'area') {
+    $areaCode = $user['area_code'] ?? '';
+    $zoneCode = '';
+    if (!empty($selectedShops) && !empty($areaCode)) {
+        $placeholders = [];
+        $checkParams  = [':ac' => $areaCode];
+        foreach ($selectedShops as $i => $sc) {
+            $key = ':ss' . $i;
+            $placeholders[] = $key;
+            $checkParams[$key] = $sc;
+        }
+        $valid = query(
+            'SELECT code FROM shops WHERE area_code = :ac AND code IN (' . implode(',', $placeholders) . ')',
+            $checkParams
+        );
+        $selectedShops = array_column($valid, 'code');
+    }
 }
 
 // --- 対象店舗を取得 ---
