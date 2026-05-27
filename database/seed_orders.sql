@@ -164,51 +164,51 @@ INSERT INTO order_repair_unavail_days (order_id, day_of_week) VALUES
 
 -- EQU-S01-20260302-0001: トレーニングマット × 5
 INSERT INTO order_equipment_items (order_id, product_id, product_name, product_code, price, qty, supplier, arrival_date) VALUES
-('EQU-S01-20260302-0001', 1, 'トレーニングマット', 'MAT-001', 3500, 5, 'フィットネスジャパン', NULL);
+('EQU-S01-20260302-0001', 1, 'トレーニングマット', 'FIT-00001', 3500, 5, 'フィットネスジャパン', NULL);
 
 -- EQU-S01-20260226-0001: ゴルフボール 他1商品
 INSERT INTO order_equipment_items (order_id, product_id, product_name, product_code, price, qty, supplier, arrival_date) VALUES
-('EQU-S01-20260226-0001', 5, 'ゴルフボール 1ダース', 'GB-012', 4200, 10, 'ゴルフサプライ', '2026-03-05'),
-('EQU-S01-20260226-0001', 7, 'グローブ Lサイズ',     'GL-L01', 1500, 20, 'ゴルフサプライ', '2026-03-05');
+('EQU-S01-20260226-0001', 5, 'ゴルフボール 1ダース', 'GOL-00001', 4200, 10, 'ゴルフサプライ', '2026-03-05'),
+('EQU-S01-20260226-0001', 7, 'グローブ Lサイズ',     'GOL-00003', 1500, 20, 'ゴルフサプライ', '2026-03-05');
 
 -- EQU-S01-20260224-0001: エアロバイク 他2商品
 INSERT INTO order_equipment_items (order_id, product_id, product_name, product_code, price, qty, supplier, arrival_date) VALUES
-('EQU-S01-20260224-0001', 11, 'エアロバイク AB-300',   'AB-300', 128000, 2, 'フィットネスジャパン', '2026-03-10'),
-('EQU-S01-20260224-0001', 12, 'フロアマット（大）',    'FM-L01', 12000,  4, 'フィットネスジャパン', '2026-03-10'),
-('EQU-S01-20260224-0001', 13, '心拍計アームバンド',    'HR-AB1', 4000,   5, 'スポーツ用品販売',     '2026-03-10');
+('EQU-S01-20260224-0001', 11, 'エアロバイク AB-300',   'FIT-00007', 128000, 2, 'フィットネスジャパン', '2026-03-10'),
+('EQU-S01-20260224-0001', 12, 'フロアマット（大）',    'FIT-00008', 12000,  4, 'フィットネスジャパン', '2026-03-10'),
+('EQU-S01-20260224-0001', 13, '心拍計アームバンド',    'FIT-00009', 4000,   5, 'スポーツ用品販売',     '2026-03-10');
 
 -- EQU-S01-20260222-0001: バランスボール × 3
 INSERT INTO order_equipment_items (order_id, product_id, product_name, product_code, price, qty, supplier, arrival_date) VALUES
-('EQU-S01-20260222-0001', 3, 'バランスボール 65cm', 'BB-065', 1800, 3, 'スポーツ用品販売', '2026-03-01');
+('EQU-S01-20260222-0001', 3, 'バランスボール 65cm', 'FIT-00003', 1800, 3, 'スポーツ用品販売', '2026-03-01');
 
 -- EQU-S01-20260218-0001: タオル（大）10枚セット × 3
 INSERT INTO order_equipment_items (order_id, product_id, product_name, product_code, price, qty, supplier, arrival_date) VALUES
-('EQU-S01-20260218-0001', 8, 'タオル（大）10枚セット', 'TW-L10', 5600, 3, 'リネンサービス', '2026-02-25');
+('EQU-S01-20260218-0001', 8, 'タオル（大）10枚セット', 'FIT-00005', 5600, 3, 'リネンサービス', '2026-02-25');
 
 -- EQU-S01-20260212-0001: スコアカード 100枚 × 5
 INSERT INTO order_equipment_items (order_id, product_id, product_name, product_code, price, qty, supplier, arrival_date) VALUES
-('EQU-S01-20260212-0001', 10, 'スコアカード 100枚', 'SC-100', 1200, 5, 'ゴルフサプライ', '2026-02-19');
+('EQU-S01-20260212-0001', 10, 'スコアカード 100枚', 'GOL-00004', 1200, 5, 'ゴルフサプライ', '2026-02-19');
 
 -- EQU-S04-20260224-0001: ダンベルセット 10kg × 3
 INSERT INTO order_equipment_items (order_id, product_id, product_name, product_code, price, qty, supplier, arrival_date) VALUES
-('EQU-S04-20260224-0001', 14, 'ダンベルセット 10kg', 'DB-010', 8400, 3, 'フィットネスジャパン', '2026-02-28');
+('EQU-S04-20260224-0001', 14, 'ダンベルセット 10kg', 'FIT-00010', 8400, 3, 'フィットネスジャパン', '2026-02-28');
 
 -- EQU-S02-20260225-0001: グローブ Lサイズ 他1商品
 INSERT INTO order_equipment_items (order_id, product_id, product_name, product_code, price, qty, supplier, arrival_date) VALUES
-('EQU-S02-20260225-0001', 7,  'グローブ Lサイズ',       'GL-L01', 1500, 20, 'ゴルフサプライ', '2026-02-28'),
-('EQU-S02-20260225-0001', 6, 'ゴルフティー 100本入り', 'GT-100', 800,  10, 'ゴルフサプライ', '2026-02-28');
+('EQU-S02-20260225-0001', 7,  'グローブ Lサイズ',       'GOL-00003', 1500, 20, 'ゴルフサプライ', '2026-02-28'),
+('EQU-S02-20260225-0001', 6, 'ゴルフティー 100本入り', 'GOL-00002', 800,  10, 'ゴルフサプライ', '2026-02-28');
 
 -- EQU-S03-20260220-0001: タオル（大）10枚セット × 3
 INSERT INTO order_equipment_items (order_id, product_id, product_name, product_code, price, qty, supplier, arrival_date) VALUES
-('EQU-S03-20260220-0001', 8, 'タオル（大）10枚セット', 'TW-L10', 5600, 3, 'リネンサービス', '2026-02-28');
+('EQU-S03-20260220-0001', 8, 'タオル（大）10枚セット', 'FIT-00005', 5600, 3, 'リネンサービス', '2026-02-28');
 
 -- EQU-S07-20260217-0001: スコアカード 100枚 × 5
 INSERT INTO order_equipment_items (order_id, product_id, product_name, product_code, price, qty, supplier, arrival_date) VALUES
-('EQU-S07-20260217-0001', 10, 'スコアカード 100枚', 'SC-100', 1200, 5, 'ゴルフサプライ', '2026-02-21');
+('EQU-S07-20260217-0001', 10, 'スコアカード 100枚', 'GOL-00004', 1200, 5, 'ゴルフサプライ', '2026-02-21');
 
 -- EQU-S09-20260225-0001: ヨガマット × 10
 INSERT INTO order_equipment_items (order_id, product_id, product_name, product_code, price, qty, supplier, arrival_date) VALUES
-('EQU-S09-20260225-0001', 15, 'ヨガマット', 'YM-001', 1500, 10, 'フィットネスジャパン', '2026-02-28');
+('EQU-S09-20260225-0001', 15, 'ヨガマット', 'FIT-00011', 1500, 10, 'フィットネスジャパン', '2026-02-28');
 
 
 -- ============================================================
