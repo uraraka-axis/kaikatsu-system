@@ -74,7 +74,7 @@
 |--------|------|------|
 | id | INT PK | 商品ID |
 | name | VARCHAR(100) | 商品名 |
-| code | VARCHAR(20) | 商品コード（MAT-001 等） |
+| code | VARCHAR(20) | 商品コード（FIT-00001 等。{カテゴリ3文字}-{5桁連番}） |
 | price | INT | 単価（税込・円） |
 | supplier | VARCHAR(100) | 仕入先名 |
 | category_code | VARCHAR(20) FK | カテゴリ |

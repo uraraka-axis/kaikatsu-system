@@ -186,39 +186,39 @@
     {
       category_code: 'fitness',
       equip_items: [
-        { product_name: 'トレーニングマット', product_code: 'MAT-001', price: 3500, qty: 10, supplier: 'フィットネスジャパン', arrival_date: '' }
+        { product_name: 'トレーニングマット', product_code: 'FIT-00001', price: 3500, qty: 10, supplier: 'フィットネスジャパン', arrival_date: '' }
       ],
       content_label: 'トレーニングマット × 10'
     },
     {
       category_code: 'fitness',
       equip_items: [
-        { product_name: 'タオル（大）10枚セット', product_code: 'TW-L10', price: 5600, qty: 4, supplier: 'リネンサービス',     arrival_date: '' },
-        { product_name: '消毒スプレー 500ml',     product_code: 'DS-500', price: 980,  qty: 12, supplier: '衛生用品販売',     arrival_date: '' }
+        { product_name: 'タオル（大）10枚セット', product_code: 'FIT-00005', price: 5600, qty: 4, supplier: 'リネンサービス',     arrival_date: '' },
+        { product_name: '消毒スプレー 500ml',     product_code: 'FIT-00006', price: 980,  qty: 12, supplier: '衛生用品販売',     arrival_date: '' }
       ],
       content_label: 'タオル（大）10枚セット 他1商品'
     },
     {
       category_code: 'golf',
       equip_items: [
-        { product_name: 'ゴルフボール 1ダース', product_code: 'GB-012', price: 4200, qty: 6, supplier: 'ゴルフサプライ', arrival_date: '' }
+        { product_name: 'ゴルフボール 1ダース', product_code: 'GLF-00001', price: 4200, qty: 6, supplier: 'ゴルフサプライ', arrival_date: '' }
       ],
       content_label: 'ゴルフボール 1ダース × 6'
     },
     {
       category_code: 'golf',
       equip_items: [
-        { product_name: 'ゴルフティー 100本入り', product_code: 'GT-100', price: 800,  qty: 20, supplier: 'ゴルフサプライ', arrival_date: '' },
-        { product_name: 'グローブ Lサイズ',       product_code: 'GL-L01', price: 1500, qty: 8,  supplier: 'ゴルフサプライ', arrival_date: '' },
-        { product_name: 'スコアカード 100枚',     product_code: 'SC-100', price: 1200, qty: 3,  supplier: 'ゴルフサプライ', arrival_date: '' }
+        { product_name: 'ゴルフティー 100本入り', product_code: 'GLF-00002', price: 800,  qty: 20, supplier: 'ゴルフサプライ', arrival_date: '' },
+        { product_name: 'グローブ Lサイズ',       product_code: 'GLF-00003', price: 1500, qty: 8,  supplier: 'ゴルフサプライ', arrival_date: '' },
+        { product_name: 'スコアカード 100枚',     product_code: 'GLF-00004', price: 1200, qty: 3,  supplier: 'ゴルフサプライ', arrival_date: '' }
       ],
       content_label: 'ゴルフティー 100本入り 他2商品'
     },
     {
       category_code: 'fitness',
       equip_items: [
-        { product_name: 'バランスボール 65cm', product_code: 'BB-065', price: 1800, qty: 5, supplier: 'フィットネスジャパン', arrival_date: '' },
-        { product_name: 'ヨガブロック',         product_code: 'YB-001', price: 1200, qty: 8, supplier: 'フィットネスジャパン', arrival_date: '' }
+        { product_name: 'バランスボール 65cm', product_code: 'FIT-00003', price: 1800, qty: 5, supplier: 'フィットネスジャパン', arrival_date: '' },
+        { product_name: 'ヨガブロック',         product_code: 'FIT-00004', price: 1200, qty: 8, supplier: 'フィットネスジャパン', arrival_date: '' }
       ],
       content_label: 'バランスボール 65cm 他1商品'
     }
@@ -294,8 +294,8 @@
         delivery_date: '2026-03-05',
         actual_delivery_date: null,
         equip_items: [
-          { product_name: 'トレーニングマット',   product_code: 'MAT-001', price: 3500, qty: 5,  supplier: 'フィットネスジャパン', arrival_date: '2026-03-05' },
-          { product_name: 'ダンベルセット 10kg',  product_code: 'DB-010',  price: 8400, qty: 4,  supplier: 'フィットネスジャパン', arrival_date: '2026-03-05' }
+          { product_name: 'トレーニングマット',   product_code: 'FIT-00001', price: 3500, qty: 5,  supplier: 'フィットネスジャパン', arrival_date: '2026-03-05' },
+          { product_name: 'ダンベルセット 10kg',  product_code: 'FIT-00010',  price: 8400, qty: 4,  supplier: 'フィットネスジャパン', arrival_date: '2026-03-05' }
         ],
         content_label: 'トレーニングマット 他1商品',
         status_history: makeStatusHistory([
@@ -343,7 +343,7 @@
         delivery_date: '2026-02-18',
         actual_delivery_date: '2026-02-18',
         equip_items: [
-          { product_name: 'バランスボール 65cm', product_code: 'BB-065', price: 1800, qty: 8, supplier: 'フィットネスジャパン', arrival_date: '2026-02-18' }
+          { product_name: 'バランスボール 65cm', product_code: 'FIT-00003', price: 1800, qty: 8, supplier: 'フィットネスジャパン', arrival_date: '2026-02-18' }
         ],
         content_label: 'バランスボール 65cm × 8',
         status_history: makeStatusHistory([
@@ -408,14 +408,14 @@
 
   // ====== products ======
   var PRODUCTS = [
-    { code: 'MAT-001', name: 'トレーニングマット', price: 3500, supplier: 'フィットネスジャパン', category: 'fitness', stock: 30, image_path: null },
-    { code: 'DB-010',  name: 'ダンベル 10kg',      price: 2800, supplier: 'フィットネスジャパン', category: 'fitness', stock: 50, image_path: null },
-    { code: 'TR-800',  name: 'ランニングマシン TR-800', price: 420000, supplier: 'フィットネスジャパン', category: 'fitness', stock: 5, image_path: null },
-    { code: 'GB-012',  name: 'ゴルフボール 1ダース', price: 4200, supplier: 'ゴルフサプライ', category: 'golf', stock: 100, image_path: null },
-    { code: 'GC-001',  name: 'ゴルフクラブ アイアン7番', price: 28000, supplier: 'ゴルフサプライ', category: 'golf', stock: 12, image_path: null },
-    { code: 'DT-100',  name: 'ダーツボード', price: 14000, supplier: 'ダーツライブ', category: 'darts', stock: 8, image_path: null },
-    { code: 'BL-300',  name: 'ビリヤードキュー', price: 22000, supplier: 'ビリヤードプロ', category: 'billiard', stock: 6, image_path: null },
-    { code: 'CL-001',  name: '洗剤 業務用 5L',     price: 3200, supplier: 'クリーンサプライ', category: 'common', stock: 40, image_path: null }
+    { code: 'FIT-00001', name: 'トレーニングマット', price: 3500, supplier: 'フィットネスジャパン', category: 'fitness', stock: 30, image_path: null },
+    { code: 'FIT-00010',  name: 'ダンベル 10kg',      price: 2800, supplier: 'フィットネスジャパン', category: 'fitness', stock: 50, image_path: null },
+    { code: 'FIT-00012',  name: 'ランニングマシン TR-800', price: 420000, supplier: 'フィットネスジャパン', category: 'fitness', stock: 5, image_path: null },
+    { code: 'GLF-00001',  name: 'ゴルフボール 1ダース', price: 4200, supplier: 'ゴルフサプライ', category: 'golf', stock: 100, image_path: null },
+    { code: 'GLF-00005',  name: 'ゴルフクラブ アイアン7番', price: 28000, supplier: 'ゴルフサプライ', category: 'golf', stock: 12, image_path: null },
+    { code: 'DRT-00001',  name: 'ダーツボード', price: 14000, supplier: 'ダーツライブ', category: 'darts', stock: 8, image_path: null },
+    { code: 'BIL-00001',  name: 'ビリヤードキュー', price: 22000, supplier: 'ビリヤードプロ', category: 'billiard', stock: 6, image_path: null },
+    { code: 'CMN-00001',  name: '洗剤 業務用 5L',     price: 3200, supplier: 'クリーンサプライ', category: 'common', stock: 40, image_path: null }
   ];
 
   // ====== システム設定 ======
@@ -431,7 +431,7 @@
   var MASTER_CHANGE_LOG = [
     { id: 1, target: 'users',    action: 'INSERT', target_id: '20104', summary: '神戸三宮ユーザー追加',     operator: 'admin', changed_at: '2026-03-15 10:00:00' },
     { id: 2, target: 'budgets',  action: 'UPDATE', target_id: 'FY2026', summary: 'フィットネス予算 +5%',     operator: 'admin', changed_at: '2026-03-10 14:30:00' },
-    { id: 3, target: 'products', action: 'INSERT', target_id: 'DT-100', summary: 'ダーツボード新製品登録',   operator: 'admin', changed_at: '2026-02-28 11:20:00' }
+    { id: 3, target: 'products', action: 'INSERT', target_id: 'DRT-00001', summary: 'ダーツボード新製品登録',   operator: 'admin', changed_at: '2026-02-28 11:20:00' }
   ];
   var LOGIN_HISTORY = [
     { id: 1, login_id: 'admin',  name: '商品部 管理者', role: 'admin', result: 'success', ip: '192.0.2.10', logged_at: '2026-05-27 09:00:00' },
