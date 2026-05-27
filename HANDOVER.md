@@ -1,7 +1,7 @@
 # 引継ぎドキュメント — 快活フロンティア 発注管理システム
 
-最終更新: 2026-05-25
-最新コミット: `0625490 発注メール下書き機能 (Phase 1) + 管理画面 UI 微修正`（develop ブランチ push 済み）
+最終更新: 2026-05-26
+最新コミット: `0625490 発注メール下書き機能 (Phase 1) + 管理画面 UI 微修正`（develop ブランチ push 済み）以降、未コミット作業あり
 
 ---
 
@@ -17,6 +17,8 @@
   - `shop` — 店舗スタッフ（自店データのみ）
   - `admin` — 本部商品部（全店データ・マスタ管理）
   - `system` — IT 管理者（admin 全権限 + 監査ログ閲覧）※ 2026-05 追加
+  - `zone` — ゾーンマネージャー（管轄ゾーン配下の店舗を横断閲覧・閲覧専用）※ 2026-05-26 追加
+  - `area` — エリアマネージャー（管轄エリア配下の店舗を横断閲覧・閲覧専用）※ 2026-05-26 追加
 
 ---
 
@@ -285,6 +287,42 @@ IT 管理者向けの新ロール `system`。admin の全権限に加え、以�
 - 「発注済にする」は既存 `api/orders/bulk-status.php` を再利用
 - **API**: `api/orders/draft-mails.php`
 - **テストデータ**: `tools/seed_draft_mail_test_data.php`（45 件の依頼中・備品発注を生成）
+
+### 7-9. ゾーン／エリアマネージャー ロール追加（2026-05-26）
+従来の shop/admin/system に加え、`zone`（ゾーンマネージャー）/ `area`（エリアマネージャー）の 2 ロールを追加。
+
+- **DB**: `database/migration_zone_area_roles.sql` — users.role enum 拡張 + `zone_code`/`area_code` カラム追加
+- **Backend**: `auth.php` に `isManager()` / `requireManager()` / `getRoleScopeSql()` を追加。`orders.php` / `budgets.php` / `procurement.php` / `photo.php` / `export/orders.php` / `export/budgets.php` をロール別スコープで絞り込み
+- **Frontend**: `menu.html` / `order-list.html` / `budget-management.html` / `procurement-history.html` で zone/area ビュー対応。フィルタは管轄ゾーン／エリアで固定 (disabled) 表示
+- **権限**:
+  - 利用可能画面 = 発注一覧 / 予算管理 / 自店調達 の 3 画面のみ（**閲覧専用**）
+  - ステータス操作・発注作成・マスタ管理は不可
+  - Excel 出力は管轄スコープ内で可能
+- **テストデータ**: `tools/seed_zone_area_users.php`（Z100/Z200 + A101〜A202 の計 7 ユーザー、パスワード `password`）
+
+### 7-10. users マスタ Excel UL/DL 拡張（2026-05-26）
+- `zone_code` / `area_code` 列を追加（zone/area ユーザーを Excel から編集可能に）
+- ヘッダー名「メアド」→「メールアドレス」に変更（ゾーンマネージャーメールアドレス / エリアマネージャーメールアドレス）
+- role pattern を `shop|admin|system|zone|area` の 5 種に拡張
+- preprocess_rows で role に応じて shop_code/zone_code/area_code を NULL 強制
+- validate_extra で role=zone/area の各コード必須チェック
+- FK チェック: shops/zones/areas の 3 マスタで参照整合性を確認
+
+### 7-11. me.php の DB 最新化（2026-05-26）
+`api/me.php` を呼び出すたびに DB から最新の `name` / `shop_name` / `zone_name` / `area_name` を取得しセッションを更新。
+
+- 効果: admin が users マスタを Excel で UL してユーザー名を変更しても、対象ユーザーが画面リロードするだけで反映される
+- DB で `is_active=0` または削除されていた場合は自動ログアウト + 401（セッション残存対策）
+
+### 7-12. 検索ボタン削除 + フィルタ即時反映（2026-05-26）
+発注一覧 / 予算管理画面から「検索」ボタンを削除。各 select/date input は `onchange` で即時に API 再フェッチする統一仕様に。自店調達画面（元から検索ボタン無し）と挙動を統一。
+
+### 7-13. categories API の zone/area 対応（2026-05-26）
+`api/master/categories.php` が `admin/system` のみ全カテゴリを返す作りだったため、zone/area で空配列が返り、カテゴリフィルタが「すべてのカテゴリ」しか表示されない問題があった。shop ロールのみ shop_categories と JOIN し、admin/system/zone/area は全カテゴリを返すように修正。
+
+### 7-14. テストデータの整理（2026-05-26）
+- `tools/seed_users_sort_and_emails.php` で sort_order を振り直し: shop=1〜30、zone=60〜61、area=70〜74、admin=80、system=99
+- 各 shop ユーザーに `zone_manager_email` / `area_manager_email` を投入（`zone-east@example.test` など）
 
 ---
 

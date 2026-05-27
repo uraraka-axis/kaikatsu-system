@@ -70,7 +70,10 @@
 ### 2026-05 時点での主な追加・変更
 
 - `users.role` に `system` を追加（ENUM('shop','admin','system')）
-- `users` に `zone_manager_email` / `area_manager_email` を追加（予算超過通知用）
+- `users.role` に `zone` / `area` を追加（ENUM('shop','admin','system','zone','area')）※ 2026-05-26
+- `users` に `zone_code` / `area_code` カラムを追加 ※ 2026-05-26（zone/area マネージャーの管轄識別用）
+  - マイグレーション: `database/migration_zone_area_roles.sql`
+- `users` に `zone_manager_email` / `area_manager_email` を追加（予算超過通知用。zone/area ロールのユーザーアカウントとは別物で、shop ユーザーに紐づく通知先）
 - `suppliers` に `email` / `contact` / `phone` 列を追加（発注メール下書きで利用）
 - `products` に `jan_code` / `supplier_product_code` を追加
 - `master_change_log` テーブル新設
@@ -376,7 +379,7 @@
 
 ### 3.8 users（ユーザーマスタ）
 
-**用途:** システムにログインするユーザーの情報を管理します。店舗・管理者・system の 3 ロールがあります。
+**用途:** システムにログインするユーザーの情報を管理します。shop / admin / system / zone / area の 5 ロールがあります（zone / area は 2026-05-26 追加）。
 
 #### カラム一覧
 
@@ -385,22 +388,35 @@
 | id | INT (AUTO_INCREMENT) | NO | 自動採番 | ユーザーID |
 | login_id | VARCHAR(50) | NO | - | ログインID |
 | password | VARCHAR(255) | NO | - | パスワード（bcryptハッシュ） |
-| zone_manager_email | VARCHAR(255) | YES | NULL | ゾーンマネージャー通知先メアド（予算超過通知用） |
-| area_manager_email | VARCHAR(255) | YES | NULL | エリアマネージャー通知先メアド |
+| zone_manager_email | VARCHAR(255) | YES | NULL | shop に紐づくゾーンマネージャー通知先メールアドレス（予算超過通知用。zone ロールのユーザーアカウントとは別物） |
+| area_manager_email | VARCHAR(255) | YES | NULL | shop に紐づくエリアマネージャー通知先メールアドレス |
 | name | VARCHAR(50) | NO | - | ユーザー名 |
-| role | ENUM('shop','admin','system') | NO | 'shop' | ロール（shop=店舗 / admin=商品部 / system=IT管理者） |
-| shop_code | VARCHAR(5) | YES | NULL | 所属店舗コード（管理者・system は NULL 可） |
+| role | ENUM('shop','admin','system','zone','area') | NO | 'shop' | ロール（shop=店舗 / admin=商品部 / system=IT管理者 / zone=ゾーンマネージャー / area=エリアマネージャー） |
+| shop_code | VARCHAR(5) | YES | NULL | 所属店舗コード（role=shop のみ必須。それ以外は NULL） |
+| zone_code | VARCHAR(3) | YES | NULL | 管轄ゾーンコード（role=zone のみ必須） |
+| area_code | VARCHAR(3) | YES | NULL | 管轄エリアコード（role=area のみ必須） |
 | is_active | BOOLEAN | NO | TRUE | 有効フラグ |
 | sort_order | INT | NO | 0 | 表示順 |
 | created_at | DATETIME | NO | CURRENT_TIMESTAMP | 作成日時 |
 | updated_at | DATETIME | NO | CURRENT_TIMESTAMP (自動更新) | 更新日時 |
 
 - **主キー:** `id` (AUTO_INCREMENT)
-- **外部キー:** `shop_code` -> `shops.code`
+- **外部キー（緩い参照）:**
+  - `shop_code` -> `shops.code`
+  - `zone_code` -> `zones.code`
+  - `area_code` -> `areas.code`
 - **インデックス:**
   - `idx_users_shop_code` (shop_code)
+  - `idx_users_zone_code` (zone_code)
+  - `idx_users_area_code` (area_code)
   - `idx_users_role` (role)
 - **ユニーク制約:** `uk_users_login_id` (login_id)
+- **ロール別の管轄キー:**
+  - role=shop → shop_code が必須・zone_code/area_code は NULL
+  - role=zone → zone_code が必須・shop_code/area_code は NULL
+  - role=area → area_code が必須・shop_code/zone_code は NULL
+  - role=admin / system → 3 カラムすべて NULL（全店舗を横断する管理ロールのため）
+- **sort_order 規約:** shop=1〜30、zone=60〜61、area=70〜74、admin=80、system=99
 
 ---
 

@@ -2,7 +2,7 @@
 
 快活フロンティア フィットネス／ゴルフ 発注管理・予算管理システム
 
-最終更新: 2026-05-25
+最終更新: 2026-05-26
 
 ---
 
@@ -13,30 +13,56 @@
 
 ### ロール
 
-| ロール | 説明 | 識別 |
-|--------|------|------|
-| `shop` | 各店舗のスタッフ。発注の作成・自店の一覧閲覧 | セッション `role` |
-| `admin` | 本部の商品部。全店舗の発注管理・マスタ管理 | セッション `role` |
-| `system` | IT 管理者。admin 全権限 + 監査ログ閲覧 ※2026-05 追加 | セッション `role` |
+| ロール | 説明 | 管轄キー | 識別 |
+|--------|------|---------|------|
+| `shop` | 各店舗のスタッフ。発注の作成・自店の一覧閲覧 | `shop_code` | セッション `role` |
+| `admin` | 本部の商品部。全店舗の発注管理・マスタ管理 | （全店） | セッション `role` |
+| `system` | IT 管理者。admin 全権限 + 監査ログ閲覧 ※2026-05 追加 | （全店） | セッション `role` |
+| `zone` | ゾーンマネージャー。管轄ゾーン配下の店舗を横断閲覧（閲覧専用） ※2026-05-26 追加 | `zone_code` | セッション `role` |
+| `area` | エリアマネージャー。管轄エリア配下の店舗を横断閲覧（閲覧専用） ※2026-05-26 追加 | `area_code` | セッション `role` |
 
-権限ガードは `includes/auth.php` の `requireLogin()` / `requireAdmin()` / `requireSystem()` を使用。
-`requireAdmin()` は admin と system の両方を許可する（system が admin に上位互換）。
+権限ガードは `includes/auth.php` の以下ヘルパーを使用:
+
+| ヘルパー | 通すロール | 用途 |
+|---------|-----------|------|
+| `requireLogin()` | ログイン中の全ロール | API/画面の認証必須チェック |
+| `requireAdmin()` | admin / system | マスタ管理・システム設定など書き込み権限が必要な機能 |
+| `requireManager()` | admin / system / zone / area | 発注一覧・予算管理・自店調達などの「複数店舗横断閲覧」画面・API |
+| `requireSystem()` | system | 監査ログ閲覧などシステム管理者専用機能 |
+
+#### ロール別スコープ絞り込み（`getRoleScopeSql()`）
+
+zone / area ロールは、各 API で「閲覧可能な shop_code 集合」を SQL 条件として強制適用する:
+
+| ロール | 追加 WHERE 句 |
+|--------|---------------|
+| `admin` / `system` | なし（全店） |
+| `shop` | `s.code = :_scope_shop_code` |
+| `zone` | `s.area_code IN (SELECT code FROM areas WHERE zone_code = :_scope_zone_code)` |
+| `area` | `s.area_code = :_scope_area_code` |
+| 不正状態（管轄コード未設定） | `1=0`（全件除外でフェイルセーフ） |
+
+`api/orders.php` / `api/budgets.php` / `api/procurement.php` / `api/export/orders.php` / `api/export/budgets.php` / `api/photo.php` で同じパターンを適用。
 
 ### 画面一覧
 
-| # | 画面 | ファイル | 店舗 | 管理者 | system | 概要 |
-|---|------|---------|:----:|:------:|:------:|------|
-| 1 | ログイン | login.html | o | o | o | 認証（bcrypt + login_history 記録） |
-| 2 | メニュー | menu.html | o | o | o | ロール別メニュー（system は監査ログ追加） |
-| 3 | 修理発注 | repair-order.html | o | - | - | 修理依頼フォーム |
-| 4 | 備品発注 | equipment-order.html | o | - | - | 商品カタログからカート形式で発注 |
-| 5 | 部品発注 | parts-order.html | o | - | - | 部品の個別発注フォーム |
-| 6 | 発注一覧 | order-list.html | o | o | o | 一覧/詳細/ステータス管理/Excel出力/メール下書き |
-| 7 | 予算管理 | budget-management.html | o | o | o | 予算消化状況・Excel出力 |
-| 8 | 自店調達 | procurement-history.html | o | o | o | 自店調達申請の履歴・管理 |
-| 9 | 管理メニュー | admin-menu.html | - | o | o | 7 種マスタ Excel UL/DL・予約更新・データ出力 |
-| 10 | システム設定 | system-settings.html | - | o | o | カテゴリ管理・期間設定 |
-| 11 | 監査ログ | master-change-log.html | - | - | o | マスタ変更/予約更新/ログイン履歴の 3 タブ |
+凡例: `o` = 利用可、`ro` = 閲覧専用（管轄スコープ拘束）、`-` = アクセス不可
+
+| # | 画面 | ファイル | shop | admin | system | zone | area | 概要 |
+|---|------|---------|:----:|:-----:|:------:|:----:|:----:|------|
+| 1 | ログイン | login.html | o | o | o | o | o | 認証（bcrypt + login_history 記録） |
+| 2 | メニュー | menu.html | o | o | o | o | o | ロール別メニュー（system は監査ログ追加 / zone・area は閲覧 3 画面のみ） |
+| 3 | 修理発注 | repair-order.html | o | - | - | - | - | 修理依頼フォーム |
+| 4 | 備品発注 | equipment-order.html | o | - | - | - | - | 商品カタログからカート形式で発注 |
+| 5 | 部品発注 | parts-order.html | o | - | - | - | - | 部品の個別発注フォーム |
+| 6 | 発注一覧 | order-list.html | o | o | o | ro | ro | 一覧/詳細。ステータス管理・Excel出力・メール下書きは admin/system のみ |
+| 7 | 予算管理 | budget-management.html | o | o | o | ro | ro | 予算消化状況・Excel出力（zone/area も管轄分は Excel 可） |
+| 8 | 自店調達 | procurement-history.html | o | o | o | ro | ro | 一覧。申請作成は shop のみ |
+| 9 | 管理メニュー | admin-menu.html | - | o | o | - | - | 7 種マスタ Excel UL/DL・予約更新・データ出力 |
+| 10 | システム設定 | system-settings.html | - | o | o | - | - | カテゴリ管理・期間設定 |
+| 11 | 監査ログ | master-change-log.html | - | - | o | - | - | マスタ変更/予約更新/ログイン履歴の 3 タブ |
+
+zone / area の管轄スコープは、画面フィルタ UI で「ゾーン」「エリア」のドロップダウンを管轄値で固定 (disabled) 表示し、ユーザーが管轄外を選択できないようにする。Backend では `getRoleScopeSql()` で SQL レベルでも強制絞り込みを行う 2 層防御。
 
 ---
 
@@ -367,21 +393,44 @@
 
 | メソッド | エンドポイント | 説明 |
 |---------|--------------|------|
-| POST | /api/login | ログイン |
-| POST | /api/logout | ログアウト |
-| GET | /api/me | ログインユーザー情報取得 |
+| POST | /api/login.php | ログイン |
+| POST | /api/logout.php | ログアウト |
+| GET | /api/me.php | ログインユーザー情報取得（呼び出すたびに DB から最新の name/shop_name/zone_name/area_name を取得しセッションを更新する。これにより admin が users マスタを Excel UL で変更した場合でも、対象ユーザーが画面リロードするだけで反映される） |
+
+`api/me.php` のレスポンス例（zone マネージャー）:
+
+```json
+{
+  "success": true,
+  "user": {
+    "id": 33,
+    "login_id": "Z100",
+    "name": "東日本ゾーンマネージャー",
+    "role": "zone",
+    "shop_code": null,
+    "shop_name": null,
+    "zone_code": "100",
+    "zone_name": "東日本",
+    "area_code": null,
+    "area_name": null,
+    "categories": []
+  }
+}
+```
+
+DB で `is_active=0` または削除されていた場合は自動ログアウト + 401 を返す（セッション残存対策）。
 
 ### 6.2 発注
 
 | メソッド | エンドポイント | 説明 | 権限 |
 |---------|--------------|------|------|
-| GET | /api/orders.php | 発注一覧取得 | 店舗:自店のみ / 管理者:全店 |
-| POST | /api/orders/create.php | 発注作成（3種別統一） | 店舗 |
-| POST | /api/orders/status.php | ステータス変更 | 遷移ルールに従う |
-| POST | /api/orders/update-info.php | 対応情報の編集 | 編集権限に従う |
-| POST | /api/orders/bulk-status.php | 一括ステータス変更 | 管理者 |
-| GET | /api/orders/draft-mails.php | ★発注メール下書き取得（仕入先別集計） | 管理者 |
-| GET | /api/photo.php?id={id} | 発注写真取得 | 認証済 |
+| GET | /api/orders.php | 発注一覧取得 | shop:自店 / admin・system:全店 / zone:管轄ゾーン配下 / area:管轄エリア配下 |
+| POST | /api/orders/create.php | 発注作成（3種別統一） | shop のみ |
+| POST | /api/orders/status.php | ステータス変更 | admin / system のみ（zone/area は閲覧専用） |
+| POST | /api/orders/update-info.php | 対応情報の編集 | admin / system のみ |
+| POST | /api/orders/bulk-status.php | 一括ステータス変更 | admin / system のみ |
+| GET | /api/orders/draft-mails.php | ★発注メール下書き取得（仕入先別集計） | admin / system のみ |
+| GET | /api/photo.php?id={id} | 発注写真取得 | 認証済（zone/area は管轄外の店舗写真は 403） |
 
 **GET /api/orders クエリパラメータ:**
 
@@ -390,9 +439,9 @@
 | type | string | 種別フィルタ（repair/equipment/parts） |
 | status | int | ステータスフィルタ（0〜4） |
 | category | string | カテゴリフィルタ |
-| shop | string | 店舗コード（管理者のみ） |
-| zone | string | ゾーンコード（管理者のみ） |
-| area | string | エリアコード（管理者のみ） |
+| shop | string | 店舗コード（admin/system は自由 / zone/area は管轄内のみ受理） |
+| zone | string | ゾーンコード（admin/system のみ自由 / zone は自身に強制） |
+| area | string | エリアコード（admin/system/zone は自由 / area は自身に強制） |
 | date_from | date | 発注日From |
 | date_to | date | 発注日To |
 
@@ -421,8 +470,9 @@
 
 | メソッド | エンドポイント | 説明 | 権限 |
 |---------|--------------|------|------|
-| GET | /api/budgets | 予算一覧取得 | 店舗:自店 / 管理者:全店 |
-| GET | /api/budgets?shop={code}&year={year}&dept={dept} | 店舗別・年度別・部門別取得 | 同上 |
+| GET | /api/budgets.php | 予算一覧取得 | shop:自店 / admin・system:全店 / zone:管轄ゾーン配下 / area:管轄エリア配下 |
+| GET | /api/budgets.php?action=years | データが存在する年度のみを降順で返す | 同上（スコープ内のみ集計） |
+| GET | /api/export/budgets.php | 予算データを Excel(.xlsx) 出力 | 同上 |
 
 **クエリパラメータ:**
 
@@ -461,9 +511,9 @@
 
 | メソッド | エンドポイント | 説明 | 権限 |
 |---------|--------------|------|------|
-| GET | /api/procurement.php | 申請一覧取得（`?year=&category=&shop=`） | 店舗:自店 / 管理者:全店 |
-| GET | /api/procurement.php?action=years | 実在年度の降順リスト（データ無しは現在年度フォールバック） | 全ロール |
-| POST | /api/procurement.php | 自店調達申請を作成 | 店舗 |
+| GET | /api/procurement.php | 申請一覧取得（`?year=&category=&shop=`） | shop:自店 / admin・system:全店 / zone:管轄ゾーン配下 / area:管轄エリア配下 |
+| GET | /api/procurement.php?action=years | 実在年度の降順リスト（データ無しは現在年度フォールバック） | 同上（スコープ内のみ集計） |
+| POST | /api/procurement.php | 自店調達申請を作成 | shop のみ（admin/system/zone/area は閲覧専用） |
 
 - `category` バリデーションは categories マスタの `is_active=1` を参照（ハードコード廃止）。
 - POST 時は `shop_categories` の所属チェックも実施（自店所属カテゴリ以外は 400）。
@@ -475,7 +525,7 @@
 | GET | /api/master/zones.php | ゾーン一覧 | 全ロール |
 | GET | /api/master/areas.php | エリア一覧 | 全ロール |
 | GET | /api/master/shops.php | 店舗一覧 | 全ロール |
-| GET | /api/master/categories.php | カテゴリ一覧 | 全ロール |
+| GET | /api/master/categories.php | カテゴリ一覧 | shop は所属店舗のカテゴリのみ / admin・system・zone・area は全カテゴリ（管轄内の店舗を横断するため） |
 
 ### 6.6.2 マスタ CRUD（Excel UL/DL）— 管理者
 
@@ -640,3 +690,9 @@ kaikatsu-system/
 
 - 共通スタイル: `.admin-filter-bar` / `.admin-filter-row` / `.filter-group` / `.filter-label` / `.date-range` 一式は `common.css` 参照
 - 初期非表示が必要な画面（発注一覧の admin/store 切替）は ID 指定で `display:none` を上書き、JS で `display = 'block'` をセットして表示
+- **検索ボタン廃止**（2026-05-26）: 各 select/date input は `onchange` で即時に API 再フェッチ + 再描画する。明示的な「検索」ボタンは設置しない（自店調達画面と挙動を統一）。
+- **zone/area ロールの管轄スコープ拘束**（2026-05-26）: フィルタの「ゾーン」「エリア」セレクトはロールに応じて選択肢を絞り、管轄値を固定（`disabled`）表示する。
+  - `zone`: ゾーン = 管轄ゾーン 1 つだけ・disabled / エリア = 管轄ゾーン配下のみ / 店舗 = 管轄ゾーン配下のみ
+  - `area`: ゾーン = 管轄ゾーンだけ・disabled / エリア = 管轄エリア 1 つだけ・disabled / 店舗 = 管轄エリア配下のみ
+  - `admin/system`: 「すべて」+ 全選択肢（既存挙動）
+  - フロント側だけでなく Backend API でも `getRoleScopeSql()` で同等の絞り込みを強制する 2 層防御
