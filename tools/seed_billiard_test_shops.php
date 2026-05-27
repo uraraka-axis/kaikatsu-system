@@ -27,6 +27,9 @@ require_once __DIR__ . '/../includes/functions.php';
 $args  = $argv ?? [];
 $reset = in_array('--reset', $args, true);
 
+// パスワード 'password' のハッシュ（既存ユーザーと同じものを再利用）
+$PASSWORD_HASH = '$2y$10$c2zmVJav6G.Qn0dj8kU0J.VJbD8gV1XxUFiotFTO95msoCS48tIva';
+
 // ----------------------------------------------------------------
 // 定義
 // ----------------------------------------------------------------
@@ -69,6 +72,9 @@ if ($reset) {
 
     execute("DELETE FROM shop_categories WHERE shop_code IN ($placeholders)", $shopCodes);
     echo "  [DELETE] shop_categories\n";
+
+    execute("DELETE FROM users WHERE shop_code IN ($placeholders)", $shopCodes);
+    echo "  [DELETE] users × " . count($shopCodes) . "\n";
 
     execute("DELETE FROM shops WHERE code IN ($placeholders)", $shopCodes);
     echo "  [DELETE] shops × " . count($shopCodes) . "\n";
@@ -145,7 +151,47 @@ foreach ($NEW_SHOPS as [$code, $name, $shortCode, $areaCode, $sortOrder, $cats])
     }
 }
 
-// 3. 予算（取扱カテゴリのみ）
+// 3. 店舗ユーザー（login_id = shop_code, password = 'password'）
+foreach ($NEW_SHOPS as [$code, $name, , , , ]) {
+    $userName = $name . '店';
+    $existing = getOne('SELECT id FROM users WHERE login_id = :lid', [':lid' => $code]);
+    if ($existing) {
+        execute(
+            'UPDATE users
+                SET password = :pw,
+                    name = :name,
+                    role = :role,
+                    shop_code = :sc,
+                    zone_code = NULL,
+                    area_code = NULL,
+                    is_active = 1
+              WHERE login_id = :lid',
+            [
+                ':pw'   => $PASSWORD_HASH,
+                ':name' => $userName,
+                ':role' => 'shop',
+                ':sc'   => $code,
+                ':lid'  => $code,
+            ]
+        );
+        echo "  [UPDATE] user: {$code} {$userName}\n";
+    } else {
+        execute(
+            'INSERT INTO users (login_id, password, name, role, shop_code, is_active)
+             VALUES (:lid, :pw, :name, :role, :sc, 1)',
+            [
+                ':lid'  => $code,
+                ':pw'   => $PASSWORD_HASH,
+                ':name' => $userName,
+                ':role' => 'shop',
+                ':sc'   => $code,
+            ]
+        );
+        echo "  [INSERT] user: {$code} {$userName}\n";
+    }
+}
+
+// 4. 予算（取扱カテゴリのみ）
 foreach ($NEW_SHOPS as [$code, $name, , , , $cats]) {
     foreach ($cats as $catCode) {
         $base = $BUDGET_BASE[$catCode] ?? 15000;
