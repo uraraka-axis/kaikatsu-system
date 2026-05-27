@@ -161,25 +161,6 @@ CREATE TABLE products (
   COMMENT='商品マスタ（備品発注用）';
 
 -- ------------------------------------------------------------
--- product_images: 商品画像（最大3枚）
--- FK: products
--- ------------------------------------------------------------
-CREATE TABLE product_images (
-  id          INT          NOT NULL AUTO_INCREMENT COMMENT 'ID',
-  product_id  INT          NOT NULL COMMENT '商品ID',
-  file_path   VARCHAR(255) NOT NULL COMMENT 'ファイルパス',
-  is_main     BOOLEAN      NOT NULL DEFAULT FALSE COMMENT 'メイン画像フラグ',
-  sort_order  TINYINT      NOT NULL DEFAULT 0 COMMENT '表示順',
-  created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (id),
-  INDEX idx_product_images_product (product_id),
-  CONSTRAINT fk_product_images_product FOREIGN KEY (product_id) REFERENCES products(id)
-    ON UPDATE CASCADE ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
-  COMMENT='商品画像';
-
--- ------------------------------------------------------------
 -- users: ユーザーマスタ
 -- FK: shops
 -- ------------------------------------------------------------

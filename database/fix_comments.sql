@@ -75,16 +75,7 @@ ALTER TABLE products MODIFY is_active BOOLEAN NOT NULL DEFAULT TRUE COMMENT '有
 ALTER TABLE products MODIFY sort_order INT NOT NULL DEFAULT 0 COMMENT '表示順';
 
 -- ------------------------------------------------------------
--- 8. product_images: 商品画像
--- ------------------------------------------------------------
-ALTER TABLE product_images MODIFY id INT NOT NULL AUTO_INCREMENT COMMENT 'ID';
-ALTER TABLE product_images MODIFY product_id INT NOT NULL COMMENT '商品ID';
-ALTER TABLE product_images MODIFY file_path VARCHAR(255) NOT NULL COMMENT 'ファイルパス';
-ALTER TABLE product_images MODIFY is_main BOOLEAN NOT NULL DEFAULT FALSE COMMENT 'メイン画像フラグ';
-ALTER TABLE product_images MODIFY sort_order TINYINT NOT NULL DEFAULT 0 COMMENT '表示順';
-
--- ------------------------------------------------------------
--- 9. users: ユーザーマスタ
+-- 8. users: ユーザーマスタ
 -- ------------------------------------------------------------
 ALTER TABLE users MODIFY id INT NOT NULL AUTO_INCREMENT COMMENT 'ユーザーID';
 ALTER TABLE users MODIFY login_id VARCHAR(50) NOT NULL COMMENT 'ログインID';
@@ -96,7 +87,7 @@ ALTER TABLE users MODIFY is_active BOOLEAN NOT NULL DEFAULT TRUE COMMENT '有効
 ALTER TABLE users MODIFY sort_order INT NOT NULL DEFAULT 0 COMMENT '表示順';
 
 -- ------------------------------------------------------------
--- 10. system_settings: システム設定
+-- 9. system_settings: システム設定
 -- ------------------------------------------------------------
 ALTER TABLE system_settings MODIFY `key` VARCHAR(50) NOT NULL COMMENT '設定キー';
 ALTER TABLE system_settings MODIFY value VARCHAR(255) NOT NULL COMMENT '設定値';
@@ -105,7 +96,7 @@ ALTER TABLE system_settings MODIFY is_active BOOLEAN NOT NULL DEFAULT TRUE COMME
 ALTER TABLE system_settings MODIFY sort_order INT NOT NULL DEFAULT 0 COMMENT '表示順';
 
 -- ------------------------------------------------------------
--- 11. orders: 発注ヘッダ
+-- 10. orders: 発注ヘッダ
 -- ------------------------------------------------------------
 ALTER TABLE orders MODIFY id VARCHAR(30) NOT NULL COMMENT '発注番号（REP-S01-20260301-0001 等）';
 ALTER TABLE orders MODIFY type ENUM('repair','equipment','parts') NOT NULL COMMENT '発注種別';
@@ -120,7 +111,7 @@ ALTER TABLE orders MODIFY actual_delivery_date DATE NULL COMMENT '実納品日�
 ALTER TABLE orders MODIFY created_by INT NULL COMMENT '作成者ユーザーID';
 
 -- ------------------------------------------------------------
--- 12. order_repair_details: 修理発注詳細
+-- 11. order_repair_details: 修理発注詳細
 -- ------------------------------------------------------------
 ALTER TABLE order_repair_details MODIFY order_id VARCHAR(30) NOT NULL COMMENT '発注番号';
 ALTER TABLE order_repair_details MODIFY equipment_name VARCHAR(100) NOT NULL COMMENT '故障機材名';
@@ -129,7 +120,7 @@ ALTER TABLE order_repair_details MODIFY repair_schedule_date DATE NULL COMMENT '
 ALTER TABLE order_repair_details MODIFY repair_completed_date DATE NULL COMMENT '修理完了日';
 
 -- ------------------------------------------------------------
--- 13. order_repair_unavail_dates: 修理対応不可日時
+-- 12. order_repair_unavail_dates: 修理対応不可日時
 -- ------------------------------------------------------------
 ALTER TABLE order_repair_unavail_dates MODIFY id INT NOT NULL AUTO_INCREMENT COMMENT 'ID';
 ALTER TABLE order_repair_unavail_dates MODIFY order_id VARCHAR(30) NOT NULL COMMENT '発注番号';
@@ -139,14 +130,14 @@ ALTER TABLE order_repair_unavail_dates MODIFY time_start TIME NULL COMMENT '不�
 ALTER TABLE order_repair_unavail_dates MODIFY time_end TIME NULL COMMENT '不可終了時刻';
 
 -- ------------------------------------------------------------
--- 14. order_repair_unavail_days: 修理対応不可曜日
+-- 13. order_repair_unavail_days: 修理対応不可曜日
 -- ------------------------------------------------------------
 ALTER TABLE order_repair_unavail_days MODIFY id INT NOT NULL AUTO_INCREMENT COMMENT 'ID';
 ALTER TABLE order_repair_unavail_days MODIFY order_id VARCHAR(30) NOT NULL COMMENT '発注番号';
 ALTER TABLE order_repair_unavail_days MODIFY day_of_week VARCHAR(10) NOT NULL COMMENT '曜日（火曜日, 木曜日 等）';
 
 -- ------------------------------------------------------------
--- 15. order_equipment_items: 備品発注明細
+-- 14. order_equipment_items: 備品発注明細
 -- ------------------------------------------------------------
 ALTER TABLE order_equipment_items MODIFY id INT NOT NULL AUTO_INCREMENT COMMENT 'ID';
 ALTER TABLE order_equipment_items MODIFY order_id VARCHAR(30) NOT NULL COMMENT '発注番号';
@@ -159,7 +150,7 @@ ALTER TABLE order_equipment_items MODIFY supplier VARCHAR(100) NULL COMMENT '仕
 ALTER TABLE order_equipment_items MODIFY arrival_date DATE NULL COMMENT '入荷予定日';
 
 -- ------------------------------------------------------------
--- 16. order_parts_details: 部品発注詳細
+-- 15. order_parts_details: 部品発注詳細
 -- ------------------------------------------------------------
 ALTER TABLE order_parts_details MODIFY order_id VARCHAR(30) NOT NULL COMMENT '発注番号';
 ALTER TABLE order_parts_details MODIFY parts_name VARCHAR(100) NOT NULL COMMENT '部品名・品番';
@@ -168,7 +159,7 @@ ALTER TABLE order_parts_details MODIFY reason TEXT NULL COMMENT '発注理由・
 ALTER TABLE order_parts_details MODIFY quantity INT NOT NULL DEFAULT 1 COMMENT '数量';
 
 -- ------------------------------------------------------------
--- 17. order_photos: 発注写真
+-- 16. order_photos: 発注写真
 -- ------------------------------------------------------------
 ALTER TABLE order_photos MODIFY id INT NOT NULL AUTO_INCREMENT COMMENT 'ID';
 ALTER TABLE order_photos MODIFY order_id VARCHAR(30) NOT NULL COMMENT '発注番号';
@@ -179,7 +170,7 @@ ALTER TABLE order_photos MODIFY file_size INT NULL COMMENT 'ファイルサイ�
 ALTER TABLE order_photos MODIFY sort_order TINYINT NOT NULL DEFAULT 0 COMMENT '表示順';
 
 -- ------------------------------------------------------------
--- 18. order_status_history: ステータス変更履歴
+-- 17. order_status_history: ステータス変更履歴
 -- ------------------------------------------------------------
 ALTER TABLE order_status_history MODIFY id INT NOT NULL AUTO_INCREMENT COMMENT 'ID';
 ALTER TABLE order_status_history MODIFY order_id VARCHAR(30) NOT NULL COMMENT '発注番号';
@@ -189,7 +180,7 @@ ALTER TABLE order_status_history MODIFY changed_by VARCHAR(50) NULL COMMENT '変
 ALTER TABLE order_status_history MODIFY memo TEXT NULL COMMENT 'メモ';
 
 -- ------------------------------------------------------------
--- 19. procurement_requests: 自店調達申請
+-- 18. procurement_requests: 自店調達申請
 -- ------------------------------------------------------------
 ALTER TABLE procurement_requests MODIFY id VARCHAR(30) NOT NULL COMMENT '申請番号（REQ-S01-20260226-0001 等）';
 ALTER TABLE procurement_requests MODIFY shop_code VARCHAR(5) NOT NULL COMMENT '申請店舗コード';
@@ -201,7 +192,7 @@ ALTER TABLE procurement_requests MODIFY status VARCHAR(20) NOT NULL DEFAULT 'pen
 ALTER TABLE procurement_requests MODIFY created_by INT NULL COMMENT '作成者ユーザーID';
 
 -- ------------------------------------------------------------
--- 20. budgets: 予算
+-- 19. budgets: 予算
 -- ------------------------------------------------------------
 ALTER TABLE budgets MODIFY id INT NOT NULL AUTO_INCREMENT COMMENT 'ID';
 ALTER TABLE budgets MODIFY shop_code VARCHAR(5) NOT NULL COMMENT '店舗コード';
@@ -212,7 +203,7 @@ ALTER TABLE budgets MODIFY budget_amount INT NOT NULL DEFAULT 0 COMMENT '予算�
 ALTER TABLE budgets MODIFY actual_amount INT NOT NULL DEFAULT 0 COMMENT '実績額';
 
 -- ------------------------------------------------------------
--- 21. order_sequences: 発注番号の採番管理
+-- 20. order_sequences: 発注番号の採番管理
 -- ------------------------------------------------------------
 ALTER TABLE order_sequences MODIFY prefix VARCHAR(3) NOT NULL COMMENT '種別プレフィクス（REP, EQU, PTS, REQ）';
 ALTER TABLE order_sequences MODIFY shop_code VARCHAR(5) NOT NULL COMMENT '店舗コード';
@@ -220,7 +211,7 @@ ALTER TABLE order_sequences MODIFY date DATE NOT NULL COMMENT '対象日';
 ALTER TABLE order_sequences MODIFY current_seq INT NOT NULL DEFAULT 0 COMMENT '現在の連番';
 
 -- ------------------------------------------------------------
--- 22. master_scheduled_changes: マスタ予約更新
+-- 21. master_scheduled_changes: マスタ予約更新
 -- ------------------------------------------------------------
 ALTER TABLE master_scheduled_changes MODIFY id INT NOT NULL AUTO_INCREMENT COMMENT 'ID';
 ALTER TABLE master_scheduled_changes MODIFY target_table VARCHAR(50) NOT NULL COMMENT '対象テーブル名';

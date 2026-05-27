@@ -32,9 +32,8 @@
 | 4 | categories | カテゴリマスタ | フィットネス・インドアゴルフなどの業態分類 |
 | 5 | shop_categories | 店舗カテゴリ中間テーブル | 店舗とカテゴリの多対多関係 |
 | 6 | suppliers | 仕入先マスタ | 備品の仕入先情報 |
-| 7 | products | 商品マスタ | 備品発注用の商品カタログ |
-| 8 | product_images | 商品画像 | 商品の画像（最大3枚、メイン画像フラグ付き） |
-| 9 | users | ユーザーマスタ | システム利用者の情報 |
+| 7 | products | 商品マスタ | 備品発注用の商品カタログ（画像は products.image_path 〜 image_path3 で最大3枚） |
+| 8 | users | ユーザーマスタ | システム利用者の情報 |
 | 9 | system_settings | システム設定 | システム全体のキーバリュー設定 |
 
 #### トランザクションテーブル（10テーブル）
@@ -348,32 +347,10 @@
   - `idx_products_supplier_product` (supplier_product_code)
 - **ユニーク制約:** `uk_products_code` (code)
 
----
-
-### 3.7-2 product_images（商品画像）
-
-**用途:** 商品マスタに紐づく画像（最大3枚）を保持します。メイン画像フラグと表示順で並び順を管理します。
-
-#### カラム一覧
-
-| カラム名 | 型 | NULL | デフォルト | 説明 |
-|---------|-----|------|----------|------|
-| id | INT (AUTO_INCREMENT) | NO | 自動採番 | ID |
-| product_id | INT | NO | - | 商品ID |
-| file_path | VARCHAR(255) | NO | - | ファイルパス（uploads/products/ 配下） |
-| is_main | BOOLEAN | NO | FALSE | メイン画像フラグ |
-| sort_order | TINYINT | NO | 0 | 表示順 |
-| created_at | DATETIME | NO | CURRENT_TIMESTAMP | 作成日時 |
-| updated_at | DATETIME | NO | CURRENT_TIMESTAMP ON UPDATE | 更新日時 |
-
-#### キー
-- **主キー:** id
-- **インデックス:** `idx_product_images_product` (product_id)
-- **外部キー:** `fk_product_images_product` (product_id → products.id, ON DELETE CASCADE)
-
-#### 補足
-- 配信は `api/product-image.php` 経由（パストラバーサル対策のため直接 URL アクセスは不可）
-- アップロード時は preview と本登録の 2 段階（マスタ Excel UL では参照のみ、画像追加は商品マスタ UI から）
+#### 商品画像の保持方式
+- 商品画像は `products.image_path` / `image_path2` / `image_path3` の 3 カラムにファイル名を直接保持する（最大 3 枚）。
+- 物理ファイルは `uploads/products/` 配下に配置し、配信は `api/product-image.php` 経由（パストラバーサル対策）。
+- 過去 `product_images` テーブルで多対多関係として持つ設計案があったが、2026-05-23 に products テーブル直下のカラム方式に統一し、product_images テーブルは 2026-05-27 に削除済み。
 
 ---
 
