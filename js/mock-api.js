@@ -11,11 +11,11 @@
  *     <script src="js/mock-api.js"></script>
  *
  * デモ用ログイン ID（パスワードは任意）:
- *   ・10301 / 10302 / ... = 店舗ユーザー (shop)
- *   ・admin / admin1     = 商品部 (admin)
- *   ・system             = システム管理 (system)
- *   ・Z100 / Z200        = ゾーンマネージャー (zone)
- *   ・A101 / A102 / ...  = エリアマネージャー (area)
+ *   ・10101 / 10102 / ... = 店舗ユーザー (shop)  ※5桁の店舗コード
+ *   ・admin               = 商品部 (admin)
+ *   ・system              = システム管理者 (system)
+ *   ・Z100 / Z200         = ゾーンマネージャー (zone)
+ *   ・A101 / A102 / ...   = エリアマネージャー (area)
  * =================================================================== */
 (function() {
   'use strict';
@@ -70,29 +70,26 @@
     { shop_code: '20304', shop_name: '鹿児島',     area_code: '203' }
   ];
 
+  // develop の seed.sql / categories マイグレーションに合わせて 2 カテゴリ
   var CATEGORIES = [
-    { code: 'fitness',  name: 'フィットネス' },
-    { code: 'golf',     name: 'ゴルフ' },
-    { code: 'darts',    name: 'ダーツ' },
-    { code: 'billiard', name: 'ビリヤード' },
-    { code: 'common',   name: '共用' }
+    { code: 'fitness', name: 'フィットネス',   closing_type: 'monthly', closing_day: 8 },
+    { code: 'golf',    name: 'インドアゴルフ', closing_type: 'weekly',  closing_day: 2 }
   ];
 
-  // shop ⇔ category 紐付け（demo: 各店舗は 4 カテゴリすべて + common）
+  // 全店舗は 2 カテゴリ両方を取り扱う（seed.sql の shop_categories 相当）
   function categoriesForShop(/*shopCode*/) { return CATEGORIES.slice(); }
 
-  // ====== ユーザーマスタ（デモ用） ======
+  // ====== ユーザーマスタ（develop seed の名前と一致させる） ======
   var USERS = [
-    { login_id: 'admin',  name: '商品部 管理者', role: 'admin',  shop_code: null,    zone_code: null,  area_code: null  },
-    { login_id: 'admin1', name: '商品部 担当1',  role: 'admin',  shop_code: null,    zone_code: null,  area_code: null  },
-    { login_id: 'system', name: 'システム管理',  role: 'system', shop_code: null,    zone_code: null,  area_code: null  },
+    { login_id: 'admin',  name: '商品部',           role: 'admin',  shop_code: null,    zone_code: null,  area_code: null  },
+    { login_id: 'system', name: 'システム管理者',   role: 'system', shop_code: null,    zone_code: null,  area_code: null  },
     { login_id: 'Z100',   name: '東日本ゾーンマネージャー', role: 'zone', shop_code: null, zone_code: '100', area_code: null },
     { login_id: 'Z200',   name: '西日本ゾーンマネージャー', role: 'zone', shop_code: null, zone_code: '200', area_code: null },
     { login_id: 'A101',   name: '北海道エリアマネージャー', role: 'area', shop_code: null, zone_code: null, area_code: '101' },
     { login_id: 'A102',   name: '東北エリアマネージャー',   role: 'area', shop_code: null, zone_code: null, area_code: '102' },
     { login_id: 'A103',   name: '関東エリアマネージャー',   role: 'area', shop_code: null, zone_code: null, area_code: '103' },
     { login_id: 'A201',   name: '関西エリアマネージャー',   role: 'area', shop_code: null, zone_code: null, area_code: '201' },
-    { login_id: 'A202',   name: '中国・四国エリアマネージャー', role: 'area', shop_code: null, zone_code: null, area_code: '202' }
+    { login_id: 'A202',   name: '中四国エリアマネージャー', role: 'area', shop_code: null, zone_code: null, area_code: '202' }
   ];
   // 全店舗ユーザーを自動生成
   SHOPS.forEach(function(s) {
@@ -183,26 +180,72 @@
       };
     });
   }
+  // 備品発注 × 依頼中（status 0）用のパターン：店舗 idx で振り分け
+  // 各パターンに category_code, 商品構成, タイトルラベルを定義
+  var EQUIPMENT_REQUESTING_PATTERNS = [
+    {
+      category_code: 'fitness',
+      equip_items: [
+        { product_name: 'トレーニングマット', product_code: 'MAT-001', price: 3500, qty: 10, supplier: 'フィットネスジャパン', arrival_date: '' }
+      ],
+      content_label: 'トレーニングマット × 10'
+    },
+    {
+      category_code: 'fitness',
+      equip_items: [
+        { product_name: 'タオル（大）10枚セット', product_code: 'TW-L10', price: 5600, qty: 4, supplier: 'リネンサービス',     arrival_date: '' },
+        { product_name: '消毒スプレー 500ml',     product_code: 'DS-500', price: 980,  qty: 12, supplier: '衛生用品販売',     arrival_date: '' }
+      ],
+      content_label: 'タオル（大）10枚セット 他1商品'
+    },
+    {
+      category_code: 'golf',
+      equip_items: [
+        { product_name: 'ゴルフボール 1ダース', product_code: 'GB-012', price: 4200, qty: 6, supplier: 'ゴルフサプライ', arrival_date: '' }
+      ],
+      content_label: 'ゴルフボール 1ダース × 6'
+    },
+    {
+      category_code: 'golf',
+      equip_items: [
+        { product_name: 'ゴルフティー 100本入り', product_code: 'GT-100', price: 800,  qty: 20, supplier: 'ゴルフサプライ', arrival_date: '' },
+        { product_name: 'グローブ Lサイズ',       product_code: 'GL-L01', price: 1500, qty: 8,  supplier: 'ゴルフサプライ', arrival_date: '' },
+        { product_name: 'スコアカード 100枚',     product_code: 'SC-100', price: 1200, qty: 3,  supplier: 'ゴルフサプライ', arrival_date: '' }
+      ],
+      content_label: 'ゴルフティー 100本入り 他2商品'
+    },
+    {
+      category_code: 'fitness',
+      equip_items: [
+        { product_name: 'バランスボール 65cm', product_code: 'BB-065', price: 1800, qty: 5, supplier: 'フィットネスジャパン', arrival_date: '' },
+        { product_name: 'ヨガブロック',         product_code: 'YB-001', price: 1200, qty: 8, supplier: 'フィットネスジャパン', arrival_date: '' }
+      ],
+      content_label: 'バランスボール 65cm 他1商品'
+    }
+  ];
+
   function buildSampleOrders() {
     var orders = [];
-    var cats  = ['fitness', 'golf', 'darts', 'billiard'];
+    var alt = ['fitness', 'golf'];
     SHOPS.forEach(function(shop, idx) {
       var sName = shop.shop_name;
-      // 修理 依頼中
+      var ymd = String(idx % 28 + 1).padStart(2, '0');
+
+      // ① 修理 × 依頼中
       orders.push({
-        id: 'REP-' + shop.shop_code + '-20260301-0001',
+        id: 'REP-' + shop.shop_code + '-202603' + ymd + '-0001',
         type: 'repair',
-        category_code: cats[idx % cats.length],
+        category_code: alt[idx % 2],
         status: 0,
         shop_code: shop.shop_code,
         shop_name: sName,
-        date: '2026-03-01',
+        date: '2026-03-' + ymd,
         estimate_amount: null,
         final_amount: null,
         delivery_date: null,
         actual_delivery_date: null,
-        equipment_name: 'ランニングマシン TR-800',
-        issue: 'ベルトが滑る。異音が発生。',
+        equipment_name: idx % 2 === 0 ? 'ランニングマシン TR-800' : 'ゴルフシミュレーター GS-Pro',
+        issue: idx % 2 === 0 ? 'ベルトが滑る。異音が発生。' : 'プロジェクターの映像がちらつく',
         repair_schedule_date: null,
         repair_completed_date: null,
         unavail_dates: [
@@ -210,16 +253,38 @@
         ],
         unavail_days: [ { day_of_week: 'tue' } ],
         photos: [],
-        content_label: 'ランニングマシン TR-800',
+        content_label: idx % 2 === 0 ? 'ランニングマシン TR-800' : 'ゴルフシミュレーター GS-Pro',
         status_history: makeStatusHistory([
-          { status: 0, date: '2026/03/01 09:15' }
+          { status: 0, date: '2026/03/' + ymd + ' 09:15' }
         ], sName)
       });
-      // 備品 発注済
+
+      // ② 備品 × 依頼中（パターンを店舗ごとに振り分け）
+      var pat = EQUIPMENT_REQUESTING_PATTERNS[idx % EQUIPMENT_REQUESTING_PATTERNS.length];
+      orders.push({
+        id: 'EQU-' + shop.shop_code + '-202603' + ymd + '-0002',
+        type: 'equipment',
+        category_code: pat.category_code,
+        status: 0,
+        shop_code: shop.shop_code,
+        shop_name: sName,
+        date: '2026-03-' + ymd,
+        estimate_amount: null,
+        final_amount: null,
+        delivery_date: null,
+        actual_delivery_date: null,
+        equip_items: pat.equip_items.map(function(it) { return Object.assign({}, it); }),
+        content_label: pat.content_label,
+        status_history: makeStatusHistory([
+          { status: 0, date: '2026/03/' + ymd + ' 11:00' }
+        ], sName)
+      });
+
+      // ③ 備品 × 発注済
       orders.push({
         id: 'EQU-' + shop.shop_code + '-20260226-0001',
         type: 'equipment',
-        category_code: cats[(idx + 1) % cats.length],
+        category_code: 'fitness',
         status: 1,
         shop_code: shop.shop_code,
         shop_name: sName,
@@ -229,8 +294,8 @@
         delivery_date: '2026-03-05',
         actual_delivery_date: null,
         equip_items: [
-          { product_name: 'トレーニングマット', product_code: 'MAT-001', price: 3500, qty: 5, supplier: 'フィットネスジャパン', arrival_date: '2026-03-05' },
-          { product_name: 'ダンベル 10kg',      product_code: 'DB-010',  price: 2800, qty: 10, supplier: 'フィットネスジャパン', arrival_date: '2026-03-05' }
+          { product_name: 'トレーニングマット',   product_code: 'MAT-001', price: 3500, qty: 5,  supplier: 'フィットネスジャパン', arrival_date: '2026-03-05' },
+          { product_name: 'ダンベルセット 10kg',  product_code: 'DB-010',  price: 8400, qty: 4,  supplier: 'フィットネスジャパン', arrival_date: '2026-03-05' }
         ],
         content_label: 'トレーニングマット 他1商品',
         status_history: makeStatusHistory([
@@ -238,11 +303,12 @@
           { status: 1, date: '2026/02/27 14:00', by: '商品部', memo: '発注済み' }
         ], sName)
       });
-      // 部品 配達中
+
+      // ④ 部品 × 配達中
       orders.push({
         id: 'PRT-' + shop.shop_code + '-20260224-0001',
         type: 'parts',
-        category_code: cats[(idx + 2) % cats.length],
+        category_code: 'golf',
         status: 2,
         shop_code: shop.shop_code,
         shop_name: sName,
@@ -262,23 +328,24 @@
           { status: 2, date: '2026/02/26 16:00', by: '商品部', memo: '配送手配済み' }
         ], sName)
       });
-      // 完了済み
+
+      // ⑤ 備品 × 完了
       orders.push({
         id: 'EQU-' + shop.shop_code + '-20260210-0002',
         type: 'equipment',
-        category_code: cats[(idx + 3) % cats.length],
+        category_code: 'fitness',
         status: 4,
         shop_code: shop.shop_code,
         shop_name: sName,
         date: '2026-02-10',
         estimate_amount: null,
-        final_amount: 28000,
+        final_amount: 22400,
         delivery_date: '2026-02-18',
         actual_delivery_date: '2026-02-18',
         equip_items: [
-          { product_name: 'ダーツボード', product_code: 'DT-100', price: 14000, qty: 2, supplier: 'ダーツライブ', arrival_date: '2026-02-18' }
+          { product_name: 'バランスボール 65cm', product_code: 'BB-065', price: 1800, qty: 8, supplier: 'フィットネスジャパン', arrival_date: '2026-02-18' }
         ],
-        content_label: 'ダーツボード × 2',
+        content_label: 'バランスボール 65cm × 8',
         status_history: makeStatusHistory([
           { status: 0, date: '2026/02/10 09:00' },
           { status: 1, date: '2026/02/12 10:00', by: '商品部', memo: '発注済み' },
