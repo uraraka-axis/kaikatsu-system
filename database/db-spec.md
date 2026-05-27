@@ -328,7 +328,9 @@
 | jan_code | VARCHAR(13) | YES | NULL | JANコード（8 or 13桁） |
 | category_code | VARCHAR(20) | NO | - | カテゴリコード |
 | recommended | BOOLEAN | NO | FALSE | おすすめフラグ |
-| image_path | VARCHAR(255) | YES | NULL | 商品画像ファイル名（uploads/products 配下） |
+| image_path | VARCHAR(255) | YES | NULL | 商品画像1（メイン）ファイル名（uploads/products 配下） |
+| image_path2 | VARCHAR(255) | YES | NULL | 商品画像2 ファイル名 |
+| image_path3 | VARCHAR(255) | YES | NULL | 商品画像3 ファイル名 |
 | description | TEXT | YES | NULL | 商品説明 |
 | is_active | BOOLEAN | NO | TRUE | 有効フラグ |
 | sort_order | INT | NO | 0 | 表示順 |
