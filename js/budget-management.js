@@ -401,8 +401,16 @@
       var year = getSelectedYear();
       var fmIdx = getFiscalMonthIndex(parseInt(year));
 
-      // budgetData is already filtered by API params, so just use all rows
-      return budgetData.map(function(d) {
+      // 特定カテゴリ選択時は、そのカテゴリを取扱う店舗のみ表示
+      // （取扱っていない店舗を 0 行として並べると視認性が落ちるため）
+      var rows = budgetData;
+      if (dept !== 'all') {
+        rows = rows.filter(function(d) {
+          return (d.categories || []).indexOf(dept) !== -1;
+        });
+      }
+
+      return rows.map(function(d) {
         var s = computeSummary(d.details[dept], fmIdx);
         return {
           shop: d.shop, zone: d.zone, area: d.area, shopCode: d.shopCode,
