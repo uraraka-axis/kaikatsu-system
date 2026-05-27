@@ -4,16 +4,19 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>システム設定画面</title>
+  <style>html.auth-pending body{visibility:hidden}</style>
+  <script>document.documentElement.classList.add('auth-pending');</script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/common.css">
+  <link rel="stylesheet" href="css/common.css?v=20260526b">
   <link rel="stylesheet" href="css/system-settings.css">
 </head>
 <body>
   <header class="header" data-title="システム設定"></header>
   <nav class="nav" data-active="admin-menu.html"></nav>
-  <script src="js/common-nav.js"></script>
+  <script src="js/mock-api.js?v=20260527"></script>
+  <script src="js/common-nav.js?v=20260521"></script>
   <main class="main">
     <a href="admin-menu.html" class="back-link">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
@@ -25,7 +28,7 @@
     <!-- Period Settings -->
     <div class="settings-card">
       <div class="settings-card-title">期間設定</div>
-      <div class="settings-card-desc">予算集計期間と発注締め切りの設定</div>
+      <div class="settings-card-desc">予算集計の開始月（システム全体）</div>
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">期の開始月</label>
@@ -38,45 +41,31 @@
             <option value="11">11月</option> <option value="12">12月</option>
           </select>
         </div>
-        <div class="form-group">
-          <label class="form-label">予算締め日</label>
-          <select class="form-select" id="budgetClosingDay">
-            <option value="25" selected>25日</option>
-            <option value="末">月末</option>
-            <option value="20">20日</option>
-            <option value="15">15日</option>
-          </select>
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">備品発注の締め曜日</label>
-          <select class="form-select" id="orderClosingDay">
-            <option value="monday">月曜日</option>
-            <option value="tuesday">火曜日</option>
-            <option value="wednesday" selected>水曜日</option>
-            <option value="thursday">木曜日</option>
-            <option value="friday">金曜日</option>
-          </select>
-        </div>
       </div>
     </div>
 
     <!-- Category Management -->
     <div class="settings-card">
       <div class="settings-card-title">カテゴリ管理</div>
-      <div class="settings-card-desc">発注・予算のカテゴリ（部門）を管理します。将来の拡張に対応。</div>
-      <div class="category-list" id="categoryList">
-        <div class="category-item">
-          <div><span class="category-item-name">フィットネス</span><span class="category-item-code">fitness</span></div>
-          <button class="btn-icon" onclick="removeCategory(this)" title="削除"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
-        </div>
-        <div class="category-item">
-          <div><span class="category-item-name">ゴルフ</span><span class="category-item-code">golf</span></div>
-          <button class="btn-icon" onclick="removeCategory(this)" title="削除"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
-        </div>
+      <div class="settings-card-desc">
+        発注・予算のカテゴリと、<strong>備品発注の締めルール</strong>を管理します。<br>
+        修理・部品は常に都度発注のため、締めルールの設定は不要です。
       </div>
-      <button class="btn-add-category" onclick="addCategory()">
+      <table class="category-table">
+        <thead>
+          <tr>
+            <th class="col-name">カテゴリ名</th>
+            <th class="col-code">コード</th>
+            <th class="col-type">締めタイプ</th>
+            <th class="col-day">締め日 / 曜日</th>
+            <th class="col-action"></th>
+          </tr>
+        </thead>
+        <tbody id="categoryTableBody">
+          <!-- JSで動的レンダリング -->
+        </tbody>
+      </table>
+      <button class="btn-add-category" onclick="addCategoryRow()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
         カテゴリを追加
       </button>
@@ -87,6 +76,6 @@
     </div>
   </main>
 
-  <script src="js/system-settings.js"></script>
+  <script src="js/system-settings.js?v=20260521"></script>
 </body>
 </html>

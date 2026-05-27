@@ -181,10 +181,194 @@
 .settings-link-text { font-size: 15px; font-weight: 600; }
 .settings-link-desc { font-size: 13px; color: #94a3b8; }
 
+/* ===== Upload Area: ドラッグオーバー時のハイライト ===== */
+.upload-area.dragover {
+  border-color: #3b82f6;
+  background: #eff6ff;
+}
+
+/* ===== Master Upload Preview Modal ===== */
+.master-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  z-index: 1000;
+  display: none;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 40px 20px;
+  overflow-y: auto;
+}
+.master-modal-overlay.visible { display: flex; }
+.master-modal-dialog {
+  background: #fff;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 720px;
+  max-height: calc(100vh - 80px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+}
+.master-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px 24px;
+  border-bottom: 1px solid #e2e8f0;
+}
+.master-modal-title { font-size: 16px; font-weight: 700; color: #1e293b; }
+.master-modal-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  color: #94a3b8;
+  padding: 0 6px;
+}
+.master-modal-close:hover { color: #475569; }
+.master-modal-body {
+  padding: 20px 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+.master-modal-footer {
+  padding: 14px 24px;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.master-modal-footer .btn-primary,
+.master-modal-footer .btn-secondary {
+  padding: 8px 18px;
+  font-size: 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  border: none;
+  font-family: inherit;
+}
+.master-modal-footer .btn-primary {
+  background: #1e293b;
+  color: #fff;
+}
+.master-modal-footer .btn-primary:hover { background: #0f172a; }
+.master-modal-footer .btn-primary:disabled { background: #cbd5e1; cursor: not-allowed; }
+.master-modal-footer .btn-secondary {
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+}
+.master-modal-footer .btn-secondary:hover { background: #f1f5f9; }
+
+.master-modal-loading { padding: 40px 0; text-align: center; color: #64748b; font-size: 14px; }
+
+/* ===== Summary ===== */
+.master-summary {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.master-sum-item {
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  background: #f1f5f9;
+  color: #475569;
+}
+.master-sum-insert    { background: #dcfce7; color: #166534; }
+.master-sum-update    { background: #dbeafe; color: #1e40af; }
+.master-sum-delete    { background: #fee2e2; color: #991b1b; }
+.master-sum-warn      { background: #fef3c7; color: #92400e; }
+.master-sum-scheduled { background: #ede9fe; color: #5b21b6; }
+.master-sum-overwrite { background: #ffedd5; color: #9a3412; }
+
+.master-empty-msg {
+  padding: 24px 16px;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 14px;
+  background: #f8fafc;
+  border-radius: 8px;
+}
+
+/* ===== Section (insert/update/delete/warn) ===== */
+.master-section { margin-bottom: 16px; }
+.master-section-title {
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  padding-left: 8px;
+  border-left: 4px solid #cbd5e1;
+}
+.master-section-insert    .master-section-title { border-color: #22c55e; color: #166534; }
+.master-section-update    .master-section-title { border-color: #3b82f6; color: #1e40af; }
+.master-section-delete    .master-section-title { border-color: #ef4444; color: #991b1b; }
+.master-section-warn      .master-section-title { border-color: #f59e0b; color: #92400e; }
+.master-section-scheduled .master-section-title { border-color: #8b5cf6; color: #5b21b6; }
+.master-section-overwrite .master-section-title { border-color: #f97316; color: #9a3412; }
+
+/* 予約反映: 日付バッジ */
+.master-scheduled-date {
+  display: inline-block;
+  padding: 2px 8px;
+  margin-right: 6px;
+  border-radius: 4px;
+  background: #ede9fe;
+  color: #5b21b6;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: 'Roboto Mono', monospace;
+}
+
+.master-diff-list,
+.master-warning-list,
+.master-error-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+.master-diff-list li,
+.master-warning-list li,
+.master-error-list li {
+  padding: 8px 14px;
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 13px;
+  color: #334155;
+}
+.master-diff-list li:last-child,
+.master-warning-list li:last-child,
+.master-error-list li:last-child { border-bottom: none; }
+
+.master-diff-label { font-weight: 500; }
+.master-diff-detail { font-size: 12px; color: #64748b; margin-top: 3px; }
+
+.master-error-msg {
+  padding: 10px 14px;
+  background: #fee2e2;
+  color: #991b1b;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 12px;
+}
+.master-error-detail { color: #64748b; font-size: 12px; }
+
 /* ===== Responsive ===== */
-@media (min-width: 601px) and (max-width: 1024px) {
+@media (min-width: 601px) and (max-width: 1280px) {
   .master-grid { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 600px) {
   .master-grid { grid-template-columns: 1fr; }
+  .master-modal-dialog { max-height: calc(100vh - 60px); }
+  .master-modal-header { padding: 14px 16px; }
+  .master-modal-body { padding: 14px 16px; }
+  .master-modal-footer { padding: 12px 16px; flex-wrap: wrap; }
 }

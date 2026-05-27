@@ -4,25 +4,27 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>備品発注画面</title>
+  <style>html.auth-pending body{visibility:hidden}</style>
+  <script>document.documentElement.classList.add('auth-pending');</script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/common.css">
-  <link rel="stylesheet" href="css/equipment-order.css">
+  <link rel="stylesheet" href="css/common.css?v=20260526b">
+  <link rel="stylesheet" href="css/equipment-order.css?v=20260526b">
 </head>
 <body>
   <header class="header" data-title="備品発注画面"></header>
   <nav class="nav" data-active="equipment-order.html"></nav>
-  <script src="js/common-nav.js"></script>
+  <script src="js/mock-api.js?v=20260527"></script>
+  <script src="js/common-nav.js?v=20260521"></script>
   <main class="main">
     <!-- Filter -->
     <div class="filter-bar">
       <div class="filter-group">
         <span class="filter-label">カテゴリ</span>
         <select id="category" class="form-select" onchange="filterProducts()">
-          <option value="">すべて</option>
-          <option value="fitness">フィットネス</option>
-          <option value="golf">ゴルフ</option>
+          <option value="">すべてのカテゴリ</option>
+          <!-- カテゴリは categoriesMap から JS で動的に追加 -->
         </select>
       </div>
       <div class="filter-group">
@@ -36,8 +38,8 @@
       <div class="budget-alert-icon">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
       </div>
-      <div class="budget-alert-text">
-        <strong>予算超過の可能性があります。</strong> 現在の発注合計が月間予算残高を超えています。発注を続ける場合は管理者の承認が必要です。
+      <div class="budget-alert-text" id="budgetAlertText">
+        <strong>予算超過の可能性があります。</strong> 現在の発注合計が月間予算残高を超えています。
       </div>
     </div>
 
@@ -66,11 +68,22 @@
           <span class="cart-bar-label">点を選択中</span>
         </div>
         <div class="cart-bar-total" id="cartTotal">¥0</div>
-        <button class="cart-bar-submit" onclick="event.stopPropagation(); submitOrder()">発注する</button>
+        <button class="cart-bar-submit" id="submitBtn" onclick="event.stopPropagation(); submitOrder()">発注する</button>
       </div>
     </div>
   </div>
 
-  <script src="js/equipment-order.js"></script>
+  <!-- Product Image Lightbox (Carousel) -->
+  <div class="product-lightbox" id="productLightbox" hidden>
+    <button type="button" class="lightbox-close" onclick="closeProductLightbox()" aria-label="閉じる">×</button>
+    <div class="lightbox-caption" id="lightboxCaption"></div>
+    <div class="lightbox-track" id="lightboxTrack"></div>
+    <button type="button" class="lightbox-prev" onclick="lightboxPrev()" aria-label="前へ">‹</button>
+    <button type="button" class="lightbox-next" onclick="lightboxNext()" aria-label="次へ">›</button>
+    <div class="lightbox-dots" id="lightboxDots"></div>
+  </div>
+
+  <script src="js/notify-modal.js?v=20260521"></script>
+  <script src="js/equipment-order.js?v=20260523i"></script>
 </body>
 </html>

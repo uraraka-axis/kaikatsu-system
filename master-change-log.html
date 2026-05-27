@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>監査ログ閲覧</title>
+  <style>html.auth-pending body{visibility:hidden}</style>
+  <script>document.documentElement.classList.add('auth-pending');</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/common.css?v=20260526b">
+  <link rel="stylesheet" href="css/master-change-log.css?v=20260526">
+</head>
+<body>
+  <header class="header" data-title="監査ログ閲覧"></header>
+  <nav class="nav" data-active="master-change-log.html"></nav>
+  <script src="js/mock-api.js?v=20260527"></script>
+  <script src="js/common-nav.js?v=20260525"></script>
+
+  <main class="main">
+    <h2 class="page-title">監査ログ閲覧</h2>
+    <p class="page-desc">マスタの変更履歴・予約一覧・ログイン履歴を閲覧できます。閲覧専用（編集/取消は phpMyAdmin から実施）。</p>
+
+    <!-- Tabs -->
+    <div class="audit-tabs">
+      <button type="button" class="audit-tab active" data-tab="change-log" onclick="switchTab('change-log')">マスタ変更履歴</button>
+      <button type="button" class="audit-tab" data-tab="scheduled" onclick="switchTab('scheduled')">マスタ予約一覧</button>
+      <button type="button" class="audit-tab" data-tab="login" onclick="switchTab('login')">ログイン履歴</button>
+    </div>
+
+    <!-- ===== Tab 1: マスタ変更履歴 ===== -->
+    <section class="audit-panel active" id="panel-change-log">
+      <div class="audit-filter-bar">
+        <div class="filter-group">
+          <label class="filter-label">対象テーブル</label>
+          <select class="form-select" id="cl_target_table">
+            <option value="">すべて</option>
+            <option value="zones">ゾーン</option>
+            <option value="areas">エリア</option>
+            <option value="shops">店舗</option>
+            <option value="suppliers">仕入先</option>
+            <option value="users">ユーザー</option>
+            <option value="products">商品</option>
+            <option value="budgets">予算</option>
+            <option value="shop_categories">店舗カテゴリ</option>
+            <option value="categories">カテゴリ</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label class="filter-label">操作</label>
+          <select class="form-select" id="cl_operation">
+            <option value="">すべて</option>
+            <option value="insert">登録</option>
+            <option value="update">更新</option>
+            <option value="delete">削除</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label class="filter-label">変更日</label>
+          <div class="date-range">
+            <input type="date" class="form-input" id="cl_date_from">
+            <span class="date-sep">〜</span>
+            <input type="date" class="form-input" id="cl_date_to">
+          </div>
+        </div>
+        <div class="filter-group">
+          <button type="button" class="btn-action btn-primary" onclick="loadChangeLog(1)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            検索
+          </button>
+          <button type="button" class="btn-action btn-secondary" onclick="resetFilters('change-log')">クリア</button>
+        </div>
+      </div>
+
+      <div class="table-container">
+        <table class="audit-table">
+          <thead>
+            <tr>
+              <th style="width:160px">変更日時</th>
+              <th style="width:120px">対象</th>
+              <th style="width:80px">操作</th>
+              <th style="width:160px">レコードキー</th>
+              <th>変更内容（要約）</th>
+              <th style="width:140px">変更者</th>
+              <th style="width:80px">詳細</th>
+            </tr>
+          </thead>
+          <tbody id="cl_tbody">
+            <tr><td colspan="7" class="empty-row">読み込み中…</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="pagination-bar">
+        <div class="pagination-info" id="cl_info"></div>
+        <div class="pagination-controls">
+          <button type="button" class="btn-page" id="cl_prev" onclick="loadChangeLog(window.__auditState['change-log'].page - 1)">前へ</button>
+          <span class="page-indicator" id="cl_pageInd">-</span>
+          <button type="button" class="btn-page" id="cl_next" onclick="loadChangeLog(window.__auditState['change-log'].page + 1)">次へ</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Tab 2: マスタ予約一覧 ===== -->
+    <section class="audit-panel" id="panel-scheduled">
+      <div class="audit-filter-bar">
+        <div class="filter-group">
+          <label class="filter-label">対象テーブル</label>
+          <select class="form-select" id="sc_target_table">
+            <option value="">すべて</option>
+            <option value="zones">ゾーン</option>
+            <option value="areas">エリア</option>
+            <option value="shops">店舗</option>
+            <option value="suppliers">仕入先</option>
+            <option value="users">ユーザー</option>
+            <option value="products">商品</option>
+            <option value="budgets">予算</option>
+            <option value="shop_categories">店舗カテゴリ</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label class="filter-label">状態</label>
+          <select class="form-select" id="sc_status">
+            <option value="">すべて</option>
+            <option value="pending">予約中</option>
+            <option value="applied">反映済</option>
+            <option value="cancelled">取消</option>
+            <option value="error">エラー</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label class="filter-label">操作</label>
+          <select class="form-select" id="sc_operation">
+            <option value="">すべて</option>
+            <option value="insert">登録</option>
+            <option value="update">更新</option>
+            <option value="delete">削除</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label class="filter-label">予定日</label>
+          <div class="date-range">
+            <input type="date" class="form-input" id="sc_date_from">
+            <span class="date-sep">〜</span>
+            <input type="date" class="form-input" id="sc_date_to">
+          </div>
+        </div>
+        <div class="filter-group">
+          <button type="button" class="btn-action btn-primary" onclick="loadScheduled(1)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            検索
+          </button>
+          <button type="button" class="btn-action btn-secondary" onclick="resetFilters('scheduled')">クリア</button>
+        </div>
+      </div>
+
+      <div class="table-container">
+        <table class="audit-table">
+          <thead>
+            <tr>
+              <th style="width:160px">予定日時</th>
+              <th style="width:80px">状態</th>
+              <th style="width:120px">対象</th>
+              <th style="width:80px">操作</th>
+              <th style="width:160px">レコードキー</th>
+              <th>変更内容（要約）</th>
+              <th style="width:140px">登録者</th>
+              <th style="width:80px">詳細</th>
+            </tr>
+          </thead>
+          <tbody id="sc_tbody">
+            <tr><td colspan="8" class="empty-row">読み込み中…</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="pagination-bar">
+        <div class="pagination-info" id="sc_info"></div>
+        <div class="pagination-controls">
+          <button type="button" class="btn-page" id="sc_prev" onclick="loadScheduled(window.__auditState['scheduled'].page - 1)">前へ</button>
+          <span class="page-indicator" id="sc_pageInd">-</span>
+          <button type="button" class="btn-page" id="sc_next" onclick="loadScheduled(window.__auditState['scheduled'].page + 1)">次へ</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Tab 3: ログイン履歴 ===== -->
+    <section class="audit-panel" id="panel-login">
+      <div class="audit-filter-bar">
+        <div class="filter-group">
+          <label class="filter-label">ログインID</label>
+          <input type="text" class="form-input" id="lh_login_id" placeholder="部分一致" style="width:160px">
+        </div>
+        <div class="filter-group">
+          <label class="filter-label">成否</label>
+          <select class="form-select" id="lh_success">
+            <option value="">すべて</option>
+            <option value="1">成功</option>
+            <option value="0">失敗</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label class="filter-label">試行日</label>
+          <div class="date-range">
+            <input type="date" class="form-input" id="lh_date_from">
+            <span class="date-sep">〜</span>
+            <input type="date" class="form-input" id="lh_date_to">
+          </div>
+        </div>
+        <div class="filter-group">
+          <button type="button" class="btn-action btn-primary" onclick="loadLoginHistory(1)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            検索
+          </button>
+          <button type="button" class="btn-action btn-secondary" onclick="resetFilters('login')">クリア</button>
+        </div>
+      </div>
+
+      <div class="table-container">
+        <table class="audit-table">
+          <thead>
+            <tr>
+              <th style="width:160px">試行日時</th>
+              <th style="width:80px">結果</th>
+              <th style="width:140px">ログインID</th>
+              <th style="width:140px">ユーザー名</th>
+              <th style="width:140px">IPアドレス</th>
+              <th>失敗理由 / UA</th>
+              <th style="width:80px">詳細</th>
+            </tr>
+          </thead>
+          <tbody id="lh_tbody">
+            <tr><td colspan="7" class="empty-row">読み込み中…</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="pagination-bar">
+        <div class="pagination-info" id="lh_info"></div>
+        <div class="pagination-controls">
+          <button type="button" class="btn-page" id="lh_prev" onclick="loadLoginHistory(window.__auditState['login'].page - 1)">前へ</button>
+          <span class="page-indicator" id="lh_pageInd">-</span>
+          <button type="button" class="btn-page" id="lh_next" onclick="loadLoginHistory(window.__auditState['login'].page + 1)">次へ</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Detail Modal -->
+  <div class="audit-modal-overlay" id="auditModal" onclick="closeAuditModal(event)">
+    <div class="audit-modal-dialog" onclick="event.stopPropagation()">
+      <div class="audit-modal-header">
+        <div class="audit-modal-title" id="auditModalTitle">詳細</div>
+        <button type="button" class="audit-modal-close" onclick="closeAuditModal()" aria-label="閉じる">&times;</button>
+      </div>
+      <div class="audit-modal-body" id="auditModalBody"></div>
+      <div class="audit-modal-footer">
+        <button type="button" class="btn-action btn-secondary" onclick="closeAuditModal()">閉じる</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/master-change-log.js?v=20260525"></script>
+</body>
+</html>

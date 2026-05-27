@@ -1,34 +1,64 @@
 /* ===== Wide Layout (table page) ===== */
 .main { max-width: 1400px; }
 
-/* ===== Toolbar / Filters ===== */
-.toolbar { margin-bottom: 20px; }
-.toolbar-filters {
+/* ===== Excel出力対象選択チェックボックス列（admin only） ===== */
+/* 発注一覧のスタイルに揃える: 列幅40px / 中央寄せ / checkbox はブラウザデフォルトサイズ */
+.budget-table .budget-check-col,
+.budget-table .budget-check-cell {
+  width: 40px;
+  min-width: 40px;
+  text-align: center;
+  vertical-align: middle;
+}
+
+/* ===== Summary 折りたたみ ===== */
+.summary-section { margin-bottom: 16px; }
+.summary-toggle-bar {
   display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
+  justify-content: space-between;
   align-items: center;
+  margin-bottom: 8px;
+  gap: 12px;
 }
-.toolbar-filters .form-select {
-  width: auto;
-  min-width: 130px;
-}
-.btn-search {
-  display: flex;
+.btn-summary-toggle {
+  display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 10px 20px;
-  background: #3b82f6;
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  font-family: inherit;
-  font-size: 14px;
-  font-weight: 600;
+  padding: 6px 14px;
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
   cursor: pointer;
-  transition: all 0.2s;
+  font-family: inherit;
+  font-size: 13px;
+  color: #475569;
+  transition: all 0.15s;
 }
-.btn-search:hover { background: #2563eb; box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3); }
+.btn-summary-toggle:hover { background: #f1f5f9; border-color: #94a3b8; }
+.btn-summary-toggle svg { width: 14px; height: 14px; transition: transform 0.2s; }
+.summary-section.collapsed .summary-grid { display: none; }
+.summary-section.collapsed .btn-summary-toggle svg { transform: rotate(180deg); }
+
+/* ===== Pagination ===== */
+.pagination-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  margin-top: 8px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.pagination-info { font-size: 13px; color: #475569; }
+.pagination-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.pagination-label { font-size: 13px; color: #475569; }
+.pagination-controls .form-select { min-width: 90px; }
+.pagination-controls .btn-action { padding: 6px 16px; font-size: 13px; }
+
+/* フィルタバーは .admin-filter-bar に統一（common.css 参照） */
 
 /* ===== Action Bar ===== */
 .budget-action-bar {
@@ -266,17 +296,22 @@
 }
 
 /* ===== Responsive ===== */
-@media (min-width: 601px) and (max-width: 1024px) {
+@media (min-width: 601px) and (max-width: 1280px) {
   .summary-grid { grid-template-columns: repeat(2, 1fr); }
-  .toolbar-filters .form-select { min-width: 110px; }
   .detail-content { padding: 12px 12px 12px 24px; overflow-x: auto; }
   .detail-header { flex-direction: column; align-items: flex-start; }
   .monthly-table { min-width: 750px; }
+  /* 予算管理テーブルは 12 列で横長なのでスクロール許可 */
+  .table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .budget-table {
+    min-width: 1100px;
+  }
 }
 @media (max-width: 600px) {
   .summary-grid { grid-template-columns: 1fr 1fr; }
-  .toolbar-filters { gap: 6px; }
-  .toolbar-filters .form-select { min-width: 100px; font-size: 14px; }
   .summary-card-value { font-size: 20px; }
   .detail-content { padding: 10px; overflow-x: auto; }
   .detail-header { flex-direction: column; align-items: flex-start; }

@@ -1,150 +1,358 @@
-    var params = new URLSearchParams(window.location.search);
-    var viewMode = params.get('role') === 'admin' ? 'admin' : 'store';
+document.addEventListener('DOMContentLoaded', function() {
+  'use strict';
 
-    // Store view: own store only
-    var storeRequests = [
-      { id: 'REQ-S01-20260226-0001', shop: '新宿東口', category: 'fitness', amount: 15000, reason: '緊急でマットを購入', date: '2026-02-26' },
-      { id: 'REQ-S01-20260224-0001', shop: '新宿東口', category: 'golf', amount: 12000, reason: 'ティーが不足しているため', date: '2026-02-24' },
-      { id: 'REQ-S01-20260222-0001', shop: '新宿東口', category: 'fitness', amount: 20000, reason: 'ダンベルの追加購入', date: '2026-02-22' },
-      { id: 'REQ-S01-20260220-0001', shop: '新宿東口', category: 'golf', amount: 8000, reason: 'グローブの補充', date: '2026-02-20' },
-      { id: 'REQ-S01-20260218-0001', shop: '新宿東口', category: 'fitness', amount: 10000, reason: '消毒スプレーの大量購入', date: '2026-02-18' },
-    ];
+  var viewMode = 'store';
+  var currentUser = null;
+  var requests = [];
+  var summary = {};
+  var shops = [];
 
-    // Admin view: all stores
-    var allRequests = [
-      { id: 'REQ-S01-20260226-0001', shop: '新宿東口', category: 'fitness', amount: 15000, reason: '緊急でマットを購入', date: '2026-02-26' },
-      { id: 'REQ-S01-20260224-0001', shop: '新宿東口', category: 'golf', amount: 12000, reason: 'ティーが不足しているため', date: '2026-02-24' },
-      { id: 'REQ-S01-20260222-0001', shop: '新宿東口', category: 'fitness', amount: 20000, reason: 'ダンベルの追加購入', date: '2026-02-22' },
-      { id: 'REQ-S01-20260220-0001', shop: '新宿東口', category: 'golf', amount: 8000, reason: 'グローブの補充', date: '2026-02-20' },
-      { id: 'REQ-S01-20260218-0001', shop: '新宿東口', category: 'fitness', amount: 10000, reason: '消毒スプレーの大量購入', date: '2026-02-18' },
-      { id: 'REQ-S04-20260225-0001', shop: '札幌', category: 'fitness', amount: 18000, reason: 'ヨガマット追加', date: '2026-02-25' },
-      { id: 'REQ-S04-20260220-0001', shop: '札幌', category: 'golf', amount: 5000, reason: 'ゴルフボール補充', date: '2026-02-20' },
-      { id: 'REQ-S05-20260223-0001', shop: '函館', category: 'fitness', amount: 22000, reason: 'ストレッチポール購入', date: '2026-02-23' },
-      { id: 'REQ-S06-20260219-0001', shop: '仙台', category: 'golf', amount: 9500, reason: 'パター用グリップ交換', date: '2026-02-19' },
-    ];
+  // 2026-05-22 schema migration: カテゴリは categories.code を直接使用（fit→fitness, ig→golf 廃止）
+  var categoryLabels = {};
+  var statusLabels = { 'approved': '承認', 'pending': '申請中', 'rejected': '却下' };
+  var statusClass = { 'approved': 'status-approved', 'pending': 'status-pending', 'rejected': 'status-rejected' };
 
-    function getRequests() {
-      return viewMode === 'admin' ? allRequests : storeRequests;
+  // ===== 初期化 =====
+  function init() {
+    fetch('api/me.php', { credentials: 'same-origin' })
+      .then(function(r) {
+        if (r.status === 401) { location.href = 'login.html'; return; }
+        return r.json();
+      })
+      .then(function(data) {
+        if (!data || !data.success) return;
+        currentUser = data.user;
+        // admin/system/zone/area は admin ビュー（複数店舗横断）。shop は store ビュー
+        var managerRoles = ['admin', 'system', 'zone', 'area'];
+        viewMode = managerRoles.indexOf(currentUser.role) !== -1 ? 'admin' : 'store';
+        setupView();
+        // カテゴリ → 年度の順に動的ロード後、データ取得
+        loadCategories()
+          .then(populateYearFilter)
+          .then(function() {
+            if (viewMode === 'admin') {
+              loadShops().then(function() { loadData(); });
+            } else {
+              loadData();
+            }
+          });
+      })
+      .catch(function() { location.href = 'login.html'; });
+  }
+
+  // ===== 画面セットアップ =====
+  function setupView() {
+    // ヘッダのユーザー名は common-nav.js が設定するため、ここでは設定しない
+    // （以前は user.name + '様' を独自に上書きしていたが、admin の name は組織名
+    //  「商品部」なので「商品部様」と表示されてしまうため共通実装に統一）
+
+    // 店舗ユーザーのみ申請フォーム表示
+    document.getElementById('procurementSection').style.display = viewMode === 'store' ? '' : 'none';
+
+    buildFilters();
+    buildTableHeader();
+  }
+
+  // ===== 店舗一覧読み込み（管理者用フィルタ） =====
+  // zone/area ロールは管轄外の店舗を選択肢から除外（Backend でも絞り込み済みだが UI 上の整合性のため）
+  function loadShops() {
+    var fetches = [fetch('api/master/shops.php', { credentials: 'same-origin' }).then(function(r) { return r.json(); })];
+    // area ロールの判定に areas マスタが必要
+    if (currentUser && currentUser.role === 'zone') {
+      fetches.push(fetch('api/master/areas.php', { credentials: 'same-origin' }).then(function(r) { return r.json(); }));
     }
+    return Promise.all(fetches).then(function(results) {
+      var shopData  = results[0];
+      var areasData = results[1];
+      var allShops  = shopData && shopData.success ? (shopData.data || []) : [];
 
-    function initView() {
-      var header = document.querySelector('.header-user');
-      if (viewMode === 'admin') {
-        header.textContent = '本部管理者：鈴木一郎様';
-        document.getElementById('pageDesc').textContent = '全店舗の自店調達申請を管理します';
+      if (currentUser && currentUser.role === 'zone' && currentUser.zone_code) {
+        // 自分の zone 配下の areas に属する店舗のみ
+        var areasInZone = (areasData && areasData.success ? areasData.data : []).filter(function(a) {
+          return a.zone_code === currentUser.zone_code;
+        });
+        var validAreaCodes = areasInZone.map(function(a) { return a.area_code; });
+        shops = allShops.filter(function(s) { return validAreaCodes.indexOf(s.area_code) !== -1; });
+      } else if (currentUser && currentUser.role === 'area' && currentUser.area_code) {
+        shops = allShops.filter(function(s) { return s.area_code === currentUser.area_code; });
+      } else {
+        shops = allShops;
       }
+    });
+  }
 
-      document.getElementById('procurementSection').style.display = viewMode === 'store' ? '' : 'none';
+  // ===== カテゴリ動的ロード（店舗ユーザーは自店所属、admin は全件） =====
+  // 申請フォーム(procCategory) と フィルタ(filterCategory) の両方に反映
+  function loadCategories() {
+    return fetch('api/master/categories.php', { credentials: 'same-origin' })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (!data || !data.success) return;
+        var cats = data.data || [];
+        cats.forEach(function(c) {
+          categoryLabels[c.code] = c.name;
+        });
+        // 申請フォームのカテゴリプルダウンを動的構築
+        appendCategoryOptions(document.getElementById('procCategory'), cats);
+        // フィルタのカテゴリプルダウンを動的構築（buildFilters 実行後の場合のみ）
+        appendCategoryOptions(document.getElementById('filterCategory'), cats);
+      })
+      .catch(function(e) { console.error('Failed to fetch categories:', e); });
+  }
 
-      // Build filters
-      var filterHtml = '';
-      if (viewMode === 'admin') {
-        filterHtml += '<select class="form-select" id="filterShop" onchange="renderAll()">' +
-          '<option value="">すべての店舗</option>';
-        var shops = [];
-        allRequests.forEach(function(r) { if (shops.indexOf(r.shop) === -1) shops.push(r.shop); });
-        shops.forEach(function(s) { filterHtml += '<option value="' + s + '">' + s + '</option>'; });
-        filterHtml += '</select>';
-      }
-      filterHtml += '<select class="form-select" id="filterYear" onchange="renderAll()">' +
-        '<option value="2025" selected>2025年度</option>' +
-        '<option value="2024">2024年度</option>' +
-        '</select>';
-      filterHtml += '<select class="form-select" id="filterCategory" onchange="renderAll()">' +
-        '<option value="">すべてのカテゴリ</option>' +
-        '<option value="fitness">フィットネス</option>' +
-        '<option value="golf">インドアゴルフ</option>' +
-        '</select>';
-      document.getElementById('filterBar').innerHTML = filterHtml;
+  // option[0]（「選択してください」「すべてのカテゴリ」など）を残して以降を作り直す
+  function appendCategoryOptions(sel, cats) {
+    if (!sel) return;
+    while (sel.options.length > 1) sel.remove(1);
+    cats.forEach(function(c) {
+      var opt = document.createElement('option');
+      opt.value = c.code;
+      opt.textContent = c.name;
+      sel.appendChild(opt);
+    });
+  }
 
-      // Build table header
-      var thHtml = '<tr>';
-      thHtml += '<th>申請番号</th>';
-      if (viewMode === 'admin') thHtml += '<th>店舗</th>';
-      thHtml += '<th>カテゴリ</th><th class="right">金額</th><th>理由</th><th>申請日</th><th>ステータス</th>';
-      thHtml += '</tr>';
-      document.getElementById('tableHead').innerHTML = thHtml;
+  // ===== 年度プルダウン動的ロード（実際に申請データが存在する年度のみ） =====
+  function populateYearFilter() {
+    return fetch('api/procurement.php?action=years', { credentials: 'same-origin' })
+      .then(function(r) {
+        if (r.status === 401) { location.href = 'login.html'; return; }
+        return r.json();
+      })
+      .then(function(data) {
+        var sel = document.getElementById('filterYear');
+        if (!sel) return;
+        var years = (data && data.years) || [];
+        if (years.length === 0) {
+          sel.innerHTML = '<option value="">（年度データなし）</option>';
+          return;
+        }
+        var html = '';
+        years.forEach(function(y, i) {
+          html += '<option value="' + y + '"' + (i === 0 ? ' selected' : '') + '>' + y + '年度</option>';
+        });
+        sel.innerHTML = html;
+      })
+      .catch(function(e) { console.error('Failed to fetch fiscal years:', e); });
+  }
 
-      renderAll();
-    }
+  // ===== フィルタ構築 =====
+  // 発注一覧 / 予算管理と同じ共通レイアウト (.admin-filter-bar > .admin-filter-row > .filter-group)
+  // 中身（option）は populateYearFilter / loadCategories が後から注入する
+  function buildFilters() {
+    var groups = '';
 
-    function renderAll() {
-      renderSummary();
-      renderTable();
-    }
-
-    function getFiltered() {
-      var data = getRequests();
-      var catFilter = document.getElementById('filterCategory').value;
-      var shopFilter = viewMode === 'admin' ? document.getElementById('filterShop').value : '';
-      return data.filter(function(r) {
-        if (catFilter && r.category !== catFilter) return false;
-        if (shopFilter && r.shop !== shopFilter) return false;
-        return true;
-      });
-    }
-
-    function renderSummary() {
-      var filtered = getFiltered();
-      var totalCount = filtered.length;
-      var totalAmount = 0;
-      var fitCount = 0, fitAmount = 0, golfCount = 0, golfAmount = 0;
-      filtered.forEach(function(r) {
-        totalAmount += r.amount;
-        if (r.category === 'fitness') { fitCount++; fitAmount += r.amount; }
-        else { golfCount++; golfAmount += r.amount; }
-      });
-
-      document.getElementById('summaryBar').innerHTML =
-        '<div class="summary-item">' +
-          '<div class="summary-label">総件数</div>' +
-          '<div class="summary-value">' + totalCount + '</div>' +
-          '<div class="summary-count">¥' + totalAmount.toLocaleString() + '</div>' +
-        '</div>' +
-        '<div class="summary-item">' +
-          '<div class="summary-label">フィットネス</div>' +
-          '<div class="summary-value">' + fitCount + '</div>' +
-          '<div class="summary-count">¥' + fitAmount.toLocaleString() + '</div>' +
-        '</div>' +
-        '<div class="summary-item">' +
-          '<div class="summary-label">インドアゴルフ</div>' +
-          '<div class="summary-value">' + golfCount + '</div>' +
-          '<div class="summary-count">¥' + golfAmount.toLocaleString() + '</div>' +
+    if (viewMode === 'admin') {
+      groups +=
+        '<div class="filter-group">' +
+          '<span class="filter-label">店舗</span>' +
+          '<select class="form-select" id="filterShop"><option value="">すべて</option></select>' +
         '</div>';
     }
+    groups +=
+      '<div class="filter-group">' +
+        '<span class="filter-label">年度</span>' +
+        '<select class="form-select" id="filterYear"></select>' +
+      '</div>' +
+      '<div class="filter-group">' +
+        '<span class="filter-label">カテゴリ</span>' +
+        '<select class="form-select" id="filterCategory">' +
+          '<option value="">すべてのカテゴリ</option>' +
+        '</select>' +
+      '</div>';
 
-    function renderTable() {
-      var filtered = getFiltered();
-      var tbody = document.getElementById('tableBody');
-      var colCount = viewMode === 'admin' ? 7 : 6;
+    document.getElementById('filterBar').innerHTML =
+      '<div class="admin-filter-row">' + groups + '</div>';
 
-      if (!filtered.length) {
-        tbody.innerHTML = '<tr><td colspan="' + colCount + '"><div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg><p>該当する申請がありません</p></div></td></tr>';
-        return;
-      }
+    // イベント設定
+    document.getElementById('filterYear').addEventListener('change', loadData);
+    document.getElementById('filterCategory').addEventListener('change', loadData);
+    if (viewMode === 'admin') {
+      document.getElementById('filterShop').addEventListener('change', loadData);
+    }
+  }
 
-      tbody.innerHTML = filtered.map(function(r) {
-        var catLabel = r.category === 'fitness' ? 'フィットネス' : 'インドアゴルフ';
-        var row = '<tr>';
-        row += '<td><strong>' + r.id + '</strong></td>';
-        if (viewMode === 'admin') row += '<td>' + r.shop + '</td>';
-        row += '<td>' + catLabel + '</td>';
-        row += '<td class="right">¥' + r.amount.toLocaleString() + '</td>';
-        row += '<td>' + r.reason + '</td>';
-        row += '<td>' + r.date + '</td>';
-        row += '<td><span class="status-badge status-approved">承認</span></td>';
-        row += '</tr>';
-        return row;
-      }).join('');
+  function populateShopFilter() {
+    if (viewMode !== 'admin') return;
+    var sel = document.getElementById('filterShop');
+    if (!sel) return;
+    var html = '<option value="">すべての店舗</option>';
+    shops.forEach(function(s) {
+      html += '<option value="' + s.shop_code + '">' + s.shop_name + '</option>';
+    });
+    sel.innerHTML = html;
+  }
+
+  // ===== テーブルヘッダ =====
+  function buildTableHeader() {
+    var html = '<tr><th>申請番号</th>';
+    if (viewMode === 'admin') html += '<th>店舗</th>';
+    html += '<th>カテゴリ</th><th class="right">金額</th><th>理由</th><th>申請日</th><th>ステータス</th></tr>';
+    document.getElementById('tableHead').innerHTML = html;
+  }
+
+  // ===== データ読み込み =====
+  function loadData() {
+    var year = document.getElementById('filterYear').value;
+    var category = document.getElementById('filterCategory').value;
+    var params = 'year=' + encodeURIComponent(year);
+    if (category) params += '&category=' + encodeURIComponent(category);
+    if (viewMode === 'admin') {
+      var shop = document.getElementById('filterShop').value;
+      if (shop) params += '&shop=' + encodeURIComponent(shop);
+      populateShopFilter();
     }
 
-    function submitProcurement() {
-      var amount = document.getElementById('procAmount').value;
-      var reason = document.getElementById('procReason').value;
-      if (!amount || !reason) { alert('金額と理由を入力してください'); return; }
-      alert('自店調達を申請しました');
-      document.getElementById('procAmount').value = '';
-      document.getElementById('procReason').value = '';
+    if (typeof window.showLoading === 'function') window.showLoading('自店調達申請を読み込み中…');
+    fetch('api/procurement.php?' + params, { credentials: 'same-origin' })
+      .then(function(r) {
+        if (r.status === 401) { location.href = 'login.html'; return; }
+        return r.json();
+      })
+      .then(function(data) {
+        if (!data || !data.success) {
+          requests = [];
+          summary = {};
+          renderSummary();
+          renderTable();
+          return;
+        }
+        requests = data.data || [];
+        summary = data.summary || {};
+        renderSummary();
+        renderTable();
+      })
+      .catch(function(err) {
+        console.error('データ取得エラー:', err);
+      })
+      .finally(function() {
+        if (typeof window.hideLoading === 'function') window.hideLoading();
+      });
+  }
+
+  // ===== サマリー表示 =====
+  function renderSummary() {
+    var s = summary;
+    document.getElementById('summaryBar').innerHTML =
+      '<div class="summary-item">' +
+        '<div class="summary-label">総件数</div>' +
+        '<div class="summary-value">' + (s.total_count || 0) + '</div>' +
+        '<div class="summary-count">¥' + (s.total_amount || 0).toLocaleString() + '</div>' +
+      '</div>' +
+      '<div class="summary-item">' +
+        '<div class="summary-label">フィットネス</div>' +
+        '<div class="summary-value">' + (s.fit_count || 0) + '</div>' +
+        '<div class="summary-count">¥' + (s.fit_amount || 0).toLocaleString() + '</div>' +
+      '</div>' +
+      '<div class="summary-item">' +
+        '<div class="summary-label">インドアゴルフ</div>' +
+        '<div class="summary-value">' + (s.golf_count || 0) + '</div>' +
+        '<div class="summary-count">¥' + (s.golf_amount || 0).toLocaleString() + '</div>' +
+      '</div>';
+  }
+
+  // ===== テーブル表示 =====
+  function renderTable() {
+    var tbody = document.getElementById('tableBody');
+    var colCount = viewMode === 'admin' ? 7 : 6;
+
+    if (!requests.length) {
+      tbody.innerHTML = '<tr><td colspan="' + colCount + '"><div class="empty-state">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">' +
+        '<circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>' +
+        '<p>該当する申請がありません</p></div></td></tr>';
+      return;
     }
 
-    initView();
+    tbody.innerHTML = requests.map(function(r) {
+      var catLabel = categoryLabels[r.category_code] || r.category_code;
+      var stLabel = statusLabels[r.status] || r.status;
+      var stClass = statusClass[r.status] || 'status-pending';
+      var row = '<tr>';
+      row += '<td><strong>' + escapeHtml(r.id) + '</strong></td>';
+      if (viewMode === 'admin') row += '<td>' + escapeHtml(r.shop_name) + '</td>';
+      row += '<td>' + catLabel + '</td>';
+      row += '<td class="right">¥' + Number(r.amount).toLocaleString() + '</td>';
+      row += '<td>' + escapeHtml(r.reason || '') + '</td>';
+      row += '<td>' + r.date + '</td>';
+      row += '<td><span class="status-badge ' + stClass + '">' + stLabel + '</span></td>';
+      row += '</tr>';
+      return row;
+    }).join('');
+  }
+
+  // ===== 申請送信 =====
+  window.submitProcurement = function() {
+    var catSelect = document.getElementById('procCategory');
+    var amountInput = document.getElementById('procAmount');
+    var reasonInput = document.getElementById('procReason');
+
+    // categories.code をそのまま使う（fit/ig 変換は廃止）
+    var categoryCode = catSelect.value;
+    if (!categoryCode) {
+      showNotify('error', '入力エラー', 'カテゴリを選択してください。');
+      return;
+    }
+    // カンマ区切り入力にも対応
+    var amount = parseInt(String(amountInput.value).replace(/,/g, ''), 10);
+    var reason = reasonInput.value.trim();
+
+    if (!amount || amount <= 0) {
+      showNotify('error', '入力エラー', '金額を正しく入力してください。');
+      return;
+    }
+    if (!reason) {
+      showNotify('error', '入力エラー', '理由を入力してください。');
+      return;
+    }
+
+    var submitBtn = document.querySelector('.btn-submit');
+    submitBtn.disabled = true;
+    submitBtn.textContent = '送信中...';
+
+    fetch('api/procurement.php', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        category_code: categoryCode,
+        amount: amount,
+        reason: reason
+      })
+    })
+      .then(function(r) {
+        if (r.status === 401) { location.href = 'login.html'; return; }
+        return r.json();
+      })
+      .then(function(data) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = '申請する';
+        if (!data) return;
+        if (!data.success) {
+          showNotify('error', '申請エラー', data.error || '申請に失敗しました');
+          return;
+        }
+        showNotify('success', '自店調達を申請しました',
+          '申請番号: <span class="notify-order-id">' + data.data.id + '</span>');
+        amountInput.value = '';
+        reasonInput.value = '';
+        loadData();
+      })
+      .catch(function(err) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = '申請する';
+        console.error('申請エラー:', err);
+        showNotify('error', '通信エラー', 'サーバーとの通信に失敗しました。<br>ネットワーク接続を確認してください。');
+      });
+  };
+
+  // ===== ユーティリティ =====
+  function escapeHtml(str) {
+    var div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  // ===== 起動 =====
+  init();
+});

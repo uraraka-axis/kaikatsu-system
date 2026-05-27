@@ -1,6 +1,46 @@
 /* ===== Reset ===== */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
+/* ===== 認証チェック完了までコンテンツを非表示にする（フラッシュ防止） ===== */
+/* HTML側で <script>document.documentElement.classList.add('auth-pending');</script> を <head> に置く */
+html.auth-pending body { visibility: hidden; }
+
+/* ===== Loading オーバーレイ（一覧再取得時等の表示） ===== */
+.loading-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.6);
+  z-index: 200;
+  align-items: center;
+  justify-content: center;
+}
+.loading-overlay.visible { display: flex; }
+.loading-overlay .loading-box {
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 16px 28px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.1);
+}
+.loading-overlay .loading-spinner {
+  width: 20px;
+  height: 20px;
+  border: 3px solid #cbd5e1;
+  border-top-color: #1e293b;
+  border-radius: 50%;
+  animation: kk-spin 0.8s linear infinite;
+}
+.loading-overlay .loading-text {
+  font-size: 14px;
+  color: #1e293b;
+  font-weight: 500;
+}
+@keyframes kk-spin { to { transform: rotate(360deg); } }
+
 /* ===== Base Typography ===== */
 body {
   font-family: 'Inter', 'Noto Sans JP', sans-serif;
@@ -20,6 +60,9 @@ body {
   align-items: center;
   justify-content: space-between;
   height: 64px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
 .header h1 { font-size: 20px; font-weight: 700; letter-spacing: 0.5px; }
 .header-right { display: flex; align-items: center; gap: 20px; }
@@ -45,6 +88,9 @@ body {
   display: flex;
   align-items: center;
   gap: 4px;
+  position: sticky;
+  top: 64px; /* header height */
+  z-index: 99;
   height: 48px;
   border-bottom: 1px solid #cbd5e1;
 }
@@ -194,6 +240,60 @@ body {
 .empty-state svg { width: 48px; height: 48px; margin-bottom: 16px; }
 .empty-state p { font-size: 14px; }
 
+/* ===== Shared Filter Bar (発注一覧 / 予算管理 / 自店調達 共通) =====
+   構造: .admin-filter-bar > .admin-filter-row > .filter-group > .filter-label + control */
+.admin-filter-bar {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 20px 24px;
+  margin-bottom: 20px;
+}
+.admin-filter-row {
+  display: flex;
+  gap: 16px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+.admin-filter-row + .admin-filter-row {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #f1f5f9;
+}
+.admin-filter-bar .filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.admin-filter-bar .filter-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+}
+.admin-filter-bar .form-select {
+  width: auto;
+  min-width: 140px;
+  padding: 8px 14px;
+  font-size: 14px;
+  padding-right: 36px;
+  background-position: right 12px center;
+}
+.admin-filter-bar .form-input {
+  padding: 8px 14px;
+  font-size: 14px;
+}
+.filter-actions {
+  justify-content: flex-end;
+  margin-left: auto;
+}
+.date-range {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.date-input { width: 150px; }
+.date-separator { font-size: 14px; color: #94a3b8; }
+
 /* ===== Photo Upload (shared: repair-order, parts-order) ===== */
 .photo-upload-area {
   border: 2px dashed #d1d5db;
@@ -205,9 +305,18 @@ body {
   background-color: #fff;
 }
 .photo-upload-area:hover { border-color: #3b82f6; background-color: #f0f7ff; }
+.photo-upload-area.dragover { border-color: #3b82f6; background-color: #dbeafe; border-style: solid; }
+.photo-upload-area.disabled {
+  cursor: not-allowed;
+  background-color: #f1f5f9;
+  border-color: #cbd5e1;
+  opacity: 0.6;
+}
+.photo-upload-area.disabled:hover { border-color: #cbd5e1; background-color: #f1f5f9; }
 .upload-icon { color: #94a3b8; margin-bottom: 12px; }
 .upload-icon svg { width: 40px; height: 40px; }
 .upload-text { font-size: 14px; font-weight: 500; color: #64748b; }
+.upload-subtext { font-size: 12px; color: #94a3b8; margin-top: 4px; }
 .upload-hint { font-size: 13px; color: #94a3b8; margin-top: 16px; }
 
 .photo-previews { display: flex; gap: 12px; margin-top: 12px; flex-wrap: wrap; }
@@ -240,15 +349,47 @@ body {
 .photo-remove:hover { background-color: rgba(239, 68, 68, 0.8); }
 .photo-remove svg { width: 14px; height: 14px; }
 
-/* ===== Responsive: iPad / Tablet (601px–1024px) ===== */
-@media (min-width: 601px) and (max-width: 1024px) {
+/* ===== Responsive: iPad / Tablet (601px–1280px) ===== */
+/* iPad 9世代 portrait 810px / landscape 1080px / 10世代 portrait 820px / landscape 1180px をカバー */
+@media (min-width: 601px) and (max-width: 1280px) {
   .header { padding: 0 20px; }
   .header h1 { font-size: 18px; }
   .nav { padding: 0 12px; gap: 2px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  .nav-btn { padding: 8px 14px; font-size: 13px; white-space: nowrap; }
+  .nav-btn {
+    padding: 10px 16px;
+    font-size: 14px;
+    white-space: nowrap;
+    min-height: 44px;        /* タッチターゲット 44px (Apple HIG / WCAG) */
+    display: inline-flex;
+    align-items: center;
+  }
   .main { padding: 24px 20px; max-width: 100%; }
-  .table-container { overflow-x: auto; }
+  .table-container { overflow-x: auto; -webkit-overflow-scrolling: touch; }
   .form-group { margin-bottom: 20px; }
+  /* iOS Safari 自動ズーム対策: フォーム部品の font-size を 16px 以上に */
+  .form-select,
+  .form-input,
+  input[type="text"],
+  input[type="number"],
+  input[type="date"],
+  input[type="email"],
+  input[type="password"],
+  input[type="search"],
+  input[type="tel"],
+  textarea,
+  select {
+    font-size: 16px;
+  }
+  /* 汎用ボタンのタッチターゲット */
+  .btn-action,
+  .btn-submit {
+    min-height: 44px;
+  }
+  /* 共通フィルタバー: iPad では余白を詰める */
+  .admin-filter-bar { padding: 16px 20px; }
+  .admin-filter-row { gap: 12px; }
+  .admin-filter-bar .form-select { min-width: 120px; }
+  .date-input { width: 130px; }
 }
 
 /* ===== Responsive: Phone (600px以下) ===== */
@@ -267,4 +408,98 @@ body {
   .table-container { overflow-x: auto; }
   .submit-section { justify-content: center; }
   .btn-submit { width: 100%; }
+  /* 共通フィルタバー: スマホ縦並び */
+  .admin-filter-bar { padding: 14px 16px; }
+  .admin-filter-row { flex-direction: column; gap: 10px; align-items: stretch; }
+  .admin-filter-bar .form-select { min-width: 100%; }
+  .date-input { width: 100%; }
+  .date-range { flex-wrap: wrap; }
+  .filter-actions { margin-left: 0; }
 }
+
+/* ===== Notify Modal (shared) ===== */
+.notify-overlay {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.35);
+  z-index: 2000;
+  align-items: center;
+  justify-content: center;
+}
+.notify-overlay.open {
+  display: flex;
+}
+.notify-dialog {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+  width: 420px;
+  max-width: 90vw;
+  text-align: center;
+  animation: notifySlideIn 0.25s ease;
+  overflow: hidden;
+  border-top: 4px solid transparent;
+}
+.notify-dialog.success { border-top-color: #3b82f6; }
+.notify-dialog.warning { border-top-color: #d97706; }
+@keyframes notifySlideIn {
+  from { opacity: 0; transform: translateY(-20px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.notify-title {
+  font-family: 'Inter', 'Noto Sans JP', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 24px 24px 0;
+}
+.notify-body {
+  font-family: 'Inter', 'Noto Sans JP', sans-serif;
+  font-size: 14px;
+  color: #475569;
+  margin: 10px 24px 0;
+  line-height: 1.7;
+}
+.notify-body .notify-order-id {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 4px 12px;
+  background: #f1f5f9;
+  border-radius: 6px;
+  font-family: 'Inter', monospace;
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+  letter-spacing: 0.3px;
+}
+.notify-body .notify-warning {
+  display: block;
+  margin-top: 12px;
+  padding: 10px 14px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #92400e;
+  line-height: 1.6;
+  text-align: left;
+}
+.notify-footer {
+  padding: 20px 24px 24px;
+}
+.notify-footer .btn-notify {
+  padding: 10px 32px;
+  border-radius: 8px;
+  font-family: 'Inter', 'Noto Sans JP', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+  color: #fff;
+  background: #3b82f6;
+}
+.notify-footer .btn-notify:hover { background: #2563eb; }
+.notify-dialog.warning .btn-notify { background: #d97706; }
+.notify-dialog.warning .btn-notify:hover { background: #b45309; }

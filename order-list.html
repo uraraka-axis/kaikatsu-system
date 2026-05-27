@@ -4,16 +4,19 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>発注一覧画面</title>
+  <style>html.auth-pending body{visibility:hidden}</style>
+  <script>document.documentElement.classList.add('auth-pending');</script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/common.css">
-  <link rel="stylesheet" href="css/order-list.css">
+  <link rel="stylesheet" href="css/common.css?v=20260526b">
+  <link rel="stylesheet" href="css/order-list.css?v=20260526d">
 </head>
 <body>
   <header class="header" data-title="発注一覧画面"></header>
   <nav class="nav" data-active="order-list.html"></nav>
-  <script src="js/common-nav.js"></script>
+  <script src="js/mock-api.js?v=20260527"></script>
+  <script src="js/common-nav.js?v=20260521"></script>
   <main class="main">
     <!-- Admin Filter Bar -->
     <div class="admin-filter-bar" id="adminFilterBar">
@@ -34,23 +37,30 @@
         </div>
         <div class="filter-group">
           <span class="filter-label">店舗</span>
-          <select class="form-select" id="filterShop" onchange="renderOrders()">
+          <select class="form-select" id="filterShop" onchange="applyFilters()">
             <option value="">すべて</option>
           </select>
         </div>
         <div class="filter-group">
           <span class="filter-label">発注日</span>
           <div class="date-range">
-            <input type="date" class="form-input date-input" id="filterDateFrom" onchange="renderOrders()">
+            <input type="date" class="form-input date-input" id="filterDateFrom" onchange="applyFilters()">
             <span class="date-separator">〜</span>
-            <input type="date" class="form-input date-input" id="filterDateTo" onchange="renderOrders()">
+            <input type="date" class="form-input date-input" id="filterDateTo" onchange="applyFilters()">
           </div>
         </div>
       </div>
       <div class="admin-filter-row">
         <div class="filter-group">
+          <span class="filter-label">カテゴリ</span>
+          <select class="form-select" id="adminFilterCategory" onchange="applyFilters()">
+            <option value="">すべてのカテゴリ</option>
+            <!-- カテゴリは JS で動的に追加 -->
+          </select>
+        </div>
+        <div class="filter-group">
           <span class="filter-label">種別</span>
-          <select class="form-select" id="adminFilterType" onchange="renderOrders()">
+          <select class="form-select" id="adminFilterType" onchange="applyFilters()">
             <option value="">すべて</option>
             <option value="repair">修理発注</option>
             <option value="equipment">備品発注</option>
@@ -59,7 +69,7 @@
         </div>
         <div class="filter-group">
           <span class="filter-label">ステータス</span>
-          <select class="form-select" id="adminFilterStatus" onchange="renderOrders()">
+          <select class="form-select" id="adminFilterStatus" onchange="applyFilters()">
             <option value="">すべて</option>
             <option value="0">依頼中</option>
             <option value="1">発注済</option>
@@ -72,27 +82,35 @@
     </div>
 
     <!-- Store Filter Bar -->
-    <div class="toolbar" id="storeFilterBar">
-      <div class="toolbar-left">
-        <select class="form-select" id="filterCategory" onchange="renderOrders()">
-          <option value="">カテゴリ</option>
-          <option value="fitness">フィットネス</option>
-          <option value="golf">ゴルフ</option>
-        </select>
-        <select class="form-select" id="filterType" onchange="renderOrders()">
-          <option value="">種別</option>
-          <option value="repair">修理</option>
-          <option value="equipment">備品</option>
-          <option value="parts">部品</option>
-        </select>
-        <select class="form-select" id="filterStatus" onchange="renderOrders()">
-          <option value="">ステータス</option>
-          <option value="0">依頼中</option>
-          <option value="1">発注済</option>
-          <option value="2">配達中/修理待ち</option>
-          <option value="3">納品済/修理済</option>
-          <option value="4">完了</option>
-        </select>
+    <div class="admin-filter-bar" id="storeFilterBar">
+      <div class="admin-filter-row">
+        <div class="filter-group">
+          <span class="filter-label">カテゴリ</span>
+          <select class="form-select" id="filterCategory" onchange="applyFilters()">
+            <option value="">すべてのカテゴリ</option>
+            <!-- カテゴリは JS で動的に追加 -->
+          </select>
+        </div>
+        <div class="filter-group">
+          <span class="filter-label">種別</span>
+          <select class="form-select" id="filterType" onchange="applyFilters()">
+            <option value="">すべて</option>
+            <option value="repair">修理</option>
+            <option value="equipment">備品</option>
+            <option value="parts">部品</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <span class="filter-label">ステータス</span>
+          <select class="form-select" id="filterStatus" onchange="applyFilters()">
+            <option value="">すべて</option>
+            <option value="0">依頼中</option>
+            <option value="1">発注済</option>
+            <option value="2">配達中/修理待ち</option>
+            <option value="3">納品済/修理済</option>
+            <option value="4">完了</option>
+          </select>
+        </div>
       </div>
     </div>
 
@@ -110,6 +128,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
         ステータス一括変更
       </button>
+      <button class="btn-action btn-secondary" onclick="openDraftMails()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+        メール下書き作成
+      </button>
       <button class="btn-action btn-secondary" onclick="exportExcel()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
         Excel出力
@@ -122,18 +144,33 @@
         <thead id="orderTableHead">
           <tr>
             <th style="width:40px"><input type="checkbox" id="selectAll" onchange="toggleAll(this)"></th>
-            <th>発注番号</th>
+            <th>発注日</th>
             <th>種別</th>
+            <th>発注番号</th>
             <th>カテゴリ</th>
             <th>内容</th>
             <th>金額</th>
             <th>ステータス</th>
-            <th>発注日</th>
             <th style="width:60px">詳細</th>
           </tr>
         </thead>
         <tbody id="orderTableBody"></tbody>
       </table>
+    </div>
+
+    <!-- Pagination -->
+    <div class="pagination-bar" id="paginationBar">
+      <div class="pagination-info" id="paginationInfo"></div>
+      <div class="pagination-controls">
+        <label class="pagination-label">1ページの件数</label>
+        <select class="form-select" id="pageSizeSelect" onchange="onPageSizeChange()">
+          <option value="20">20件</option>
+          <option value="50">50件</option>
+          <option value="100">100件</option>
+          <option value="all">すべて</option>
+        </select>
+        <button type="button" class="btn-action btn-secondary" id="showMoreBtn" onclick="showMoreOrders()" style="display:none">次を表示</button>
+      </div>
     </div>
   </main>
 
@@ -146,6 +183,19 @@
     </div>
   </div>
 
-  <script src="js/order-list.js"></script>
+  <!-- Draft Mails Modal -->
+  <div class="modal-overlay draft-mails-overlay" id="draftMailsOverlay" onclick="closeDraftMails()">
+    <div class="modal-dialog draft-mails-dialog" onclick="event.stopPropagation()">
+      <div class="draft-mails-header">
+        <div class="draft-mails-title">発注メール下書き</div>
+        <button type="button" class="draft-mails-close" onclick="closeDraftMails()" aria-label="閉じる">×</button>
+      </div>
+      <div class="draft-mails-body" id="draftMailsBody">
+        <!-- JS renders tabs + cards -->
+      </div>
+    </div>
+  </div>
+
+  <script src="js/order-list.js?v=20260526c"></script>
 </body>
 </html>

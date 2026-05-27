@@ -1,26 +1,97 @@
-    // ===== Master Data (shared with order-list) =====
-    var zones = [
-      { code: '100', name: '東日本' },
-      { code: '200', name: '西日本' }
-    ];
-    var areas = [
-      { code: '101', name: '北海道', zone: '100' },
-      { code: '102', name: '東北', zone: '100' },
-      { code: '103', name: '関東', zone: '100' },
-      { code: '201', name: '関西', zone: '200' },
-      { code: '202', name: '中国・四国', zone: '200' }
-    ];
-    var shopList = [
-      { code: '10301', name: '新宿東口', shortCode: 'S01', area: '103' },
-      { code: '10302', name: '池袋西口', shortCode: 'S02', area: '103' },
-      { code: '10303', name: '横浜', shortCode: 'S03', area: '103' },
-      { code: '10101', name: '札幌', shortCode: 'S04', area: '101' },
-      { code: '10102', name: '函館', shortCode: 'S05', area: '101' },
-      { code: '10201', name: '仙台', shortCode: 'S06', area: '102' },
-      { code: '20101', name: '梅田', shortCode: 'S07', area: '201' },
-      { code: '20102', name: '難波', shortCode: 'S08', area: '201' },
-      { code: '20201', name: '広島', shortCode: 'S09', area: '202' }
-    ];
+    // ===== Master Data (zones/areas/shops are loaded from API on DOMContentLoaded) =====
+    // 旧来の参照箇所と互換を保つため field 名は { code, name, zone, area } に正規化する
+    var zones = [];
+    var areas = [];
+    var shopList = [];
+
+    // ゾーン/エリア/店舗マスタを API から取得して各プルダウンを構築する
+    function loadExportFilterMasters() {
+      var p1 = fetch('api/master/zones.php', { credentials: 'same-origin' })
+        .then(function(r) {
+          if (r.status === 401) { window.location.href = 'login.html'; return null; }
+          return r.json();
+        })
+        .then(function(json) {
+          if (!json || !json.success || !Array.isArray(json.data)) return;
+          zones = json.data.map(function(z) {
+            return { code: z.zone_code, name: z.zone_name };
+          });
+        })
+        .catch(function(e) { console.error('zones fetch error:', e); });
+
+      var p2 = fetch('api/master/areas.php', { credentials: 'same-origin' })
+        .then(function(r) {
+          if (r.status === 401) { window.location.href = 'login.html'; return null; }
+          return r.json();
+        })
+        .then(function(json) {
+          if (!json || !json.success || !Array.isArray(json.data)) return;
+          areas = json.data.map(function(a) {
+            return { code: a.area_code, name: a.area_name, zone: a.zone_code };
+          });
+        })
+        .catch(function(e) { console.error('areas fetch error:', e); });
+
+      var p3 = fetch('api/master/shops.php', { credentials: 'same-origin' })
+        .then(function(r) {
+          if (r.status === 401) { window.location.href = 'login.html'; return null; }
+          return r.json();
+        })
+        .then(function(json) {
+          if (!json || !json.success || !Array.isArray(json.data)) return;
+          shopList = json.data.map(function(s) {
+            return { code: s.shop_code, name: s.shop_name, area: s.area_code };
+          });
+        })
+        .catch(function(e) { console.error('shops fetch error:', e); });
+
+      // カテゴリも動的取得 (admin なので全カテゴリが返る)
+      var p4 = fetch('api/master/categories.php', { credentials: 'same-origin' })
+        .then(function(r) {
+          if (r.status === 401) { window.location.href = 'login.html'; return null; }
+          return r.json();
+        })
+        .then(function(json) {
+          if (!json || !json.success || !Array.isArray(json.data)) return [];
+          return json.data;
+        })
+        .catch(function(e) { console.error('categories fetch error:', e); return []; });
+
+      Promise.all([p1, p2, p3, p4]).then(function(results) {
+        // Order/Budget 両方のゾーンプルダウンを初期化
+        var zoneHtml = '<option value="">すべて</option>' +
+          zones.map(function(z) {
+            return '<option value="' + z.code + '">' + z.code + ':' + z.name + '</option>';
+          }).join('');
+        var orderZone = document.getElementById('exportOrderZone');
+        if (orderZone) orderZone.innerHTML = zoneHtml;
+        var budgetZone = document.getElementById('exportBudgetZone');
+        if (budgetZone) budgetZone.innerHTML = zoneHtml;
+
+        // エリア/店舗は「すべて」初期状態でフル一覧を出す
+        var orderArea = document.getElementById('exportOrderArea');
+        if (orderArea) orderArea.innerHTML = buildAreaOptions('');
+        var orderShop = document.getElementById('exportOrderShop');
+        if (orderShop) orderShop.innerHTML = buildShopOptions(getFilteredShops('', ''));
+        var budgetArea = document.getElementById('exportBudgetArea');
+        if (budgetArea) budgetArea.innerHTML = buildAreaOptions('');
+        var budgetShop = document.getElementById('exportBudgetShop');
+        if (budgetShop) budgetShop.innerHTML = buildShopOptions(getFilteredShops('', ''));
+
+        // カテゴリプルダウン
+        var cats = results[3] || [];
+        var budgetDept = document.getElementById('exportBudgetDept');
+        if (budgetDept) {
+          while (budgetDept.options.length > 1) budgetDept.remove(1);
+          cats.forEach(function(c) {
+            var opt = document.createElement('option');
+            opt.value = c.code;
+            opt.textContent = c.name;
+            budgetDept.appendChild(opt);
+          });
+        }
+      });
+    }
 
     function getShopName(code) {
       var s = shopList.find(function(s) { return s.code === code; });
@@ -76,10 +147,11 @@
 
     // ===== Budget Data =====
     var fiscalMonths = [4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3];
+    // 2026-05-22 schema migration: ENUM 'fit'/'ig' → VARCHAR 'fitness'/'golf'（categories.code 直接保存）
     var departments = [
-      { key: 'all', label: '全体' },
-      { key: 'fit', label: 'フィットネス' },
-      { key: 'ig',  label: 'インドアゴルフ' }
+      { key: 'all',     label: '全体' },
+      { key: 'fitness', label: 'フィットネス' },
+      { key: 'golf',    label: 'インドアゴルフ' }
     ];
 
     var budgetData = [
@@ -88,8 +160,8 @@
         period: [130000, 0, 130000, 0.0], midterm: [85000, 0, 85000, 0.0], month: [10000, 0, 10000, 0.0],
         details: {
           all: [[11008,0],[11010,0],[11012,0],[11014,0],[11016,0],[11018,0],[11020,0],[11022,0],[11024,0],[11026,0],[11028,0],[11030,0]],
-          fit: [[6500,0],[6500,0],[6500,0],[6500,0],[6500,0],[6500,0],[6500,0],[6500,0],[6500,0],[6500,0],[6500,0],[6500,0]],
-          ig:  [[4508,0],[4510,0],[4512,0],[4514,0],[4516,0],[4518,0],[4520,0],[4522,0],[4524,0],[4526,0],[4528,0],[4530,0]]
+          fitness: [[6500,0],[6500,0],[6500,0],[6500,0],[6500,0],[6500,0],[6500,0],[6500,0],[6500,0],[6500,0],[6500,0],[6500,0]],
+          golf:    [[4508,0],[4510,0],[4512,0],[4514,0],[4516,0],[4518,0],[4520,0],[4522,0],[4524,0],[4526,0],[4528,0],[4530,0]]
         }
       },
       {
@@ -97,8 +169,8 @@
         period: [130000, 1700, 128300, 1.3], midterm: [85000, 1700, 83300, 2.0], month: [10000, 1700, 8300, 17.0],
         details: {
           all: [[11008,0],[11010,0],[11012,0],[11014,0],[11016,0],[11018,0],[11020,0],[11022,0],[11024,0],[11026,20000],[11028,0],[11030,0]],
-          fit: [[6500,0],[6500,0],[6500,0],[6500,0],[6500,0],[6500,0],[6500,0],[6500,0],[6500,0],[6500,15000],[6500,0],[6500,0]],
-          ig:  [[4508,0],[4510,0],[4512,0],[4514,0],[4516,0],[4518,0],[4520,0],[4522,0],[4524,0],[4526,5000],[4528,0],[4530,0]]
+          fitness: [[6500,0],[6500,0],[6500,0],[6500,0],[6500,0],[6500,0],[6500,0],[6500,0],[6500,0],[6500,15000],[6500,0],[6500,0]],
+          golf:    [[4508,0],[4510,0],[4512,0],[4514,0],[4516,0],[4518,0],[4520,0],[4522,0],[4524,0],[4526,5000],[4528,0],[4530,0]]
         }
       },
       {
@@ -106,8 +178,8 @@
         period: [130000, 0, 130000, 0.0], midterm: [85000, 0, 85000, 0.0], month: [10000, 0, 10000, 0.0],
         details: {
           all: [[11008,0],[11010,0],[11012,0],[11014,0],[11016,0],[11018,0],[11020,0],[11022,0],[11024,0],[11026,0],[11028,0],[11030,0]],
-          fit: [[6500,0],[6500,0],[6500,0],[6500,0],[6500,0],[6500,0],[6500,0],[6500,0],[6500,0],[6500,0],[6500,0],[6500,0]],
-          ig:  [[4508,0],[4510,0],[4512,0],[4514,0],[4516,0],[4518,0],[4520,0],[4522,0],[4524,0],[4526,0],[4528,0],[4530,0]]
+          fitness: [[6500,0],[6500,0],[6500,0],[6500,0],[6500,0],[6500,0],[6500,0],[6500,0],[6500,0],[6500,0],[6500,0],[6500,0]],
+          golf:    [[4508,0],[4510,0],[4512,0],[4514,0],[4516,0],[4518,0],[4520,0],[4522,0],[4524,0],[4526,0],[4528,0],[4530,0]]
         }
       },
       {
@@ -115,8 +187,8 @@
         period: [130000, 0, 130000, 0.0], midterm: [85000, 0, 85000, 0.0], month: [10000, 0, 10000, 0.0],
         details: {
           all: [[11008,0],[11010,0],[11012,0],[11014,0],[11016,0],[11018,0],[11020,0],[11022,0],[11024,0],[11026,0],[11028,0],[11030,0]],
-          fit: [[6500,0],[6500,0],[6500,0],[6500,0],[6500,0],[6500,0],[6500,0],[6500,0],[6500,0],[6500,0],[6500,0],[6500,0]],
-          ig:  [[4508,0],[4510,0],[4512,0],[4514,0],[4516,0],[4518,0],[4520,0],[4522,0],[4524,0],[4526,0],[4528,0],[4530,0]]
+          fitness: [[6500,0],[6500,0],[6500,0],[6500,0],[6500,0],[6500,0],[6500,0],[6500,0],[6500,0],[6500,0],[6500,0],[6500,0]],
+          golf:    [[4508,0],[4510,0],[4512,0],[4514,0],[4516,0],[4518,0],[4520,0],[4522,0],[4524,0],[4526,0],[4528,0],[4530,0]]
         }
       },
       {
@@ -124,21 +196,473 @@
         period: [130000, 0, 130000, 0.0], midterm: [85000, 0, 85000, 0.0], month: [10000, 0, 10000, 0.0],
         details: {
           all: [[11008,0],[11010,0],[11012,0],[11014,0],[11016,0],[11018,0],[11020,0],[11022,0],[11024,0],[11026,0],[11028,0],[11030,0]],
-          fit: [[6500,0],[6500,0],[6500,0],[6500,0],[6500,0],[6500,0],[6500,0],[6500,0],[6500,0],[6500,0],[6500,0],[6500,0]],
-          ig:  [[4508,0],[4510,0],[4512,0],[4514,0],[4516,0],[4518,0],[4520,0],[4522,0],[4524,0],[4526,0],[4528,0],[4530,0]]
+          fitness: [[6500,0],[6500,0],[6500,0],[6500,0],[6500,0],[6500,0],[6500,0],[6500,0],[6500,0],[6500,0],[6500,0],[6500,0]],
+          golf:    [[4508,0],[4510,0],[4512,0],[4514,0],[4516,0],[4518,0],[4520,0],[4522,0],[4524,0],[4526,0],[4528,0],[4530,0]]
         }
       }
     ];
 
-    // ===== Upload (mock) =====
-    function uploadFile(type) {
-      var labels = {
-        zone: 'ゾーン', area: 'エリア', shop: '店舗',
-        user: 'ユーザー', supplier: '仕入先', product: '商品', budget: '予算'
+    // ===== Master Upload / Download =====
+    // 実装済みマスタ（バックエンドAPI存在）
+    var IMPLEMENTED_MASTERS = ['zone', 'area', 'shop', 'supplier', 'user', 'budget', 'product']; // 実装が進むごとに追記
+
+    // 各マスタの API パス
+    function masterApiPath(type, kind) {
+      // type: zone/area/shop/user/supplier/product
+      // kind: 'upload' or 'download'
+      var apiTypeMap = {
+        zone: 'zones', area: 'areas', shop: 'shops',
+        user: 'users', supplier: 'suppliers', product: 'products',
+        budget: 'budgets'
       };
-      var label = labels[type] || type;
-      alert('マスタアップロード（モックアップ）\n\n「' + label + '」のExcelファイルをアップロードします。\n予約→バッチ処理→反映の安全な仕組みで更新されます。');
+      var apiType = apiTypeMap[type] || type;
+      if (kind === 'upload')   return 'api/admin/master/'  + apiType + '.php';
+      if (kind === 'download') return 'api/export/master/' + apiType + '.php';
+      return null;
     }
+
+    // 確定送信用に File を保持
+    var pendingUploadFile = null;
+    var pendingUploadType = null;
+
+    function getMasterLabel(type) {
+      var card = document.querySelector('.master-card[data-master-type="' + type + '"]');
+      return card ? (card.getAttribute('data-master-label') || type) : type;
+    }
+
+    function triggerMasterUpload(type) {
+      if (IMPLEMENTED_MASTERS.indexOf(type) < 0) {
+        alert('「' + getMasterLabel(type) + '」は未実装です。');
+        return;
+      }
+      var input = document.querySelector('input[data-master-input="' + type + '"]');
+      if (input) input.click();
+    }
+    window.triggerMasterUpload = triggerMasterUpload;
+
+    function handleMasterFileSelected(type, files) {
+      if (!files || files.length === 0) return;
+      var file = files[0];
+      // バリデーション
+      if (!file.name.toLowerCase().endsWith('.xlsx')) {
+        alert('.xlsx形式のファイルを選択してください');
+        clearMasterInput(type);
+        return;
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        alert('ファイルサイズが上限(10MB)を超えています');
+        clearMasterInput(type);
+        return;
+      }
+      // dry_run実行 → プレビューモーダル表示
+      pendingUploadFile = file;
+      pendingUploadType = type;
+      runMasterDryRun(type, file);
+    }
+    window.handleMasterFileSelected = handleMasterFileSelected;
+
+    function clearMasterInput(type) {
+      var input = document.querySelector('input[data-master-input="' + type + '"]');
+      if (input) input.value = '';
+    }
+
+    function runMasterDryRun(type, file) {
+      var url = masterApiPath(type, 'upload') + '?dry_run=1';
+      var fd = new FormData();
+      fd.append('file', file);
+      showMasterModal({ loading: true, type: type });
+      fetch(url, { method: 'POST', credentials: 'same-origin', body: fd })
+        .then(function(res) {
+          return res.json().then(function(json) { return { ok: res.ok, status: res.status, json: json }; });
+        })
+        .then(function(r) {
+          // 成功 or 警告のみ(削除ブロック等)はプレビュー表示。バリデーションエラーはエラー表示。
+          var hasDiff = r.json && r.json.data && r.json.data.diff;
+          var hasErrors = r.json && r.json.data && Array.isArray(r.json.data.errors) && r.json.data.errors.length > 0;
+          if (hasDiff && !hasErrors) {
+            renderMasterPreview(type, r.json.data, r.json.error || null);
+          } else {
+            renderMasterErrors(type, r.json);
+          }
+        })
+        .catch(function(e) {
+          console.error('master dry-run error:', e);
+          renderMasterErrors(type, { error: '通信エラーが発生しました' });
+        });
+    }
+
+    function showMasterModal(opts) {
+      var overlay = document.getElementById('masterModal');
+      var titleEl = document.getElementById('masterModalTitle');
+      var bodyEl = document.getElementById('masterModalBody');
+      var footerEl = document.getElementById('masterModalFooter');
+      if (!overlay) return;
+
+      titleEl.textContent = getMasterLabel(opts.type) + ' 変更プレビュー';
+      if (opts.loading) {
+        bodyEl.innerHTML = '<div class="master-modal-loading">Excelを解析中…</div>';
+        footerEl.innerHTML = '<button type="button" class="btn-secondary" onclick="closeMasterModal()">キャンセル</button>';
+      }
+      overlay.classList.add('visible');
+    }
+
+    function renderMasterPreview(type, data, topMessage) {
+      var bodyEl = document.getElementById('masterModalBody');
+      var footerEl = document.getElementById('masterModalFooter');
+      var summary = data.summary || { insert: 0, update: 0, delete: 0, total: 0 };
+      var warnings = data.warnings || [];
+      var diff = data.diff || { insert: [], update: [], delete: [] };
+      var extraDiff = data.extra_diff || null;
+      var extraInsert = summary.extra_insert || 0;
+      var extraDelete = summary.extra_delete || 0;
+      var scheduled = data.scheduled || [];          // 予約反映行（apply_date 翌日以降）
+      var scheduledCount = summary.scheduled || scheduled.length || 0;
+      var scheduledExtras = data.scheduled_extras || []; // 中間テーブル予約 (shop_categories 等)
+      var scheduledExtrasCount = summary.scheduled_extras || scheduledExtras.length || 0;
+      var conflicting = data.conflicting || [];      // 上書きされる既存pending予約
+      var overwritesCount = summary.scheduled_overwrites || conflicting.length || 0;
+      var maskedFields = data.masked_fields || [];   // password等のマスク列：値表示せず「変更あり」とだけ出す
+
+      var html = '';
+      if (topMessage) {
+        html += '<div class="master-error-msg">' + escapeHtml(topMessage) + '</div>';
+      }
+      html += '<div class="master-summary">';
+      html += '<span class="master-sum-item master-sum-insert">追加 ' + summary.insert + '件</span>';
+      html += '<span class="master-sum-item master-sum-update">変更 ' + summary.update + '件</span>';
+      html += '<span class="master-sum-item master-sum-delete">削除 ' + summary.delete + '件</span>';
+      if (extraInsert > 0 || extraDelete > 0) {
+        html += '<span class="master-sum-item master-sum-insert">カテゴリ追加 ' + extraInsert + '件</span>';
+        html += '<span class="master-sum-item master-sum-delete">カテゴリ削除 ' + extraDelete + '件</span>';
+      }
+      if (scheduledCount > 0) {
+        html += '<span class="master-sum-item master-sum-scheduled">予約 ' + scheduledCount + '件</span>';
+      }
+      if (scheduledExtrasCount > 0) {
+        html += '<span class="master-sum-item master-sum-scheduled">予約(カテゴリ) ' + scheduledExtrasCount + '件</span>';
+      }
+      if (overwritesCount > 0) {
+        html += '<span class="master-sum-item master-sum-overwrite">上書き ' + overwritesCount + '件</span>';
+      }
+      if (warnings.length > 0) {
+        html += '<span class="master-sum-item master-sum-warn">警告 ' + warnings.length + '件</span>';
+      }
+      html += '</div>';
+
+      if (summary.total === 0 && scheduledCount === 0 && warnings.length === 0) {
+        html += '<div class="master-empty-msg">変更内容はありません（現在のDBと一致しています）</div>';
+      }
+
+      // 中間テーブル（shop_categories 等）の差分一覧
+      if (extraDiff && (extraInsert > 0 || extraDelete > 0)) {
+        html += '<div class="master-section master-section-insert">';
+        html += '<div class="master-section-title">店舗カテゴリの変更</div>';
+        html += '<ul class="master-warning-list">';
+        (extraDiff.insert || []).forEach(function(e) {
+          html += '<li>追加: ' + escapeHtml(e.shop_code) + ' → ' + escapeHtml(e.category_code) + '</li>';
+        });
+        (extraDiff.delete || []).forEach(function(e) {
+          html += '<li>削除: ' + escapeHtml(e.shop_code) + ' → ' + escapeHtml(e.category_code) + '</li>';
+        });
+        html += '</ul></div>';
+      }
+
+      // 警告
+      if (warnings.length > 0) {
+        html += '<div class="master-section master-section-warn">';
+        html += '<div class="master-section-title">⚠ 削除できないレコード</div>';
+        html += '<ul class="master-warning-list">';
+        warnings.forEach(function(w) {
+          html += '<li>' + escapeHtml(w.message) + '</li>';
+        });
+        html += '</ul></div>';
+      }
+
+      // 追加
+      if (diff.insert && diff.insert.length > 0) {
+        html += renderDiffSection('追加', diff.insert.map(function(r) {
+          return { label: makeRowLabel(type, r), detail: '' };
+        }), 'insert');
+      }
+      // 変更
+      if (diff.update && diff.update.length > 0) {
+        html += renderDiffSection('変更', diff.update.map(function(u) {
+          var changedSummary = u.changed_fields.map(function(f) {
+            // マスク対象列 (password等) は「変更あり」とだけ表示し、値は出さない
+            if (maskedFields.indexOf(f) >= 0) {
+              return f + ': 変更あり';
+            }
+            var b = u.before[f], a = u.after[f];
+            return f + ': ' + escapeHtml(String(b)) + ' → ' + escapeHtml(String(a));
+          }).join(' / ');
+          return { label: makeRowLabel(type, u.after) + ' (key=' + u.key + ')', detail: changedSummary };
+        }), 'update');
+      }
+      // 削除
+      if (diff.delete && diff.delete.length > 0) {
+        html += renderDiffSection('削除', diff.delete.map(function(r) {
+          return { label: makeRowLabel(type, r), detail: '' };
+        }), 'delete');
+      }
+
+      // 既存予約の上書き警告（同一レコードに対する pending が既にある場合）
+      if (conflicting.length > 0) {
+        html += '<div class="master-section master-section-overwrite">';
+        html += '<div class="master-section-title">⚠ 既存の予約 ' + conflicting.length + '件を上書きします（既存予約は cancelled になります）</div>';
+        html += '<ul class="master-warning-list">';
+        conflicting.forEach(function(c) {
+          var dateOnly = (c.scheduled_at || '').substring(0, 10);
+          var changeSummary = '';
+          if (c.operation === 'update' && Array.isArray(c.changed_fields) && c.before && c.after) {
+            changeSummary = c.changed_fields.map(function(f) {
+              if (maskedFields.indexOf(f) >= 0) {
+                return f + ': 変更あり';
+              }
+              return f + ': ' + escapeHtml(String(c.before[f])) + ' → ' + escapeHtml(String(c.after[f]));
+            }).join(' / ');
+          } else if (c.operation === 'insert' && c.after) {
+            changeSummary = '新規追加: ' + escapeHtml(makeRowLabel(type, c.after));
+          }
+          html += '<li>';
+          html += '<div class="master-diff-label">' +
+                  '<span class="master-scheduled-date">' + escapeHtml(dateOnly) + '</span> ' +
+                  '[既存予約] ' + escapeHtml(String(c.record_key)) +
+                  '</div>';
+          if (changeSummary) html += '<div class="master-diff-detail">' + changeSummary + '</div>';
+          html += '</li>';
+        });
+        html += '</ul></div>';
+      }
+
+      // 予約反映分（apply_date 翌日以降）
+      if (scheduled.length > 0) {
+        html += '<div class="master-section master-section-scheduled">';
+        html += '<div class="master-section-title">📅 予約反映 (' + scheduled.length + '件)</div>';
+        html += '<ul class="master-diff-list">';
+        scheduled.forEach(function(s) {
+          var label = makeRowLabel(type, s.after);
+          var opLabel = s.operation === 'insert' ? '追加' : (s.operation === 'update' ? '変更' : s.operation);
+          var detail = '';
+          if (s.operation === 'update' && s.before && Array.isArray(s.changed_fields)) {
+            detail = s.changed_fields.map(function(f) {
+              if (maskedFields.indexOf(f) >= 0) {
+                return f + ': 変更あり';
+              }
+              return f + ': ' + escapeHtml(String(s.before[f])) + ' → ' + escapeHtml(String(s.after[f]));
+            }).join(' / ');
+          }
+          html += '<li>';
+          html += '<div class="master-diff-label">' +
+                  '<span class="master-scheduled-date">' + escapeHtml(s.apply_date) + '</span> ' +
+                  '[' + opLabel + '] ' + escapeHtml(label) +
+                  '</div>';
+          if (detail) html += '<div class="master-diff-detail">' + detail + '</div>';
+          html += '</li>';
+        });
+        html += '</ul></div>';
+      }
+
+      // 予約反映の関連テーブル（shops の場合は shop_categories）
+      if (scheduledExtras.length > 0) {
+        html += '<div class="master-section master-section-scheduled">';
+        html += '<div class="master-section-title">📅 予約反映 (店舗カテゴリ) (' + scheduledExtras.length + '件)</div>';
+        html += '<ul class="master-diff-list">';
+        scheduledExtras.forEach(function(e) {
+          var opLabel = e.operation === 'insert' ? 'カテゴリ追加' : (e.operation === 'delete' ? 'カテゴリ削除' : e.operation);
+          // key = '10501/fitness' 形式
+          var parts = (e.key || '').split('/');
+          var label = '店舗 ' + (parts[0] || '?') + ' × カテゴリ ' + (parts[1] || '?');
+          html += '<li>';
+          html += '<div class="master-diff-label">' +
+                  '<span class="master-scheduled-date">' + escapeHtml(e.apply_date) + '</span> ' +
+                  '[' + opLabel + '] ' + escapeHtml(label) +
+                  '</div>';
+          html += '</li>';
+        });
+        html += '</ul></div>';
+      }
+
+      bodyEl.innerHTML = html;
+
+      // フッター: 確定可否
+      //   即時反映 or 予約反映（中間テーブル含む）どちらかが1件でもあって警告なしなら確定可能
+      var canApply = (summary.total > 0 || scheduledCount > 0 || scheduledExtrasCount > 0) && warnings.length === 0;
+      footerEl.innerHTML =
+        '<button type="button" class="btn-secondary" onclick="closeMasterModal()">キャンセル</button>' +
+        '<button type="button" class="btn-primary" id="btnApplyMaster"' + (canApply ? '' : ' disabled') + ' onclick="confirmMasterApply()">この内容で確定</button>';
+    }
+
+    function makeRowLabel(type, row) {
+      // 各マスタごとに簡易ラベル
+      if (type === 'zone')     return (row.code || '') + ' ' + (row.name || '');
+      if (type === 'area')     return (row.code || '') + ' ' + (row.name || '');
+      if (type === 'shop')     return (row.code || '') + ' ' + (row.name || '');
+      if (type === 'supplier') return (row.code || '') + ' ' + (row.name || '');
+      if (type === 'user')     return (row.login_id || '') + ' ' + (row.name || '');
+      if (type === 'product')  return (row.code || '') + ' ' + (row.name || '');
+      if (type === 'budget') {
+        // 予算 (即時 = 月単位): 年度 / 店舗コード / 部門 / 月 = 額
+        // 予算 (予約 = 12ヶ月一括): 年度 / 店舗コード / 部門 / 12ヶ月分 (合計額)
+        if (row && row.months && typeof row.months === 'object') {
+          var total = 0;
+          Object.keys(row.months).forEach(function(k) { total += Number(row.months[k]) || 0; });
+          return (row.fiscal_year || '') + '年度 / 店舗' + (row.shop_code || '') + ' / ' + (row.department || '') + ' / 12ヶ月分 合計 ' + total.toLocaleString() + '円';
+        }
+        return (row.fiscal_year || '') + '年度 / 店舗' + (row.shop_code || '') + ' / ' + (row.department || '') + ' / ' + (row.month || '') + '月 = ' + (row.budget_amount || 0).toLocaleString() + '円';
+      }
+      return JSON.stringify(row);
+    }
+
+    function renderDiffSection(title, items, kind) {
+      var html = '<div class="master-section master-section-' + kind + '">';
+      html += '<div class="master-section-title">' + title + ' (' + items.length + '件)</div>';
+      html += '<ul class="master-diff-list">';
+      items.forEach(function(it) {
+        html += '<li><div class="master-diff-label">' + escapeHtml(it.label) + '</div>';
+        if (it.detail) html += '<div class="master-diff-detail">' + it.detail + '</div>';
+        html += '</li>';
+      });
+      html += '</ul></div>';
+      return html;
+    }
+
+    function renderMasterErrors(type, json) {
+      var bodyEl = document.getElementById('masterModalBody');
+      var footerEl = document.getElementById('masterModalFooter');
+      var errors = (json && json.data && json.data.errors) ? json.data.errors : [];
+      var msg = (json && json.error) ? json.error : 'エラーが発生しました';
+      var html = '<div class="master-error-msg">' + escapeHtml(msg) + '</div>';
+      if (errors.length > 0) {
+        html += '<ul class="master-error-list">';
+        errors.forEach(function(e) {
+          html += '<li>行 ' + e.row + ' / ' + escapeHtml(e.column || '') + ' = "' + escapeHtml(String(e.value || '')) + '"<br><span class="master-error-detail">' + escapeHtml(e.message) + '</span></li>';
+        });
+        html += '</ul>';
+      }
+      bodyEl.innerHTML = html;
+      footerEl.innerHTML = '<button type="button" class="btn-secondary" onclick="closeMasterModal()">閉じる</button>';
+    }
+
+    function confirmMasterApply() {
+      if (!pendingUploadFile || !pendingUploadType) return;
+      var type = pendingUploadType;
+      var file = pendingUploadFile;
+      var url = masterApiPath(type, 'upload');
+      var fd = new FormData();
+      fd.append('file', file);
+
+      var btn = document.getElementById('btnApplyMaster');
+      if (btn) { btn.disabled = true; btn.textContent = '反映中…'; }
+
+      fetch(url, { method: 'POST', credentials: 'same-origin', body: fd })
+        .then(function(res) { return res.json().then(function(json) { return { ok: res.ok, json: json }; }); })
+        .then(function(r) {
+          if (r.json && r.json.success) {
+            var s = r.json.data.summary || {};
+            var scheduledInserted = r.json.data.scheduled_inserted || 0;
+            var scheduledCancelled = r.json.data.scheduled_cancelled || 0;
+            var msg = getMasterLabel(type) + 'を更新しました\n';
+            msg += '即時反映 — 追加: ' + s.insert + '件 / 変更: ' + s.update + '件 / 削除: ' + s.delete + '件';
+            if (scheduledInserted > 0) {
+              msg += '\n予約登録: ' + scheduledInserted + '件';
+              if (scheduledCancelled > 0) {
+                msg += '（既存予約 ' + scheduledCancelled + '件を上書き）';
+              }
+            }
+            alert(msg);
+            closeMasterModal();
+            clearMasterInput(type);
+          } else {
+            renderMasterErrors(type, r.json);
+          }
+        })
+        .catch(function(e) {
+          console.error('master apply error:', e);
+          alert('通信エラーが発生しました');
+        });
+    }
+    window.confirmMasterApply = confirmMasterApply;
+
+    function closeMasterModal() {
+      var overlay = document.getElementById('masterModal');
+      if (overlay) overlay.classList.remove('visible');
+      if (pendingUploadType) clearMasterInput(pendingUploadType);
+      pendingUploadFile = null;
+      pendingUploadType = null;
+    }
+    window.closeMasterModal = closeMasterModal;
+
+    function downloadMasterFile(type) {
+      if (IMPLEMENTED_MASTERS.indexOf(type) < 0) {
+        alert('「' + getMasterLabel(type) + '」は未実装です。');
+        return;
+      }
+      window.location.href = masterApiPath(type, 'download');
+    }
+    window.downloadMasterFile = downloadMasterFile;
+
+    function escapeHtml(s) {
+      if (s === null || s === undefined) return '';
+      return String(s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    // ===== 年度ドロップダウン動的取得 =====
+    function populateBudgetYearDropdown() {
+      var sel = document.getElementById('exportBudgetYear');
+      if (!sel) return;
+      fetch('api/budgets.php?action=years', { credentials: 'same-origin' })
+        .then(function(r) {
+          if (r.status === 401) { window.location.href = 'login.html'; return null; }
+          return r.json();
+        })
+        .then(function(json) {
+          if (!json || !json.success || !Array.isArray(json.data)) return;
+          var years = json.data;
+          if (years.length === 0) {
+            sel.innerHTML = '<option value="">（年度データなし）</option>';
+            return;
+          }
+          sel.innerHTML = '<option value="">すべて</option>' + years.map(function(y) {
+            return '<option value="' + y + '">' + y + '年度</option>';
+          }).join('');
+        })
+        .catch(function(e) { console.error('year fetch error:', e); });
+    }
+
+    // ===== D&D 対応（upload-area へのドロップ） =====
+    document.addEventListener('DOMContentLoaded', function() {
+      populateBudgetYearDropdown();
+      loadExportFilterMasters();
+
+      document.querySelectorAll('.master-card .upload-area').forEach(function(area) {
+        var type = area.parentElement.getAttribute('data-master-type');
+        if (!type) return;
+        ['dragenter', 'dragover'].forEach(function(ev) {
+          area.addEventListener(ev, function(e) {
+            e.preventDefault(); e.stopPropagation();
+            area.classList.add('dragover');
+          });
+        });
+        ['dragleave', 'drop'].forEach(function(ev) {
+          area.addEventListener(ev, function(e) {
+            e.preventDefault(); e.stopPropagation();
+            area.classList.remove('dragover');
+          });
+        });
+        area.addEventListener('drop', function(e) {
+          if (IMPLEMENTED_MASTERS.indexOf(type) < 0) {
+            alert('「' + getMasterLabel(type) + '」は未実装です。');
+            return;
+          }
+          var files = e.dataTransfer && e.dataTransfer.files;
+          if (files && files.length > 0) {
+            handleMasterFileSelected(type, files);
+          }
+        });
+      });
+    });
 
     // ===== Cascade Filters: Order =====
     function getFilteredShops(zoneVal, areaVal) {
@@ -244,55 +768,25 @@
       });
     }
 
+    // 発注データExcel出力（サーバー側 xlsx）
     function exportOrderData() {
-      var filtered = getFilteredOrders();
-      if (filtered.length === 0) {
-        alert('出力対象のデータがありません。');
-        return;
-      }
-
-      var rows = [];
-      rows.push(['発注データ']);
-      rows.push([]);
-
-      // Filter conditions
-      rows.push(['【ゾーン】', getSelectedText('exportOrderZone')]);
-      rows.push(['【エリア】', getSelectedText('exportOrderArea')]);
-      rows.push(['【店舗】', getSelectedText('exportOrderShop')]);
+      var params = [];
+      var zone = document.getElementById('exportOrderZone').value;
+      var area = document.getElementById('exportOrderArea').value;
+      var shop = document.getElementById('exportOrderShop').value;
       var dateFrom = document.getElementById('exportDateFrom').value;
       var dateTo = document.getElementById('exportDateTo').value;
-      var dateLabel = (dateFrom || '指定なし') + ' 〜 ' + (dateTo || '指定なし');
-      rows.push(['【発注日】', dateLabel]);
-      rows.push(['【種別】', getSelectedText('exportType')]);
-      rows.push(['【ステータス】', getSelectedText('exportStatus')]);
-      rows.push([]);
-
-      // Header
-      rows.push(['発注番号', '種別', '店舗', 'カテゴリ', '内容', '金額', 'ステータス', '発注日']);
-
-      // Data
-      filtered.sort(function(a, b) { return b.date.localeCompare(a.date); });
-      filtered.forEach(function(o) {
-        var typeLabel = TYPE_LABELS[o.type] || o.type;
-        var statusLabel = (STATUS_LABELS[o.type] || STATUS_LABELS.equipment)[o.status] || '';
-        var catLabel = o.category === 'fitness' ? 'フィットネス' : 'インドアゴルフ';
-        rows.push([
-          o.id, typeLabel, getShopName(o.shop), catLabel, o.title,
-          o.amount != null ? o.amount : '', statusLabel, o.date
-        ]);
-      });
-
-      // Summary
-      rows.push([]);
-      rows.push(['合計件数', filtered.length + '件']);
-      var totalAmount = 0;
-      var amountCount = 0;
-      filtered.forEach(function(o) { if (o.amount != null) { totalAmount += o.amount; amountCount++; } });
-      if (amountCount > 0) {
-        rows.push(['金額合計', totalAmount]);
-      }
-
-      downloadCsv(rows, '発注データ.csv');
+      var type = document.getElementById('exportType').value;
+      var status = document.getElementById('exportStatus').value;
+      if (zone)     params.push('zone='      + encodeURIComponent(zone));
+      if (area)     params.push('area='      + encodeURIComponent(area));
+      if (shop)     params.push('shop='      + encodeURIComponent(shop));
+      if (dateFrom) params.push('date_from=' + encodeURIComponent(dateFrom));
+      if (dateTo)   params.push('date_to='   + encodeURIComponent(dateTo));
+      if (type)     params.push('type='      + encodeURIComponent(type));
+      if (status)   params.push('status='    + encodeURIComponent(status));
+      var url = 'api/export/orders.php' + (params.length ? '?' + params.join('&') : '');
+      window.location.href = url;
     }
 
     // ===== Export: Budget Data =====
@@ -309,83 +803,19 @@
       });
     }
 
+    // 予算データExcel出力（サーバー側 xlsx）
+    //   year='' (すべて) のときは全年度をまとめて出力
+    //   dept='' (すべて) のときは全カテゴリブレークダウン
     function exportBudgetData() {
-      var data = getFilteredBudget();
-      if (data.length === 0) {
-        alert('出力対象のデータがありません。');
-        return;
-      }
-
-      var yearLabel = getSelectedText('exportBudgetYear');
-      var deptVal = document.getElementById('exportBudgetDept').value;
-
-      var rows = [];
-      rows.push(['予算管理データ']);
-      rows.push([]);
-      rows.push(['【ゾーン】', getSelectedText('exportBudgetZone')]);
-      rows.push(['【エリア】', getSelectedText('exportBudgetArea')]);
-      rows.push(['【店舗】', getSelectedText('exportBudgetShop')]);
-      rows.push(['【部門】', getSelectedText('exportBudgetDept')]);
-      rows.push(['【年度】', yearLabel]);
-      rows.push([]);
-
-      // Summary table
-      rows.push([
-        '店舗',
-        '当期予算', '当期実績', '当期残高', '当期消化率(%)',
-        '期中予算', '期中実績', '期中残高', '期中消化率(%)',
-        '当月予算', '当月実績', '当月残高', '当月消化率(%)'
-      ]);
-      data.forEach(function(d) {
-        rows.push([
-          d.shop,
-          d.period[0], d.period[1], d.period[2], d.period[3].toFixed(1),
-          d.midterm[0], d.midterm[1], d.midterm[2], d.midterm[3].toFixed(1),
-          d.month[0], d.month[1], d.month[2], d.month[3].toFixed(1)
-        ]);
-      });
-      if (data.length > 1) {
-        var totP = [0,0,0], totM = [0,0,0], totMo = [0,0,0];
-        data.forEach(function(d) {
-          for (var i = 0; i < 3; i++) { totP[i] += d.period[i]; totM[i] += d.midterm[i]; totMo[i] += d.month[i]; }
-        });
-        rows.push([
-          '合計',
-          totP[0], totP[1], totP[2], totP[0] > 0 ? (totP[1] / totP[0] * 100).toFixed(1) : '0.0',
-          totM[0], totM[1], totM[2], totM[0] > 0 ? (totM[1] / totM[0] * 100).toFixed(1) : '0.0',
-          totMo[0], totMo[1], totMo[2], totMo[0] > 0 ? (totMo[1] / totMo[0] * 100).toFixed(1) : '0.0'
-        ]);
-      }
-
-      // Monthly detail
-      var deptKeys = deptVal ? [departments.find(function(d) { return d.key === deptVal; }) || departments[0]] : departments;
-      rows.push([]);
-      rows.push(['===== 月別明細 =====']);
-      var monthHeaders = ['項目'];
-      fiscalMonths.forEach(function(m) { monthHeaders.push(m + '月'); });
-      monthHeaders.push('合計');
-
-      data.forEach(function(d) {
-        rows.push([]);
-        rows.push(['■ ' + d.shop]);
-        deptKeys.forEach(function(dept) {
-          rows.push(['【' + dept.label + '】']);
-          rows.push(monthHeaders);
-          var detail = d.details[dept.key];
-          var bRow = ['予算'], aRow = ['実績'], balRow = ['残高'], rRow = ['消化率(%)'];
-          var bTot = 0, aTot = 0;
-          detail.forEach(function(cell) {
-            bRow.push(cell[0]); aRow.push(cell[1]);
-            balRow.push(cell[0] - cell[1]);
-            rRow.push(cell[0] > 0 ? (cell[1] / cell[0] * 100).toFixed(1) : '0.0');
-            bTot += cell[0]; aTot += cell[1];
-          });
-          bRow.push(bTot); aRow.push(aTot); balRow.push(bTot - aTot);
-          rRow.push(bTot > 0 ? (aTot / bTot * 100).toFixed(1) : '0.0');
-          rows.push(bRow); rows.push(aRow); rows.push(balRow); rows.push(rRow);
-        });
-      });
-
-      var year = document.getElementById('exportBudgetYear').value;
-      downloadCsv(rows, '予算管理_' + year + '年度.csv');
+      var year = document.getElementById('exportBudgetYear').value; // '' or 'YYYY'
+      var zone = document.getElementById('exportBudgetZone').value;
+      var area = document.getElementById('exportBudgetArea').value;
+      var shop = document.getElementById('exportBudgetShop').value;
+      var dept = document.getElementById('exportBudgetDept').value || 'all';
+      var params = ['dept=' + encodeURIComponent(dept)];
+      if (year) params.push('year=' + encodeURIComponent(year));
+      if (zone) params.push('zone=' + encodeURIComponent(zone));
+      if (area) params.push('area=' + encodeURIComponent(area));
+      if (shop) params.push('shop=' + encodeURIComponent(shop));
+      window.location.href = 'api/export/budgets.php?' + params.join('&');
     }

@@ -1,6 +1,6 @@
-// ===== Role Detection =====
-var params = new URLSearchParams(window.location.search);
-var viewMode = params.get('role') === 'admin' ? 'admin' : 'store';
+// ===== Role Detection (from API via userLoaded event) =====
+var viewMode = 'store';
+var currentUser = null;
 
 // ===== Status Constants =====
 // 全種別共通の5段階（番号は共通、ラベルは種別で異なる）
@@ -43,32 +43,37 @@ function getStatusClass(status, type) {
   return (STATUS_CLASSES_BY_TYPE[type] || STATUS_CLASSES_BY_TYPE.equipment)[status] || '';
 }
 
-// ===== System Settings =====
-var systemSettings = {
-  equipmentDeadlineWeekday: 3 // 締め曜日 (0=日,1=月,2=火,3=水,4=木,5=金,6=土)
-};
+// ===== Categories Master（締めルール参照用） =====
+var categoriesMap = {}; // code -> { closing_type, closing_day }
 
 // ===== Date Helpers =====
-function getNextDeadlineDate() {
-  var deadlineDay = systemSettings.equipmentDeadlineWeekday;
+// 備品の納品予定日デフォルト値
+// カテゴリの締めルールから「次の締め日 + 4日」を返す（配達に約4日かかる前提）。
+// setup/auto_advance_status.php の 1→2 自動遷移フォールバック値（締め日+4日）と同じロジック。
+// none の場合は空文字を返し、admin に手入力させる。
+function getEquipmentDeliveryDate(order) {
+  if (!order || !order.category_code) return '';
+  var closing = categoriesMap[order.category_code];
+  if (!closing) return '';
   var today = new Date();
-  var daysUntil = (deadlineDay - today.getDay() + 7) % 7;
-  if (daysUntil === 0) daysUntil = 7;
-  var d = new Date(today);
-  d.setDate(today.getDate() + daysUntil);
-  return formatDate(d);
-}
 
-function getEquipmentDeliveryDate() {
-  var deadlineDay = systemSettings.equipmentDeadlineWeekday;
-  var today = new Date();
-  var daysUntil = (deadlineDay - today.getDay() + 7) % 7;
-  var deadlineDate = new Date(today);
-  deadlineDate.setDate(today.getDate() + daysUntil);
-  // 締め曜日の翌日を納品予定日とする（カレンダー日ベース）
-  var delivery = new Date(deadlineDate);
-  delivery.setDate(delivery.getDate() + 1);
-  return formatDate(delivery);
+  if (closing.closing_type === 'monthly') {
+    var day = today.getDate();
+    var year = today.getFullYear();
+    var month = today.getMonth(); // 0-based
+    if (day > closing.closing_day) month += 1;
+    return formatDate(new Date(year, month, closing.closing_day + 4));
+  }
+
+  if (closing.closing_type === 'weekly') {
+    var currentDow = today.getDay();
+    var daysUntil = ((closing.closing_day - currentDow + 7) % 7) + 4;
+    var d = new Date(today);
+    d.setDate(today.getDate() + daysUntil);
+    return formatDate(d);
+  }
+
+  return '';
 }
 
 function formatDate(d) {
@@ -89,371 +94,281 @@ function nowStr() {
 }
 
 function getCurrentUser() {
-  return viewMode === 'admin' ? '商品部' : '新宿東口店';
+  return currentUser ? currentUser.name : '';
 }
 
-// ===== Zone / Area / Shop Master =====
-var zones = [
-  { code: '100', name: '東日本' },
-  { code: '200', name: '西日本' }
-];
-var areas = [
-  { code: '101', name: '北海道', zone: '100' },
-  { code: '102', name: '東北', zone: '100' },
-  { code: '103', name: '関東', zone: '100' },
-  { code: '201', name: '関西', zone: '200' },
-  { code: '202', name: '中国・四国', zone: '200' }
-];
-var shops = [
-  { code: '10301', name: '新宿東口', shortCode: 'S01', area: '103' },
-  { code: '10302', name: '池袋西口', shortCode: 'S02', area: '103' },
-  { code: '10303', name: '横浜', shortCode: 'S03', area: '103' },
-  { code: '10101', name: '札幌', shortCode: 'S04', area: '101' },
-  { code: '10102', name: '函館', shortCode: 'S05', area: '101' },
-  { code: '10201', name: '仙台', shortCode: 'S06', area: '102' },
-  { code: '20101', name: '梅田', shortCode: 'S07', area: '201' },
-  { code: '20102', name: '難波', shortCode: 'S08', area: '201' },
-  { code: '20201', name: '広島', shortCode: 'S09', area: '202' }
-];
+// ===== Zone / Area / Shop Master (populated from API) =====
+var zones = [];
+var areas = [];
+var shops = [];
 
 function getShopName(code) {
-  var shop = shops.find(function(s) { return s.code === code; });
-  return shop ? shop.name : code;
+  var shop = shops.find(function(s) { return s.shop_code === code; });
+  return shop ? shop.shop_name : code;
 }
 
-// ===== Sample Data =====
-// 新ステータス: 0=依頼中, 1=発注済, 2=配達中/修理待ち, 3=納品済/修理済, 4=完了
-var storeOrders = [
-  // ===== 修理 × 全5ステータス =====
-  {
-    id: 'REP-S01-20260301-0001', type: 'repair', category: 'fitness', title: 'ランニングマシン ベルト異常',
-    amount: null, status: STATUS.REQUESTING, date: '2026-03-01', shop: '10301',
-    equipment: 'ランニングマシン TR-800', issue: 'ベルトが滑る。異音が発生。',
-    unavailDates: ['2026-03-10（終日）', '2026-03-17（午前）'], unavailDays: ['火曜日', '木曜日'],
-    photos: 2, estimateAmount: null, repairScheduleDate: '', finalAmount: null, repairCompletedDate: '', deliveryDate: '',
-    statusHistory: [{ status: 0, date: '2026/03/01 09:15', user: '新宿東口店', memo: '' }]
-  },
-  {
-    id: 'REP-S01-20260225-0001', type: 'repair', category: 'fitness', title: 'エアロバイク 表示パネル故障',
-    amount: null, status: STATUS.ORDERED, date: '2026-02-25', shop: '10301',
-    equipment: 'エアロバイク AB-200', issue: '液晶パネルが表示されない',
-    unavailDates: ['2026-03-05（午前）'], unavailDays: [], photos: 1,
-    estimateAmount: 35000, repairScheduleDate: '2026-03-15', finalAmount: null, repairCompletedDate: '', deliveryDate: '',
-    statusHistory: [
-      { status: 0, date: '2026/02/25 09:00', user: '新宿東口店', memo: '' },
-      { status: 1, date: '2026/02/27 15:00', user: '商品部', memo: '見積もり回答あり。35,000円。修理日は3/15で調整中。' }
-    ]
-  },
-  {
-    id: 'REP-S01-20260220-0001', type: 'repair', category: 'golf', title: 'パッティングマシン モーター異常',
-    amount: null, status: STATUS.DELIVERING, date: '2026-02-20', shop: '10301',
-    equipment: 'パッティングマシン PM-300', issue: 'モーターが回転しない',
-    unavailDates: [], unavailDays: ['日曜日'], photos: 3,
-    estimateAmount: 52000, repairScheduleDate: '2026-03-05', finalAmount: null, repairCompletedDate: '', deliveryDate: '',
-    statusHistory: [
-      { status: 0, date: '2026/02/20 08:30', user: '新宿東口店', memo: '' },
-      { status: 1, date: '2026/02/23 14:00', user: '商品部', memo: '見積52,000円。修理予定3/5。' },
-      { status: 2, date: '2026/02/25 10:00', user: '商品部', memo: '修理業者手配完了。3/5に訪問予定。' }
-    ]
-  },
-  {
-    id: 'REP-S01-20260215-0001', type: 'repair', category: 'fitness', title: 'レッグプレスマシン 油圧漏れ',
-    amount: null, status: STATUS.DELIVERED, date: '2026-02-15', shop: '10301',
-    equipment: 'レッグプレス LP-400', issue: '油圧シリンダーから微量の漏れ',
-    unavailDates: ['2026-02-28（終日）'], unavailDays: [], photos: 2,
-    estimateAmount: 65000, repairScheduleDate: '2026-02-28', finalAmount: null, repairCompletedDate: '2026-02-28', deliveryDate: '',
-    statusHistory: [
-      { status: 0, date: '2026/02/15 08:00', user: '新宿東口店', memo: '' },
-      { status: 1, date: '2026/02/18 14:00', user: '商品部', memo: '見積65,000円。2/28で修理予定。' },
-      { status: 2, date: '2026/02/20 10:00', user: '商品部', memo: '修理業者手配完了。' },
-      { status: 3, date: '2026/02/28 17:00', user: '新宿東口店', memo: '修理完了。正常稼働を確認しました。' }
-    ]
-  },
-  {
-    id: 'REP-S01-20260210-0001', type: 'repair', category: 'golf', title: 'ゴルフシミュレーター 映像不具合',
-    amount: null, status: STATUS.COMPLETED, date: '2026-02-10', shop: '10301',
-    equipment: 'ゴルフシミュレーター GS-Pro', issue: 'プロジェクターの映像がちらつく',
-    unavailDates: [], unavailDays: ['月曜日'], photos: 1,
-    estimateAmount: 45000, repairScheduleDate: '2026-02-20', finalAmount: 42000, repairCompletedDate: '2026-02-19', deliveryDate: '',
-    statusHistory: [
-      { status: 0, date: '2026/02/10 10:15', user: '新宿東口店', memo: '' },
-      { status: 1, date: '2026/02/13 11:00', user: '商品部', memo: '見積45,000円。2/20で修理予定。' },
-      { status: 2, date: '2026/02/14 10:00', user: '商品部', memo: '修理業者手配完了。' },
-      { status: 3, date: '2026/02/19 16:00', user: '新宿東口店', memo: '修理完了。映像の乱れ解消を確認。' },
-      { status: 4, date: '2026/02/20 10:00', user: '商品部', memo: '最終金額42,000円で確定。部品代差引。' }
-    ]
-  },
-  // ===== 備品 × 全5ステータス =====
-  {
-    id: 'EQU-S01-20260302-0001', type: 'equipment', category: 'fitness', title: 'トレーニングマット × 5',
-    amount: 17500, status: STATUS.REQUESTING, date: '2026-03-02', shop: '10301',
-    equipDetails: [
-      { name: 'トレーニングマット', code: 'MAT-001', price: 3500, qty: 5, supplier: 'フィットネスジャパン', arrivalDate: '' }
-    ],
-    estimateAmount: null, finalAmount: null, deliveryDate: '', repairScheduleDate: '', repairCompletedDate: '',
-    statusHistory: [{ status: 0, date: '2026/03/02 14:30', user: '新宿東口店', memo: '' }]
-  },
-  {
-    id: 'EQU-S01-20260226-0001', type: 'equipment', category: 'golf', title: 'ゴルフボール 他1商品',
-    amount: 72000, status: STATUS.ORDERED, date: '2026-02-26', shop: '10301',
-    equipDetails: [
-      { name: 'ゴルフボール 1ダース', code: 'GB-012', price: 4200, qty: 10, supplier: 'ゴルフサプライ', arrivalDate: '2026-03-05' },
-      { name: 'グローブ Lサイズ', code: 'GL-L01', price: 1500, qty: 20, supplier: 'ゴルフサプライ', arrivalDate: '2026-03-05' }
-    ],
-    estimateAmount: 72000, finalAmount: null, deliveryDate: '2026-03-05', repairScheduleDate: '', repairCompletedDate: '',
-    statusHistory: [
-      { status: 0, date: '2026/02/26 10:00', user: '新宿東口店', memo: '' },
-      { status: 1, date: '2026/02/27 00:00', user: 'システム（自動:締め日）', memo: '締め日により自動発注。見積金額: ¥72,000' }
-    ]
-  },
-  {
-    id: 'EQU-S01-20260224-0001', type: 'equipment', category: 'fitness', title: 'エアロバイク 他2商品',
-    amount: 324000, status: STATUS.ORDERED, date: '2026-02-24', shop: '10301',
-    equipDetails: [
-      { name: 'エアロバイク AB-300', code: 'AB-300', price: 128000, qty: 2, supplier: 'フィットネスジャパン', arrivalDate: '2026-03-10' },
-      { name: 'フロアマット（大）', code: 'FM-L01', price: 12000, qty: 4, supplier: 'フィットネスジャパン', arrivalDate: '2026-03-10' },
-      { name: '心拍計アームバンド', code: 'HR-AB1', price: 4000, qty: 5, supplier: 'スポーツ用品販売', arrivalDate: '2026-03-10' }
-    ],
-    estimateAmount: 324000, finalAmount: null, deliveryDate: '2026-03-10', repairScheduleDate: '', repairCompletedDate: '',
-    statusHistory: [
-      { status: 0, date: '2026/02/24 11:00', user: '新宿東口店', memo: '' },
-      { status: 1, date: '2026/02/27 00:00', user: 'システム（自動:締め日）', memo: '締め日により自動発注。見積金額: ¥324,000' }
-    ]
-  },
-  {
-    id: 'EQU-S01-20260222-0001', type: 'equipment', category: 'fitness', title: 'バランスボール × 3',
-    amount: 5400, status: STATUS.DELIVERING, date: '2026-02-22', shop: '10301',
-    equipDetails: [
-      { name: 'バランスボール 65cm', code: 'BB-065', price: 1800, qty: 3, supplier: 'スポーツ用品販売', arrivalDate: '2026-03-01' }
-    ],
-    estimateAmount: 5400, finalAmount: null, deliveryDate: '2026-03-01', repairScheduleDate: '', repairCompletedDate: '',
-    statusHistory: [
-      { status: 0, date: '2026/02/22 10:00', user: '新宿東口店', memo: '' },
-      { status: 1, date: '2026/02/23 00:00', user: 'システム（自動:締め日）', memo: '締め日により自動発注。' },
-      { status: 2, date: '2026/02/24 00:00', user: 'システム（自動:締め日翌日）', memo: '締め日翌日により自動遷移。納品予定日: 3/1' }
-    ]
-  },
-  {
-    id: 'EQU-S01-20260218-0001', type: 'equipment', category: 'fitness', title: 'タオル（大）10枚セット × 3',
-    amount: 16800, status: STATUS.DELIVERED, date: '2026-02-18', shop: '10301',
-    equipDetails: [{ name: 'タオル（大）10枚セット', code: 'TW-L10', price: 5600, qty: 3, supplier: 'リネンサービス', arrivalDate: '2026-02-25' }],
-    estimateAmount: 16800, finalAmount: null, deliveryDate: '2026-02-25', repairScheduleDate: '', repairCompletedDate: '',
-    statusHistory: [
-      { status: 0, date: '2026/02/18 09:00', user: '新宿東口店', memo: '' },
-      { status: 1, date: '2026/02/19 00:00', user: 'システム（自動:締め日）', memo: '締め日により自動発注。' },
-      { status: 2, date: '2026/02/20 00:00', user: 'システム（自動:締め日翌日）', memo: '自動遷移。' },
-      { status: 3, date: '2026/02/25 00:00', user: 'システム（自動:納品予定日）', memo: '納品予定日により自動遷移。' }
-    ]
-  },
-  {
-    id: 'EQU-S01-20260212-0001', type: 'equipment', category: 'golf', title: 'スコアカード 100枚 × 5',
-    amount: 6000, status: STATUS.COMPLETED, date: '2026-02-12', shop: '10301',
-    equipDetails: [{ name: 'スコアカード 100枚', code: 'SC-100', price: 1200, qty: 5, supplier: 'ゴルフサプライ', arrivalDate: '2026-02-19' }],
-    estimateAmount: 6000, finalAmount: 6000, deliveryDate: '2026-02-19', actualDeliveryDate: '2026-02-19', repairScheduleDate: '', repairCompletedDate: '',
-    statusHistory: [
-      { status: 0, date: '2026/02/12 09:00', user: '新宿東口店', memo: '' },
-      { status: 1, date: '2026/02/13 00:00', user: 'システム（自動:締め日）', memo: '締め日により自動発注。' },
-      { status: 2, date: '2026/02/14 00:00', user: 'システム（自動:締め日翌日）', memo: '自動遷移。' },
-      { status: 3, date: '2026/02/19 00:00', user: 'システム（自動:納品予定日）', memo: '納品予定日により自動遷移。' },
-      { status: 4, date: '2026/02/20 00:00', user: 'システム（自動:納品予定日翌日）', memo: '納品予定日翌日により自動完了。見積金額を最終金額に適用。' }
-    ]
-  },
-  // ===== 部品 × 全5ステータス =====
-  {
-    id: 'PTS-S01-20260303-0001', type: 'parts', category: 'golf', title: 'スイング診断機 センサー交換部品',
-    amount: null, status: STATUS.REQUESTING, date: '2026-03-03', shop: '10301',
-    partsName: 'センサーユニット SU-100', targetEquip: 'スイング診断機 GST-7',
-    reason: 'センサー応答が遅くなっている', quantity: 1, partsPhotos: 2,
-    estimateAmount: null, finalAmount: null, deliveryDate: '', repairScheduleDate: '', repairCompletedDate: '',
-    statusHistory: [{ status: 0, date: '2026/03/03 11:20', user: '新宿東口店', memo: '' }]
-  },
-  {
-    id: 'PTS-S01-20260227-0001', type: 'parts', category: 'fitness', title: 'エアロバイク ペダル交換部品',
-    amount: null, status: STATUS.ORDERED, date: '2026-02-27', shop: '10301',
-    partsName: 'ペダルユニット PD-200', targetEquip: 'エアロバイク AB-150',
-    reason: 'ペダル軸の摩耗', quantity: 2, partsPhotos: 1,
-    estimateAmount: 8500, finalAmount: null, deliveryDate: '2026-03-15', repairScheduleDate: '', repairCompletedDate: '',
-    statusHistory: [
-      { status: 0, date: '2026/02/27 09:00', user: '新宿東口店', memo: '' },
-      { status: 1, date: '2026/03/01 11:00', user: '商品部', memo: '8,500円で発注確定。3/15納品予定。' }
-    ]
-  },
-  {
-    id: 'PTS-S01-20260221-0001', type: 'parts', category: 'golf', title: 'スイングカメラ レンズユニット',
-    amount: null, status: STATUS.DELIVERING, date: '2026-02-21', shop: '10301',
-    partsName: 'レンズユニット LC-300', targetEquip: 'スイングカメラ SC-200',
-    reason: 'レンズに傷。映像にノイズ', quantity: 1, partsPhotos: 3,
-    estimateAmount: 12000, finalAmount: null, deliveryDate: '2026-03-10', repairScheduleDate: '', repairCompletedDate: '',
-    statusHistory: [
-      { status: 0, date: '2026/02/21 11:00', user: '新宿東口店', memo: '' },
-      { status: 1, date: '2026/02/24 14:00', user: '商品部', memo: '12,000円で発注確定。' },
-      { status: 2, date: '2026/02/26 10:00', user: '商品部', memo: '配達手配完了。3/10納品予定。' }
-    ]
-  },
-  {
-    id: 'PTS-S01-20260216-0001', type: 'parts', category: 'fitness', title: 'トレッドミル ベルト交換部品',
-    amount: null, status: STATUS.DELIVERED, date: '2026-02-16', shop: '10301',
-    partsName: 'ベルトユニット BT-100', targetEquip: 'トレッドミル TM-500',
-    reason: 'ベルトの摩耗が進行', quantity: 1, partsPhotos: 1,
-    estimateAmount: 18000, finalAmount: null, deliveryDate: '2026-02-28', repairScheduleDate: '', repairCompletedDate: '',
-    statusHistory: [
-      { status: 0, date: '2026/02/16 10:00', user: '新宿東口店', memo: '' },
-      { status: 1, date: '2026/02/19 11:00', user: '商品部', memo: '18,000円で発注確定。' },
-      { status: 2, date: '2026/02/21 10:00', user: '商品部', memo: '配達手配完了。2/28納品予定。' },
-      { status: 3, date: '2026/02/28 14:00', user: '新宿東口店', memo: '部品受領。問題なし。' }
-    ]
-  },
-  {
-    id: 'PTS-S01-20260211-0001', type: 'parts', category: 'golf', title: 'パッティングマシン センサー部品',
-    amount: null, status: STATUS.COMPLETED, date: '2026-02-11', shop: '10301',
-    partsName: 'モーターユニット MU-200', targetEquip: 'パッティングマシン PM-300',
-    reason: 'モーター回転不良の予防交換', quantity: 1, partsPhotos: 0,
-    estimateAmount: 25000, finalAmount: 25000, deliveryDate: '2026-02-20', repairScheduleDate: '', repairCompletedDate: '',
-    statusHistory: [
-      { status: 0, date: '2026/02/11 09:30', user: '新宿東口店', memo: '' },
-      { status: 1, date: '2026/02/14 10:00', user: '商品部', memo: '25,000円で発注確定。' },
-      { status: 2, date: '2026/02/16 10:00', user: '商品部', memo: '配達手配完了。2/20納品予定。' },
-      { status: 3, date: '2026/02/20 15:00', user: '新宿東口店', memo: '部品受領。' },
-      { status: 4, date: '2026/02/21 10:00', user: '商品部', memo: '最終金額25,000円で確定。' }
-    ]
-  }
-];
-
-var adminOrders = storeOrders.concat([
-  // 札幌店
-  {
-    id: 'REP-S04-20260223-0001', type: 'repair', category: 'fitness', title: 'トレッドミル 異音発生',
-    amount: null, status: STATUS.REQUESTING, date: '2026-02-23', shop: '10101',
-    equipment: 'トレッドミル TM-500', issue: '動作時に異音が発生',
-    unavailDates: ['2026-03-07（終日）'], unavailDays: ['土曜日'], photos: 0,
-    estimateAmount: null, finalAmount: null, repairScheduleDate: '', repairCompletedDate: '', deliveryDate: '',
-    statusHistory: [{ status: 0, date: '2026/02/23 13:00', user: '札幌店', memo: '' }]
-  },
-  {
-    id: 'EQU-S04-20260224-0001', type: 'equipment', category: 'fitness', title: 'ダンベルセット 10kg × 3',
-    amount: 25200, status: STATUS.ORDERED, date: '2026-02-24', shop: '10101',
-    equipDetails: [{ name: 'ダンベルセット 10kg', code: 'DB-010', price: 8400, qty: 3, supplier: 'フィットネスジャパン', arrivalDate: '2026-02-28' }],
-    estimateAmount: 25200, finalAmount: null, deliveryDate: '2026-03-05', repairScheduleDate: '', repairCompletedDate: '',
-    statusHistory: [
-      { status: 0, date: '2026/02/24 10:00', user: '札幌店', memo: '' },
-      { status: 1, date: '2026/02/26 00:00', user: 'システム（自動:締め日）', memo: '締め日により自動発注。' }
-    ]
-  },
-  // 函館店
-  {
-    id: 'PTS-S05-20260222-0001', type: 'parts', category: 'fitness', title: 'エアロバイク ペダル交換部品',
-    amount: null, status: STATUS.DELIVERING, date: '2026-02-22', shop: '10102',
-    partsName: 'ペダルユニット PD-200', targetEquip: 'エアロバイク AB-150',
-    reason: 'ペダル軸の摩耗', quantity: 2, partsPhotos: 1,
-    estimateAmount: 8500, finalAmount: null, deliveryDate: '2026-03-10', repairScheduleDate: '', repairCompletedDate: '',
-    statusHistory: [
-      { status: 0, date: '2026/02/22 09:00', user: '函館店', memo: '' },
-      { status: 1, date: '2026/02/23 11:00', user: '商品部', memo: '8,500円で発注確定。' },
-      { status: 2, date: '2026/02/24 10:00', user: '商品部', memo: '配達手配完了。3/10納品予定。' }
-    ]
-  },
-  // 池袋西口店
-  {
-    id: 'EQU-S02-20260225-0001', type: 'equipment', category: 'golf', title: 'グローブ Lサイズ 他1商品',
-    amount: 38000, status: STATUS.ORDERED, date: '2026-02-25', shop: '10302',
-    equipDetails: [
-      { name: 'グローブ Lサイズ', code: 'GL-L01', price: 1500, qty: 20, supplier: 'ゴルフサプライ', arrivalDate: '2026-02-28' },
-      { name: 'ゴルフティー 100本入り', code: 'GT-100', price: 800, qty: 10, supplier: 'ゴルフサプライ', arrivalDate: '2026-02-28' }
-    ],
-    estimateAmount: 38000, finalAmount: null, deliveryDate: '2026-03-06', repairScheduleDate: '', repairCompletedDate: '',
-    statusHistory: [
-      { status: 0, date: '2026/02/25 08:30', user: '池袋西口店', memo: '' },
-      { status: 1, date: '2026/02/26 00:00', user: 'システム（自動:締め日）', memo: '締め日により自動発注。' }
-    ]
-  },
-  {
-    id: 'REP-S02-20260224-0001', type: 'repair', category: 'golf', title: 'シミュレーター プロジェクター不具合',
-    amount: null, status: STATUS.REQUESTING, date: '2026-02-24', shop: '10302',
-    equipment: 'ゴルフシミュレーター GS-Pro', issue: 'プロジェクターの映像がちらつく',
-    unavailDates: ['2026-03-10（午後）'], unavailDays: ['月曜日'], photos: 1,
-    estimateAmount: null, finalAmount: null, repairScheduleDate: '', repairCompletedDate: '', deliveryDate: '',
-    statusHistory: [{ status: 0, date: '2026/02/24 10:15', user: '池袋西口店', memo: '' }]
-  },
-  // 横浜店
-  {
-    id: 'EQU-S03-20260220-0001', type: 'equipment', category: 'fitness', title: 'タオル（大）10枚セット × 3',
-    amount: 16800, status: STATUS.DELIVERED, date: '2026-02-20', shop: '10303',
-    equipDetails: [{ name: 'タオル（大）10枚セット', code: 'TW-L10', price: 5600, qty: 3, supplier: 'リネンサービス', arrivalDate: '2026-02-28' }],
-    estimateAmount: 16800, finalAmount: null, deliveryDate: '2026-02-28', repairScheduleDate: '', repairCompletedDate: '',
-    statusHistory: [
-      { status: 0, date: '2026/02/20 09:00', user: '横浜店', memo: '' },
-      { status: 1, date: '2026/02/21 00:00', user: 'システム（自動:締め日）', memo: '締め日により自動発注。' },
-      { status: 2, date: '2026/02/22 00:00', user: 'システム（自動:締め日翌日）', memo: '自動遷移。' },
-      { status: 3, date: '2026/02/28 00:00', user: 'システム（自動:納品予定日）', memo: '納品予定日により自動遷移。' }
-    ]
-  },
-  // 仙台店
-  {
-    id: 'REP-S06-20260219-0001', type: 'repair', category: 'fitness', title: 'レッグプレスマシン 油圧漏れ',
-    amount: null, status: STATUS.DELIVERING, date: '2026-02-19', shop: '10201',
-    equipment: 'レッグプレス LP-400', issue: '油圧シリンダーから微量の漏れ',
-    unavailDates: ['2026-03-20（終日）'], unavailDays: [], photos: 2,
-    estimateAmount: 65000, repairScheduleDate: '2026-03-15', finalAmount: null, repairCompletedDate: '', deliveryDate: '',
-    statusHistory: [
-      { status: 0, date: '2026/02/19 08:00', user: '仙台店', memo: '' },
-      { status: 1, date: '2026/02/23 14:00', user: '商品部', memo: '見積65,000円。3/15で修理予定。' },
-      { status: 2, date: '2026/02/24 10:00', user: '商品部', memo: '修理業者手配完了。' }
-    ]
-  },
-  // 梅田店
-  {
-    id: 'EQU-S07-20260217-0001', type: 'equipment', category: 'golf', title: 'スコアカード 100枚 × 5',
-    amount: 6000, status: STATUS.COMPLETED, date: '2026-02-17', shop: '20101',
-    equipDetails: [{ name: 'スコアカード 100枚', code: 'SC-100', price: 1200, qty: 5, supplier: 'ゴルフサプライ', arrivalDate: '2026-02-21' }],
-    estimateAmount: 6000, finalAmount: 6000, deliveryDate: '2026-02-21', actualDeliveryDate: '2026-02-21', repairScheduleDate: '', repairCompletedDate: '',
-    statusHistory: [
-      { status: 0, date: '2026/02/17 09:00', user: '梅田店', memo: '' },
-      { status: 1, date: '2026/02/18 00:00', user: 'システム（自動:締め日）', memo: '締め日により自動発注。' },
-      { status: 2, date: '2026/02/19 00:00', user: 'システム（自動:締め日翌日）', memo: '自動遷移。' },
-      { status: 3, date: '2026/02/21 00:00', user: 'システム（自動:納品予定日）', memo: '納品予定日により自動遷移。' },
-      { status: 4, date: '2026/02/22 00:00', user: 'システム（自動:納品予定日翌日）', memo: '納品予定日翌日により自動完了。見積金額を最終金額に適用。' }
-    ]
-  },
-  {
-    id: 'PTS-S07-20260226-0001', type: 'parts', category: 'golf', title: 'スイングカメラ レンズユニット',
-    amount: null, status: STATUS.REQUESTING, date: '2026-02-26', shop: '20101',
-    partsName: 'レンズユニット LC-300', targetEquip: 'スイングカメラ SC-200',
-    reason: 'レンズに傷。映像にノイズ', quantity: 1, partsPhotos: 3,
-    estimateAmount: null, finalAmount: null, deliveryDate: '', repairScheduleDate: '', repairCompletedDate: '',
-    statusHistory: [{ status: 0, date: '2026/02/26 11:00', user: '梅田店', memo: '' }]
-  },
-  // 難波店
-  {
-    id: 'REP-S08-20260226-0001', type: 'repair', category: 'fitness', title: 'ランニングマシン 速度制御不良',
-    amount: null, status: STATUS.REQUESTING, date: '2026-02-26', shop: '20102',
-    equipment: 'ランニングマシン TR-900', issue: '速度が安定しない',
-    unavailDates: [], unavailDays: ['水曜日', '金曜日'], photos: 0,
-    estimateAmount: null, finalAmount: null, repairScheduleDate: '', repairCompletedDate: '', deliveryDate: '',
-    statusHistory: [{ status: 0, date: '2026/02/26 08:45', user: '難波店', memo: '' }]
-  },
-  // 広島店
-  {
-    id: 'EQU-S09-20260225-0001', type: 'equipment', category: 'fitness', title: 'ヨガマット × 10',
-    amount: 15000, status: STATUS.ORDERED, date: '2026-02-25', shop: '20201',
-    equipDetails: [{ name: 'ヨガマット', code: 'YM-001', price: 1500, qty: 10, supplier: 'フィットネスジャパン', arrivalDate: '2026-02-28' }],
-    estimateAmount: 15000, finalAmount: null, deliveryDate: '2026-03-06', repairScheduleDate: '', repairCompletedDate: '',
-    statusHistory: [
-      { status: 0, date: '2026/02/25 09:30', user: '広島店', memo: '' },
-      { status: 1, date: '2026/02/26 00:00', user: 'システム（自動:締め日）', memo: '締め日により自動発注。' }
-    ]
-  }
-]);
-
+// ===== Order Data (populated from API) =====
+var currentOrders = [];
 var expandedIds = {};
+var selectedIds = {}; // 一括ステータス変更用チェック状態（再描画で消えないよう保持）
+
+// ===== Pagination state =====
+var PAGE_SIZE_STORAGE_KEY = 'pagesize:order-list';
+var defaultPageSize = 20;
+var pageSize = defaultPageSize; // 1ページの表示件数（数値 or 'all'）
+var displayLimit = defaultPageSize; // 現在表示している件数（次を表示で増加）
+
+function loadPageSize() {
+  try {
+    var stored = sessionStorage.getItem(PAGE_SIZE_STORAGE_KEY);
+    if (stored === null) return;
+    if (stored === 'all') { pageSize = 'all'; return; }
+    var n = parseInt(stored, 10);
+    if (n > 0) pageSize = n;
+  } catch (e) {}
+}
+
+function savePageSize() {
+  try { sessionStorage.setItem(PAGE_SIZE_STORAGE_KEY, String(pageSize)); } catch (e) {}
+}
+
+// ===== API Helpers =====
+function apiGet(url) {
+  return fetch(url, { credentials: 'same-origin' })
+    .then(function(r) { return r.json(); });
+}
+
+function apiPost(url, body) {
+  return fetch(url, {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  }).then(function(r) { return r.json(); });
+}
+
+// ===== Fetch Master Data =====
+function fetchMasterData(callback) {
+  if (viewMode !== 'admin') {
+    callback();
+    return;
+  }
+  var done = 0;
+  var total = 4;
+
+  function checkDone() {
+    done++;
+    if (done < total) return;
+    // ロール別に zones/areas/shops を管轄スコープに絞り込む
+    applyRoleScopeToMasters();
+    // Populate zone select
+    var zoneSelect = document.getElementById('filterZone');
+    if (zoneSelect) {
+      // zone/area ロールは管轄ゾーン 1 つだけ表示 + disabled
+      if (currentUser && (currentUser.role === 'zone' || currentUser.role === 'area')) {
+        zoneSelect.innerHTML = '';
+        zones.forEach(function(z) {
+          zoneSelect.innerHTML += '<option value="' + z.zone_code + '">' + z.zone_code + ':' + z.zone_name + '</option>';
+        });
+        zoneSelect.disabled = true;
+        if (zones[0]) zoneSelect.value = zones[0].zone_code;
+      } else {
+        zoneSelect.innerHTML = '<option value="">すべて</option>';
+        zones.forEach(function(z) {
+          zoneSelect.innerHTML += '<option value="' + z.zone_code + '">' + z.zone_code + ':' + z.zone_name + '</option>';
+        });
+      }
+    }
+    // area/shop の初期化は initView の restoreFilters 内で行う（applyFiltersの二重発火防止）
+    callback();
+  }
+
+  // ロール別の管轄スコープを zones/areas/shops に適用
+  function applyRoleScopeToMasters() {
+    if (!currentUser) return;
+    if (currentUser.role === 'zone' && currentUser.zone_code) {
+      zones = zones.filter(function(z) { return z.zone_code === currentUser.zone_code; });
+      areas = areas.filter(function(a) { return a.zone_code === currentUser.zone_code; });
+      var validAreaCodes = areas.map(function(a) { return a.area_code; });
+      shops = shops.filter(function(s) { return validAreaCodes.indexOf(s.area_code) !== -1; });
+    } else if (currentUser.role === 'area' && currentUser.area_code) {
+      var myArea = null;
+      for (var i = 0; i < areas.length; i++) {
+        if (areas[i].area_code === currentUser.area_code) { myArea = areas[i]; break; }
+      }
+      var myZoneCode = myArea ? myArea.zone_code : null;
+      zones = zones.filter(function(z) { return z.zone_code === myZoneCode; });
+      areas = areas.filter(function(a) { return a.area_code === currentUser.area_code; });
+      shops = shops.filter(function(s) { return s.area_code === currentUser.area_code; });
+    }
+  }
+
+  apiGet('api/master/zones.php')
+    .then(function(data) { zones = data.data || []; checkDone(); })
+    .catch(function(e) { console.error('Failed to fetch zones:', e); zones = []; checkDone(); });
+
+  apiGet('api/master/areas.php')
+    .then(function(data) { areas = data.data || []; checkDone(); })
+    .catch(function(e) { console.error('Failed to fetch areas:', e); areas = []; checkDone(); });
+
+  apiGet('api/master/shops.php')
+    .then(function(data) { shops = data.data || []; checkDone(); })
+    .catch(function(e) { console.error('Failed to fetch shops:', e); shops = []; checkDone(); });
+
+  apiGet('api/master/categories.php')
+    .then(function(data) {
+      var cats = data.data || [];
+      cats.forEach(function(c) {
+        categoriesMap[c.code] = { closing_type: c.closing_type, closing_day: c.closing_day, name: c.name };
+      });
+      // カテゴリプルダウンを動的構築（管理者/店舗どちらのフィルタも対応）
+      ['adminFilterCategory', 'filterCategory'].forEach(function(id) {
+        var sel = document.getElementById(id);
+        if (!sel) return;
+        // 「すべて」「カテゴリ」など先頭の option は維持
+        while (sel.options.length > 1) sel.remove(1);
+        cats.forEach(function(c) {
+          var opt = document.createElement('option');
+          opt.value = c.code;
+          opt.textContent = c.name;
+          sel.appendChild(opt);
+        });
+      });
+      checkDone();
+    })
+    .catch(function(e) { console.error('Failed to fetch categories:', e); checkDone(); });
+}
+
+// ===== Fetch Orders =====
+function fetchOrders(callback) {
+  var params = [];
+
+  if (viewMode === 'admin') {
+    var catFilterAdmin = document.getElementById('adminFilterCategory').value;
+    var typeFilter = document.getElementById('adminFilterType').value;
+    var statusFilter = document.getElementById('adminFilterStatus').value;
+    var shopFilter = document.getElementById('filterShop').value;
+    var zoneFilter = document.getElementById('filterZone').value;
+    var areaFilter = document.getElementById('filterArea').value;
+    var dateFrom = document.getElementById('filterDateFrom').value;
+    var dateTo = document.getElementById('filterDateTo').value;
+
+    if (catFilterAdmin) params.push('category=' + encodeURIComponent(catFilterAdmin));
+    if (typeFilter) params.push('type=' + encodeURIComponent(typeFilter));
+    if (statusFilter !== '') params.push('status=' + encodeURIComponent(statusFilter));
+    if (shopFilter) params.push('shop=' + encodeURIComponent(shopFilter));
+    if (zoneFilter) params.push('zone=' + encodeURIComponent(zoneFilter));
+    if (areaFilter) params.push('area=' + encodeURIComponent(areaFilter));
+    if (dateFrom) params.push('date_from=' + encodeURIComponent(dateFrom));
+    if (dateTo) params.push('date_to=' + encodeURIComponent(dateTo));
+  } else {
+    var catFilter = document.getElementById('filterCategory').value;
+    var typeFilter2 = document.getElementById('filterType').value;
+    var statusFilter2 = document.getElementById('filterStatus').value;
+
+    if (catFilter) params.push('category=' + encodeURIComponent(catFilter));
+    if (typeFilter2) params.push('type=' + encodeURIComponent(typeFilter2));
+    if (statusFilter2 !== '') params.push('status=' + encodeURIComponent(statusFilter2));
+  }
+
+  var url = 'api/orders.php' + (params.length ? '?' + params.join('&') : '');
+
+  if (typeof window.showLoading === 'function') window.showLoading('発注一覧を読み込み中…');
+  apiGet(url)
+    .then(function(data) {
+      currentOrders = data.data || [];
+      if (callback) callback();
+    })
+    .catch(function(e) {
+      console.error('Failed to fetch orders:', e);
+      currentOrders = [];
+      if (callback) callback();
+    })
+    .finally(function() {
+      if (typeof window.hideLoading === 'function') window.hideLoading();
+    });
+}
+
+// ===== 検索条件の保存/復元（同タブ内のみ保持） =====
+var FILTER_STORAGE_KEY = 'filters:order-list';
+var FILTER_FIELDS_ADMIN = ['adminFilterCategory', 'adminFilterType', 'adminFilterStatus',
+                            'filterShop', 'filterZone', 'filterArea', 'filterDateFrom', 'filterDateTo'];
+var FILTER_FIELDS_STORE = ['filterCategory', 'filterType', 'filterStatus'];
+var isInitializing = true; // 初期化中は saveFilters を抑止（空値での上書きを防ぐ）
+
+function saveFilters() {
+  if (isInitializing) return;
+  var fields = viewMode === 'admin' ? FILTER_FIELDS_ADMIN : FILTER_FIELDS_STORE;
+  var state = {};
+  fields.forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el && !el.disabled) state[id] = el.value;
+  });
+  try { sessionStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
+}
+
+function restoreFilters() {
+  var raw;
+  try { raw = sessionStorage.getItem(FILTER_STORAGE_KEY); } catch (e) { /* fall through to init dropdowns */ }
+  var state;
+  try { state = raw ? JSON.parse(raw) : {}; } catch (e) { state = {}; }
+
+  var isZone = currentUser && currentUser.role === 'zone';
+  var isArea = currentUser && currentUser.role === 'area';
+
+  // adminの場合、zone→area→shop の順に値を設定しながらカスケード初期化
+  if (viewMode === 'admin') {
+    var zoneEl = document.getElementById('filterZone');
+    if (zoneEl) {
+      // zone/area は管轄コードを強制（前回フィルタの値で上書きされないように）
+      if (isZone || isArea) {
+        zoneEl.value = currentUser.zone_code || (zoneEl.options[0] && zoneEl.options[0].value) || '';
+      } else {
+        zoneEl.value = state.filterZone || '';
+      }
+    }
+    onZoneChange(); // area選択肢を再生成（applyFiltersはisInitializingで抑止）
+
+    var areaEl = document.getElementById('filterArea');
+    if (areaEl) {
+      if (isArea) {
+        // area ロールは管轄エリアを強制
+        areaEl.value = currentUser.area_code || (areaEl.options[0] && areaEl.options[0].value) || '';
+      } else {
+        areaEl.value = state.filterArea || '';
+      }
+    }
+    onAreaChange(); // shop選択肢を再生成
+
+    var shopEl = document.getElementById('filterShop');
+    if (shopEl && state.filterShop) shopEl.value = state.filterShop;
+  }
+
+  // その他のフィルタ（カスケード非依存）
+  Object.keys(state).forEach(function(id) {
+    if (id === 'filterZone' || id === 'filterArea' || id === 'filterShop') return;
+    var el = document.getElementById(id);
+    if (el && !el.disabled) el.value = state[id];
+  });
+}
 
 // ===== Init =====
 function initView() {
-  document.getElementById('storeFilterBar').style.display = viewMode === 'store' ? '' : 'none';
+  document.getElementById('storeFilterBar').style.display = viewMode === 'store' ? 'block' : 'none';
   document.getElementById('storeActionBar').style.display = viewMode === 'store' ? 'flex' : 'none';
   document.getElementById('adminFilterBar').style.display = viewMode === 'admin' ? 'block' : 'none';
-  document.getElementById('adminActionBar').style.display = viewMode === 'admin' ? 'flex' : 'none';
+  // 一括操作バーは admin/system のみ表示（zone/area は閲覧専用）
+  document.getElementById('adminActionBar').style.display =
+    (viewMode === 'admin' && window.__canOperate) ? 'flex' : 'none';
   renderTableHeader();
-  renderOrders();
+  loadPageSize();
+  displayLimit = (pageSize === 'all') ? Number.MAX_SAFE_INTEGER : pageSize;
+  restoreFilters();
+  // 初期化完了：以降の applyFilters → saveFilters はユーザー操作によるもの
+  isInitializing = false;
+  fetchOrders(function() {
+    renderOrders();
+  });
 }
 
 // ===== Table Header =====
@@ -462,14 +377,14 @@ function renderTableHeader() {
   if (viewMode === 'admin') {
     thead.innerHTML = '<tr>' +
       '<th style="width:40px"><input type="checkbox" id="selectAll" onchange="toggleAll(this)"></th>' +
-      '<th>種別</th><th>発注番号</th><th>店舗</th><th>カテゴリ</th><th>内容</th>' +
-      '<th>発注数</th><th>金額</th><th>ステータス</th><th>発注日</th>' +
+      '<th>発注日</th><th>種別</th><th>発注番号</th><th>店舗</th><th>カテゴリ</th><th>内容</th>' +
+      '<th>発注数</th><th>金額</th><th>ステータス</th>' +
       '<th style="width:60px">詳細</th></tr>';
   } else {
     thead.innerHTML = '<tr>' +
       '<th style="width:40px"><input type="checkbox" id="selectAll" onchange="toggleAll(this)"></th>' +
-      '<th>種別</th><th>発注番号</th><th>カテゴリ</th><th>内容</th>' +
-      '<th>発注数</th><th>金額</th><th>ステータス</th><th>発注日</th>' +
+      '<th>発注日</th><th>種別</th><th>発注番号</th><th>カテゴリ</th><th>内容</th>' +
+      '<th>発注数</th><th>金額</th><th>ステータス</th>' +
       '<th style="width:60px">詳細</th></tr>';
   }
 }
@@ -478,9 +393,19 @@ function renderTableHeader() {
 function onZoneChange() {
   var zoneVal = document.getElementById('filterZone').value;
   var areaSelect = document.getElementById('filterArea');
-  var filtered = zoneVal ? areas.filter(function(a) { return a.zone === zoneVal; }) : areas;
-  areaSelect.innerHTML = '<option value="">すべて</option>' +
-    filtered.map(function(a) { return '<option value="' + a.code + '">' + a.code + ':' + a.name + '</option>'; }).join('');
+  var filtered = zoneVal ? areas.filter(function(a) { return a.zone_code === zoneVal; }) : areas;
+  var isArea = currentUser && currentUser.role === 'area';
+  if (isArea) {
+    // area ロールは管轄エリアのみ + disabled
+    areaSelect.innerHTML = filtered.map(function(a) {
+      return '<option value="' + a.area_code + '">' + a.area_code + ':' + a.area_name + '</option>';
+    }).join('');
+    areaSelect.disabled = true;
+    if (filtered[0]) areaSelect.value = filtered[0].area_code;
+  } else {
+    areaSelect.innerHTML = '<option value="">すべて</option>' +
+      filtered.map(function(a) { return '<option value="' + a.area_code + '">' + a.area_code + ':' + a.area_name + '</option>'; }).join('');
+  }
   onAreaChange();
 }
 
@@ -490,99 +415,98 @@ function onAreaChange() {
   var shopSelect = document.getElementById('filterShop');
   var filtered = shops;
   if (areaVal) {
-    filtered = shops.filter(function(s) { return s.area === areaVal; });
+    filtered = shops.filter(function(s) { return s.area_code === areaVal; });
   } else if (zoneVal) {
-    var areaCodes = areas.filter(function(a) { return a.zone === zoneVal; }).map(function(a) { return a.code; });
-    filtered = shops.filter(function(s) { return areaCodes.indexOf(s.area) >= 0; });
+    var areaCodes = areas.filter(function(a) { return a.zone_code === zoneVal; }).map(function(a) { return a.area_code; });
+    filtered = shops.filter(function(s) { return areaCodes.indexOf(s.area_code) >= 0; });
   }
   shopSelect.innerHTML = '<option value="">すべて</option>' +
-    filtered.map(function(s) { return '<option value="' + s.code + '">' + s.code + ':' + s.name + '</option>'; }).join('');
-  renderOrders();
+    filtered.map(function(s) { return '<option value="' + s.shop_code + '">' + s.shop_code + ':' + s.shop_name + '</option>'; }).join('');
+  applyFilters();
+}
+
+// ===== Apply Filters (fetch from API and re-render) =====
+function applyFilters() {
+  if (isInitializing) return; // 初期化中の二重発火を防ぐ
+  saveFilters();
+  // フィルタ変更時は表示件数をリセット
+  displayLimit = (pageSize === 'all') ? Number.MAX_SAFE_INTEGER : pageSize;
+  fetchOrders(function() {
+    renderOrders();
+  });
+}
+
+// ===== Format unavail_dates for display =====
+function formatUnavailDate(ud) {
+  var label = ud.date;
+  if (ud.is_all_day) {
+    label += '（終日）';
+  } else {
+    var parts = [];
+    if (ud.time_start) parts.push(ud.time_start);
+    if (ud.time_end) parts.push(ud.time_end);
+    if (parts.length) {
+      label += '（' + parts.join('〜') + '）';
+    }
+  }
+  return label;
+}
+
+function formatUnavailDates(arr) {
+  if (!arr || !arr.length) return [];
+  return arr.map(formatUnavailDate);
+}
+
+function formatUnavailDays(arr) {
+  if (!arr || !arr.length) return [];
+  var dayMap = { monday: '月曜日', tuesday: '火曜日', wednesday: '水曜日', thursday: '木曜日', friday: '金曜日', saturday: '土曜日', sunday: '日曜日' };
+  return arr.filter(function(d) { return d; }).map(function(d) { return dayMap[d] || d; });
 }
 
 // ===== Render Orders =====
 function renderOrders() {
-  var orders = viewMode === 'admin' ? adminOrders : storeOrders;
-  var filtered;
+  var filtered = currentOrders.slice();
 
-  if (viewMode === 'admin') {
-    var shopFilter = document.getElementById('filterShop').value;
-    var zoneFilter = document.getElementById('filterZone').value;
-    var areaFilter = document.getElementById('filterArea').value;
-    var typeFilter = document.getElementById('adminFilterType').value;
-    var statusFilter = document.getElementById('adminFilterStatus').value;
-    var dateFrom = document.getElementById('filterDateFrom').value;
-    var dateTo = document.getElementById('filterDateTo').value;
+  // APIの返却順（date DESC）を維持 — 再ソート不要
 
-    filtered = orders.filter(function(o) {
-      if (shopFilter && o.shop !== shopFilter) return false;
-      if (!shopFilter && areaFilter) {
-        var shop = shops.find(function(s) { return s.code === o.shop; });
-        if (!shop || shop.area !== areaFilter) return false;
-      }
-      if (!shopFilter && !areaFilter && zoneFilter) {
-        var shop = shops.find(function(s) { return s.code === o.shop; });
-        if (!shop) return false;
-        var area = areas.find(function(a) { return a.code === shop.area; });
-        if (!area || area.zone !== zoneFilter) return false;
-      }
-      if (typeFilter && o.type !== typeFilter) return false;
-      if (statusFilter !== '' && o.status !== parseInt(statusFilter)) return false;
-      if (dateFrom && o.date < dateFrom) return false;
-      if (dateTo && o.date > dateTo) return false;
-      return true;
-    });
+  // 表示件数のスライス
+  var sliced;
+  if (pageSize === 'all') {
+    sliced = filtered;
+    displayLimit = filtered.length;
   } else {
-    var catFilter = document.getElementById('filterCategory').value;
-    var typeFilter = document.getElementById('filterType').value;
-    var statusFilter = document.getElementById('filterStatus').value;
-
-    filtered = orders.filter(function(o) {
-      if (catFilter && o.category !== catFilter) return false;
-      if (typeFilter && o.type !== typeFilter) return false;
-      if (statusFilter !== '' && o.status !== parseInt(statusFilter)) return false;
-      return true;
-    });
+    displayLimit = Math.min(displayLimit, filtered.length);
+    sliced = filtered.slice(0, displayLimit);
   }
-
-  // 発注日の新しい順にソート
-  filtered.sort(function(a, b) { return b.date.localeCompare(a.date); });
 
   var colSpan = viewMode === 'admin' ? 11 : 10;
   var tbody = document.getElementById('orderTableBody');
   var html = '';
 
-  filtered.forEach(function(o) {
+  sliced.forEach(function(o) {
     var typeClass = 'type-' + o.type;
     var typeLabel = o.type === 'repair' ? '修理' : o.type === 'equipment' ? '備品' : '部品';
     var statusClass = getStatusClass(o.status, o.type);
     var statusLabel = getStatusLabel(o.status, o.type);
-    var catLabel = o.category === 'fitness' ? 'フィットネス' : 'ゴルフ';
+    var catLabel = (categoriesMap[o.category_code] && categoriesMap[o.category_code].name) || o.category_code;
     var displayAmount = getDisplayAmount(o);
     var isOpen = !!expandedIds[o.id];
 
     var orderCount = 1;
-    var contentLabel = o.title;
-    if (o.type === 'repair') {
-      contentLabel = o.issue || o.title;
-    } else if (o.type === 'parts') {
-      contentLabel = o.partsName || o.title;
-    } else if (o.type === 'equipment' && o.equipDetails) {
-      orderCount = o.equipDetails.length;
-      if (orderCount === 1) {
-        contentLabel = o.equipDetails[0].name + ' × ' + o.equipDetails[0].qty;
-      } else {
-        contentLabel = o.equipDetails[0].name + ' 他' + (orderCount - 1) + '商品';
-      }
+    var contentLabel = o.content_label || '';
+    if (o.type === 'equipment' && o.equip_items) {
+      orderCount = o.equip_items.length;
     }
 
+    var checkedAttr = selectedIds[o.id] ? ' checked' : '';
     html += '<tr class="order-row ' + o.type + '" onclick="onRowClick(event, \'' + o.id + '\')">' +
-      '<td class="td-checkbox"><input type="checkbox" class="order-check" data-id="' + o.id + '"></td>' +
+      '<td class="td-checkbox"><input type="checkbox" class="order-check" data-id="' + o.id + '" onchange="onCheckChange(this)"' + checkedAttr + '></td>' +
+      '<td>' + o.date + '</td>' +
       '<td><span class="type-badge ' + typeClass + '">' + typeLabel + '</span></td>' +
       '<td><strong>' + o.id + '</strong></td>';
 
     if (viewMode === 'admin') {
-      html += '<td>' + getShopName(o.shop) + '</td>';
+      html += '<td>' + (o.shop_name || o.shop_code) + '</td>';
     }
 
     html += '<td>' + catLabel + '</td>' +
@@ -590,7 +514,6 @@ function renderOrders() {
       '<td>' + orderCount + '</td>' +
       '<td>' + displayAmount + '</td>' +
       '<td><span class="status-badge ' + statusClass + '">' + statusLabel + '</span></td>' +
-      '<td>' + o.date + '</td>' +
       '<td><button class="btn-sm">' + (isOpen ? '−' : '+') + '</button></td>' +
     '</tr>';
 
@@ -605,13 +528,60 @@ function renderOrders() {
   }
 
   tbody.innerHTML = html;
+  renderPagination(filtered.length);
+}
+
+// ===== Pagination UI =====
+function renderPagination(totalCount) {
+  var info = document.getElementById('paginationInfo');
+  var btn  = document.getElementById('showMoreBtn');
+  var sel  = document.getElementById('pageSizeSelect');
+  if (!info || !btn || !sel) return;
+
+  // セレクトの初期値同期
+  sel.value = pageSize === 'all' ? 'all' : String(pageSize);
+
+  if (totalCount === 0) {
+    info.textContent = '';
+    btn.style.display = 'none';
+    return;
+  }
+
+  var shown = pageSize === 'all' ? totalCount : Math.min(displayLimit, totalCount);
+  info.textContent = '全 ' + totalCount + ' 件中 ' + shown + ' 件表示中';
+
+  if (pageSize === 'all' || shown >= totalCount) {
+    btn.style.display = 'none';
+  } else {
+    btn.style.display = '';
+    var nextCount = Math.min(totalCount - shown, pageSize);
+    btn.textContent = '次を表示（' + nextCount + '件）';
+  }
+}
+
+function showMoreOrders() {
+  if (pageSize === 'all') return;
+  displayLimit += pageSize;
+  renderOrders();
+}
+
+function onPageSizeChange() {
+  var sel = document.getElementById('pageSizeSelect');
+  if (!sel) return;
+  if (sel.value === 'all') {
+    pageSize = 'all';
+  } else {
+    pageSize = parseInt(sel.value, 10) || defaultPageSize;
+    displayLimit = pageSize;
+  }
+  savePageSize();
+  renderOrders();
 }
 
 function getDisplayAmount(o) {
-  if (o.finalAmount) return '¥' + o.finalAmount.toLocaleString();
-  if (o.estimateAmount) return '¥' + o.estimateAmount.toLocaleString();
+  if (o.final_amount) return '¥' + Number(o.final_amount).toLocaleString();
+  if (o.estimate_amount) return '¥' + Number(o.estimate_amount).toLocaleString();
   if (o.type === 'repair' || o.type === 'parts') return '—';
-  if (o.amount) return '¥' + o.amount.toLocaleString();
   return '—';
 }
 
@@ -619,51 +589,49 @@ function getDisplayAmount(o) {
 function renderDetailContent(o) {
   var html = '';
 
-  if (viewMode === 'admin') {
-    html += '<div style="margin-bottom:12px;"><span class="detail-label">店舗</span> <span class="detail-value" style="font-weight:600;">' + o.shop + ':' + getShopName(o.shop) + '</span></div>';
-  }
-
   html += '<div class="detail-two-col">';
 
   // Left: 依頼内容（読み取り専用）
   html += '<div>';
-  html += '<div class="detail-section-title store-info">店舗からの依頼内容</div>';
+  html += '<div class="detail-section-title store-info">依頼内容</div>';
 
   if (o.type === 'repair') {
     html += '<div class="detail-grid">' +
-      '<div><div class="detail-label">故障機材</div><div class="detail-value">' + (o.equipment || '') + '</div></div>' +
+      '<div><div class="detail-label">故障機材</div><div class="detail-value">' + (o.equipment_name || '') + '</div></div>' +
       '<div><div class="detail-label">不具合内容</div><div class="detail-value">' + (o.issue || '') + '</div></div>' +
     '</div>';
-    if ((o.unavailDates && o.unavailDates.length) || (o.unavailDays && o.unavailDays.length)) {
+    var unavailDates = formatUnavailDates(o.unavail_dates);
+    var unavailDays = formatUnavailDays(o.unavail_days);
+    if (unavailDates.length || unavailDays.length) {
       html += '<div class="detail-grid">';
-      if (o.unavailDates && o.unavailDates.length) {
-        html += '<div><div class="detail-label">対応不可日時</div><div class="detail-value">' + o.unavailDates.join('、') + '</div></div>';
+      if (unavailDates.length) {
+        html += '<div><div class="detail-label">対応不可日時</div><div class="detail-value">' + unavailDates.join('、') + '</div></div>';
       }
-      if (o.unavailDays && o.unavailDays.length) {
-        html += '<div><div class="detail-label">対応不可曜日</div><div class="detail-value">' + o.unavailDays.join('、') + '</div></div>';
+      if (unavailDays.length) {
+        html += '<div><div class="detail-label">対応不可曜日</div><div class="detail-value">' + unavailDays.join('、') + '</div></div>';
       }
       html += '</div>';
     }
-    if (o.photos && o.photos > 0) {
+    if (o.photos && o.photos.length > 0) {
       html += renderPhotos(o.photos, '故障写真');
     }
   } else if (o.type === 'equipment') {
-    if (o.equipDetails && o.equipDetails.length) {
+    if (o.equip_items && o.equip_items.length) {
       html += '<div class="equip-items-table"><table class="equip-table"><thead><tr><th>商品名</th><th>商品コード</th><th>仕入先</th><th>単価</th><th>数量</th><th>小計</th></tr></thead><tbody>';
-      o.equipDetails.forEach(function(d) {
-        html += '<tr><td>' + d.name + '</td><td>' + d.code + '</td><td>' + (d.supplier || '') + '</td><td>¥' + d.price.toLocaleString() + '</td><td>' + d.qty + '</td><td>¥' + (d.price * d.qty).toLocaleString() + '</td></tr>';
+      o.equip_items.forEach(function(d) {
+        html += '<tr><td>' + d.product_name + '</td><td>' + d.product_code + '</td><td>' + (d.supplier || '') + '</td><td>¥' + Number(d.price).toLocaleString() + '</td><td>' + d.qty + '</td><td>¥' + (Number(d.price) * Number(d.qty)).toLocaleString() + '</td></tr>';
       });
       html += '</tbody></table></div>';
     }
   } else {
     html += '<div class="detail-grid">' +
-      '<div><div class="detail-label">部品名・品番</div><div class="detail-value">' + (o.partsName || '') + '</div></div>' +
-      '<div><div class="detail-label">対象機材</div><div class="detail-value">' + (o.targetEquip || '') + '</div></div>' +
+      '<div><div class="detail-label">部品名・品番</div><div class="detail-value">' + (o.parts_name || '') + '</div></div>' +
+      '<div><div class="detail-label">対象機材</div><div class="detail-value">' + (o.target_equipment || '') + '</div></div>' +
       '<div><div class="detail-label">数量</div><div class="detail-value">' + (o.quantity || 1) + '</div></div>' +
       '<div><div class="detail-label">発注理由・備考</div><div class="detail-value">' + (o.reason || '') + '</div></div>' +
     '</div>';
-    if (o.partsPhotos && o.partsPhotos > 0) {
-      html += renderPhotos(o.partsPhotos, '写真');
+    if (o.photos && o.photos.length > 0) {
+      html += renderPhotos(o.photos, '写真');
     }
   }
   html += '</div>';
@@ -678,20 +646,20 @@ function renderDetailContent(o) {
 
   html += '<div class="response-info-card"><div class="detail-grid">';
   if (o.type === 'repair') {
-    html += '<div><div class="detail-label">見積金額</div><div class="detail-value">' + (o.estimateAmount ? '¥' + o.estimateAmount.toLocaleString() : '—') + '</div></div>';
-    html += '<div><div class="detail-label">修理予定日</div><div class="detail-value">' + (o.repairScheduleDate || '—') + '</div></div>';
-    html += '<div><div class="detail-label">最終金額</div><div class="detail-value"' + (o.finalAmount ? ' style="font-weight:600;color:#065f46;"' : '') + '>' + (o.finalAmount ? '¥' + o.finalAmount.toLocaleString() : '—') + '</div></div>';
-    html += '<div><div class="detail-label">修理完了日</div><div class="detail-value">' + (o.repairCompletedDate || '—') + '</div></div>';
+    html += '<div><div class="detail-label">見積金額</div><div class="detail-value">' + (o.estimate_amount ? '¥' + Number(o.estimate_amount).toLocaleString() : '—') + '</div></div>';
+    html += '<div><div class="detail-label">修理予定日</div><div class="detail-value">' + (o.repair_schedule_date || '—') + '</div></div>';
+    html += '<div><div class="detail-label">最終金額</div><div class="detail-value"' + (o.final_amount ? ' style="font-weight:600;color:#065f46;"' : '') + '>' + (o.final_amount ? '¥' + Number(o.final_amount).toLocaleString() : '—') + '</div></div>';
+    html += '<div><div class="detail-label">修理完了日</div><div class="detail-value">' + (o.repair_completed_date || '—') + '</div></div>';
   } else if (o.type === 'equipment') {
-    var equipEstimate = o.estimateAmount ? '¥' + o.estimateAmount.toLocaleString() : (o.amount ? '¥' + o.amount.toLocaleString() : '—');
+    var equipEstimate = o.estimate_amount ? '¥' + Number(o.estimate_amount).toLocaleString() : '—';
     html += '<div><div class="detail-label">見積金額</div><div class="detail-value">' + equipEstimate + '</div></div>';
-    html += '<div><div class="detail-label">納品予定日</div><div class="detail-value">' + (o.deliveryDate || '—') + '</div></div>';
-    html += '<div><div class="detail-label">最終金額</div><div class="detail-value"' + (o.finalAmount ? ' style="font-weight:600;color:#065f46;"' : '') + '>' + (o.finalAmount ? '¥' + o.finalAmount.toLocaleString() : '—') + '</div></div>';
-    html += '<div><div class="detail-label">納品日</div><div class="detail-value">' + (o.actualDeliveryDate || '—') + '</div></div>';
+    html += '<div><div class="detail-label">納品予定日</div><div class="detail-value">' + (o.delivery_date || '—') + '</div></div>';
+    html += '<div><div class="detail-label">最終金額</div><div class="detail-value"' + (o.final_amount ? ' style="font-weight:600;color:#065f46;"' : '') + '>' + (o.final_amount ? '¥' + Number(o.final_amount).toLocaleString() : '—') + '</div></div>';
+    html += '<div><div class="detail-label">納品日</div><div class="detail-value">' + (o.actual_delivery_date || '—') + '</div></div>';
   } else {
-    html += '<div><div class="detail-label">見積金額</div><div class="detail-value">' + (o.estimateAmount ? '¥' + o.estimateAmount.toLocaleString() : '—') + '</div></div>';
-    html += '<div><div class="detail-label">納品予定日</div><div class="detail-value">' + (o.deliveryDate || '—') + '</div></div>';
-    html += '<div><div class="detail-label">最終金額</div><div class="detail-value"' + (o.finalAmount ? ' style="font-weight:600;color:#065f46;"' : '') + '>' + (o.finalAmount ? '¥' + o.finalAmount.toLocaleString() : '—') + '</div></div>';
+    html += '<div><div class="detail-label">見積金額</div><div class="detail-value">' + (o.estimate_amount ? '¥' + Number(o.estimate_amount).toLocaleString() : '—') + '</div></div>';
+    html += '<div><div class="detail-label">納品予定日</div><div class="detail-value">' + (o.delivery_date || '—') + '</div></div>';
+    html += '<div><div class="detail-label">最終金額</div><div class="detail-value"' + (o.final_amount ? ' style="font-weight:600;color:#065f46;"' : '') + '>' + (o.final_amount ? '¥' + Number(o.final_amount).toLocaleString() : '—') + '</div></div>';
   }
   html += '</div></div>';
 
@@ -703,11 +671,17 @@ function renderDetailContent(o) {
   return html;
 }
 
-function renderPhotos(count, label) {
-  var html = '<div class="photo-section"><div class="detail-label">' + label + '（' + count + '枚）</div><div class="photo-grid">';
-  for (var i = 0; i < count; i++) {
-    html += '<div class="photo-placeholder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg><span>写真 ' + (i + 1) + '</span></div>';
-  }
+function renderPhotos(photos, label) {
+  var html = '<div class="photo-section"><div class="detail-label">' + label + '（' + photos.length + '枚）</div><div class="photo-grid">';
+  photos.forEach(function(p, i) {
+    // loading="lazy" + decoding="async" でビューポート外画像の遅延読込（C-26軽量化）
+    // サムネイルAPI (size=thumb) で縮小版を取得 / クリック時のリンクは原寸版
+    var thumbUrl = p.url + (p.url.indexOf('?') >= 0 ? '&' : '?') + 'size=thumb';
+    html += '<div class="photo-thumb">' +
+              '<a href="' + p.url + '" target="_blank">' +
+                '<img src="' + thumbUrl + '" alt="' + (p.filename || ('写真' + (i + 1))) + '" loading="lazy" decoding="async">' +
+              '</a></div>';
+  });
   html += '</div></div>';
   return html;
 }
@@ -716,16 +690,16 @@ function renderPhotos(count, label) {
 function renderStatusHistory(o) {
   var html = '<div class="status-history"><div class="status-history-title">ステータス履歴</div>';
   html += '<div class="status-timeline">';
-  var history = o.statusHistory || [];
+  var history = o.status_history || [];
   for (var i = history.length - 1; i >= 0; i--) {
     var h = history[i];
     var isCurrent = (i === history.length - 1);
     html += '<div class="timeline-item">';
     html += '<div class="timeline-dot ' + (isCurrent ? 'current' : 'past') + '"></div>';
     html += '<div class="timeline-status ' + (isCurrent ? 'current' : 'past') + '">' + getStatusLabel(h.status, o.type) + (isCurrent ? ' ← 現在' : '') + '</div>';
-    html += '<div class="timeline-meta">' + h.date + ' — ' + h.user + '</div>';
+    html += '<div class="timeline-meta">' + escapeHtml(h.changed_at) + ' — ' + escapeHtml(h.changed_by || '') + '</div>';
     if (h.memo) {
-      html += '<div class="timeline-memo">' + h.memo + '</div>';
+      html += '<div class="timeline-memo">' + escapeHtml(h.memo) + '</div>';
     }
     html += '</div>';
   }
@@ -734,7 +708,6 @@ function renderStatusHistory(o) {
 }
 
 // ===== Action Button =====
-// 各ステータスで誰がどのアクションを取れるかを定義
 function renderActionButton(o) {
   var html = '<div class="detail-actions">';
   var action = getAvailableAction(o);
@@ -750,12 +723,16 @@ function renderActionButton(o) {
 }
 
 function getAvailableAction(o) {
-  // ①依頼中 → ②発注済: 商品部（全種別）。備品は自動もあるが手動ボタンも提供
+  // zone / area は閲覧専用なのでアクションボタン無し（API 側でも 403 で防御）
+  if (viewMode === 'admin' && !window.__canOperate) {
+    return null;
+  }
+  // ①依頼中 → ②発注済: 商品部（全種別）
   if (o.status === STATUS.REQUESTING && viewMode === 'admin') {
     return { key: 'order', label: '発注済にする', btnClass: 'btn-sm-primary' };
   }
 
-  // ②発注済 → ③配達中/修理待ち: 備品は自動のみ、部品・修理は商品部が手動
+  // ②発注済 → ③配達中/修理待ち: 部品・修理は商品部が手動
   if (o.status === STATUS.ORDERED && viewMode === 'admin' && o.type !== 'equipment') {
     var label = o.type === 'repair' ? '修理待ちにする' : '配達中にする';
     return { key: 'to-delivering', label: label, btnClass: 'btn-sm-primary' };
@@ -766,12 +743,12 @@ function getAvailableAction(o) {
     return { key: 'repair-done', label: '修理完了報告', btnClass: 'btn-sm-pink' };
   }
 
-  // ③配達中 → ④納品済: 備品は自動もあるが店舗も手動可、部品は店舗が手動
+  // ③配達中 → ④納品済: 店舗が手動
   if (o.status === STATUS.DELIVERING && o.type !== 'repair' && viewMode === 'store') {
     return { key: 'delivery-done', label: '納品済にする', btnClass: 'btn-sm-pink' };
   }
 
-  // ④納品済/修理済 → ⑤完了: 商品部が手動（備品は自動もあり）
+  // ④納品済/修理済 → ⑤完了: 商品部が手動
   if (o.status === STATUS.DELIVERED && viewMode === 'admin') {
     return { key: 'complete', label: '完了にする', btnClass: 'btn-sm-success' };
   }
@@ -804,10 +781,14 @@ function getWaitingMessage(o) {
   return '—';
 }
 
+// ===== Find Order from current data =====
+function findOrder(orderId) {
+  return currentOrders.find(function(o) { return o.id === orderId; });
+}
+
 // ===== Modal Dialog =====
 function openStatusModal(orderId, action) {
-  var orders = viewMode === 'admin' ? adminOrders : storeOrders;
-  var order = orders.find(function(o) { return o.id === orderId; });
+  var order = findOrder(orderId);
   if (!order) return;
 
   var modal = document.getElementById('modalOverlay');
@@ -816,7 +797,6 @@ function openStatusModal(orderId, action) {
   var footer = document.getElementById('modalFooter');
 
   if (action === 'order') {
-    // ①依頼中 → ②発注済
     title.textContent = '発注済にする';
     var isRepair = order.type === 'repair';
     var isEquipment = order.type === 'equipment';
@@ -832,22 +812,21 @@ function openStatusModal(orderId, action) {
       '<button class="btn-modal btn-modal-cancel" onclick="closeModal()">キャンセル</button>' +
       '<button class="btn-modal btn-modal-primary" onclick="doOrder(\'' + orderId + '\')">発注済にする</button>';
 
-    if (isEquipment && order.equipDetails) {
+    if (isEquipment && order.equip_items) {
       var total = 0;
-      order.equipDetails.forEach(function(d) { total += d.price * d.qty; });
+      order.equip_items.forEach(function(d) { total += Number(d.price) * Number(d.qty); });
       setTimeout(function() {
         document.getElementById('modalAmount').value = total;
-        document.getElementById('modalDate').value = getEquipmentDeliveryDate();
+        document.getElementById('modalDate').value = getEquipmentDeliveryDate(order);
       }, 0);
     }
 
   } else if (action === 'to-delivering') {
-    // ②発注済 → ③配達中/修理待ち（部品・修理: 商品部が手動）
     var nextLabel = order.type === 'repair' ? '修理待ち' : '配達中';
     title.textContent = nextLabel + 'にする';
     body.innerHTML =
       '<div class="modal-row"><span class="modal-label">発注番号</span><input class="modal-input readonly" value="' + order.id + '" readonly></div>' +
-      '<div class="modal-row"><span class="modal-label">内容</span><input class="modal-input readonly" value="' + order.title + '" readonly></div>' +
+      '<div class="modal-row"><span class="modal-label">内容</span><input class="modal-input readonly" value="' + (order.content_label || '') + '" readonly></div>' +
       '<hr class="modal-divider">' +
       '<div class="modal-row"><span class="modal-label">メモ</span><textarea class="modal-textarea" id="modalMemo" placeholder="任意入力"></textarea></div>';
     footer.innerHTML =
@@ -855,11 +834,10 @@ function openStatusModal(orderId, action) {
       '<button class="btn-modal btn-modal-primary" onclick="doToDelivering(\'' + orderId + '\')">' + nextLabel + 'にする</button>';
 
   } else if (action === 'repair-done') {
-    // ③修理待ち → ④修理済（店舗が手動）
     title.textContent = '修理完了報告';
     body.innerHTML =
       '<div class="modal-row"><span class="modal-label">発注番号</span><input class="modal-input readonly" value="' + order.id + '" readonly></div>' +
-      '<div class="modal-row"><span class="modal-label">機材名</span><input class="modal-input readonly" value="' + (order.equipment || '') + '" readonly></div>' +
+      '<div class="modal-row"><span class="modal-label">機材名</span><input class="modal-input readonly" value="' + (order.equipment_name || '') + '" readonly></div>' +
       '<hr class="modal-divider">' +
       '<div class="modal-info">修理が完了し、機材が正常に稼働していることを確認してから報告してください。</div>' +
       '<div class="modal-row"><span class="modal-label">修理完了日 <span class="required">*</span></span><input class="modal-input" id="modalRepairDate" type="date"></div>' +
@@ -869,11 +847,10 @@ function openStatusModal(orderId, action) {
       '<button class="btn-modal btn-modal-pink" onclick="doRepairDone(\'' + orderId + '\')">修理完了報告</button>';
 
   } else if (action === 'delivery-done') {
-    // ③配達中 → ④納品済（店舗が手動: 備品・部品）
     title.textContent = '納品済にする';
     body.innerHTML =
       '<div class="modal-row"><span class="modal-label">発注番号</span><input class="modal-input readonly" value="' + order.id + '" readonly></div>' +
-      '<div class="modal-row"><span class="modal-label">内容</span><input class="modal-input readonly" value="' + order.title + '" readonly></div>' +
+      '<div class="modal-row"><span class="modal-label">内容</span><input class="modal-input readonly" value="' + (order.content_label || '') + '" readonly></div>' +
       '<hr class="modal-divider">' +
       '<div class="modal-row"><span class="modal-label">メモ</span><textarea class="modal-textarea" id="modalMemo" placeholder="任意入力"></textarea></div>';
     footer.innerHTML =
@@ -881,9 +858,8 @@ function openStatusModal(orderId, action) {
       '<button class="btn-modal btn-modal-pink" onclick="doDeliveryDone(\'' + orderId + '\')">納品済にする</button>';
 
   } else if (action === 'complete') {
-    // ④納品済/修理済 → ⑤完了（商品部が手動）
     title.textContent = '完了にする';
-    var estAmt = order.estimateAmount || order.amount || 0;
+    var estAmt = Number(order.estimate_amount) || 0;
     var isRepairComplete = order.type === 'repair';
     var amountRequired = isRepairComplete;
     body.innerHTML =
@@ -909,7 +885,7 @@ function updateDiff(estimateAmount) {
   var input = document.getElementById('modalFinalAmount');
   var diffRow = document.getElementById('modalDiffRow');
   var diffValue = document.getElementById('modalDiffValue');
-  var val = parseInt(input.value);
+  var val = parseInt(String(input.value).replace(/,/g, ''), 10);
   if (isNaN(val)) {
     diffRow.style.display = 'none';
     return;
@@ -925,11 +901,7 @@ function updateDiff(estimateAmount) {
   }
 }
 
-// ===== Status Change Actions =====
-function findOrder(orderId) {
-  var orders = viewMode === 'admin' ? adminOrders : storeOrders;
-  return orders.find(function(o) { return o.id === orderId; });
-}
+// ===== Status Change Actions (via API) =====
 
 // ①依頼中 → ②発注済
 function doOrder(orderId) {
@@ -939,39 +911,65 @@ function doOrder(orderId) {
   var dateInput = document.getElementById('modalDate');
   var memo = (document.getElementById('modalMemo') || {}).value || '';
 
-  var amount = parseInt(amountInput.value);
+  // カンマ区切り入力（例: "10,000"）にも対応
+  var amount = parseInt(String(amountInput.value).replace(/,/g, ''), 10);
   if (isNaN(amount) || amount <= 0) {
     alert('見積金額を入力してください');
     return;
   }
 
-  order.estimateAmount = amount;
+  var body = {
+    order_id: orderId,
+    action: 'order',
+    estimate_amount: amount,
+    memo: memo
+  };
   if (order.type === 'repair') {
-    order.repairScheduleDate = dateInput.value || '';
+    body.repair_schedule_date = dateInput.value || '';
   } else {
-    order.deliveryDate = dateInput.value || '';
+    body.delivery_date = dateInput.value || '';
   }
-  order.status = STATUS.ORDERED;
-  order.statusHistory.push({ status: STATUS.ORDERED, date: nowStr(), user: getCurrentUser(), memo: memo });
-  closeModal();
-  renderOrders();
+
+  apiPost('api/orders/status.php', body)
+    .then(function(data) {
+      if (!data.success) {
+        alert(data.message || 'エラーが発生しました');
+        return;
+      }
+      closeModal();
+      fetchOrders(function() { renderOrders(); });
+    })
+    .catch(function(e) {
+      console.error('doOrder failed:', e);
+      alert('通信エラーが発生しました');
+    });
 }
 
-// ②発注済 → ③配達中/修理待ち（部品・修理: 商品部が手動）
+// ②発注済 → ③配達中/修理待ち
 function doToDelivering(orderId) {
-  var order = findOrder(orderId);
-  if (!order) return;
   var memo = (document.getElementById('modalMemo') || {}).value || '';
-  order.status = STATUS.DELIVERING;
-  order.statusHistory.push({ status: STATUS.DELIVERING, date: nowStr(), user: getCurrentUser(), memo: memo });
-  closeModal();
-  renderOrders();
+
+  apiPost('api/orders/status.php', {
+    order_id: orderId,
+    action: 'to-delivering',
+    memo: memo
+  })
+    .then(function(data) {
+      if (!data.success) {
+        alert(data.message || 'エラーが発生しました');
+        return;
+      }
+      closeModal();
+      fetchOrders(function() { renderOrders(); });
+    })
+    .catch(function(e) {
+      console.error('doToDelivering failed:', e);
+      alert('通信エラーが発生しました');
+    });
 }
 
-// ③修理待ち → ④修理済（店舗が手動）
+// ③修理待ち → ④修理済
 function doRepairDone(orderId) {
-  var order = findOrder(orderId);
-  if (!order) return;
   var dateInput = document.getElementById('modalRepairDate');
   var memo = (document.getElementById('modalMemo') || {}).value || '';
 
@@ -980,53 +978,95 @@ function doRepairDone(orderId) {
     return;
   }
 
-  order.repairCompletedDate = dateInput.value;
-  order.status = STATUS.DELIVERED;
-  order.statusHistory.push({ status: STATUS.DELIVERED, date: nowStr(), user: getCurrentUser(), memo: memo });
-  closeModal();
-  renderOrders();
+  apiPost('api/orders/status.php', {
+    order_id: orderId,
+    action: 'repair-done',
+    repair_completed_date: dateInput.value,
+    memo: memo
+  })
+    .then(function(data) {
+      if (!data.success) {
+        alert(data.message || 'エラーが発生しました');
+        return;
+      }
+      closeModal();
+      fetchOrders(function() { renderOrders(); });
+    })
+    .catch(function(e) {
+      console.error('doRepairDone failed:', e);
+      alert('通信エラーが発生しました');
+    });
 }
 
-// ③配達中 → ④納品済（店舗が手動: 備品・部品）
+// ③配達中 → ④納品済
 function doDeliveryDone(orderId) {
-  var order = findOrder(orderId);
-  if (!order) return;
   var memo = (document.getElementById('modalMemo') || {}).value || '';
-  order.status = STATUS.DELIVERED;
-  order.statusHistory.push({ status: STATUS.DELIVERED, date: nowStr(), user: getCurrentUser(), memo: memo });
-  closeModal();
-  renderOrders();
+
+  apiPost('api/orders/status.php', {
+    order_id: orderId,
+    action: 'delivery-done',
+    memo: memo
+  })
+    .then(function(data) {
+      if (!data.success) {
+        alert(data.message || 'エラーが発生しました');
+        return;
+      }
+      closeModal();
+      fetchOrders(function() { renderOrders(); });
+    })
+    .catch(function(e) {
+      console.error('doDeliveryDone failed:', e);
+      alert('通信エラーが発生しました');
+    });
 }
 
-// ④→⑤ 完了（商品部が手動）
+// ④→⑤ 完了
 function doComplete(orderId) {
   var order = findOrder(orderId);
   if (!order) return;
   var memo = (document.getElementById('modalMemo') || {}).value || '';
   var finalInput = document.getElementById('modalFinalAmount');
-  var finalAmount = parseInt(finalInput.value);
+  // カンマ区切り入力（例: "10,000"）にも対応
+  var finalAmount = parseInt(String(finalInput.value).replace(/,/g, ''), 10);
 
   if (order.type === 'repair') {
-    // 修理: 最終金額は必須
     if (isNaN(finalAmount) || finalAmount <= 0) {
       alert('最終金額を入力してください');
       return;
     }
-    order.finalAmount = finalAmount;
-  } else {
-    // 備品・部品: 最終金額は任意（未入力なら見積金額を適用）
-    order.finalAmount = (!isNaN(finalAmount) && finalAmount > 0) ? finalAmount : (order.estimateAmount || order.amount || 0);
+  }
+
+  var body = {
+    order_id: orderId,
+    action: 'complete',
+    memo: memo
+  };
+
+  if (!isNaN(finalAmount) && finalAmount > 0) {
+    body.final_amount = finalAmount;
   }
 
   if (order.type === 'equipment') {
     var actualDateInput = document.getElementById('modalActualDeliveryDate');
-    order.actualDeliveryDate = (actualDateInput && actualDateInput.value) ? actualDateInput.value : (order.deliveryDate || '');
+    if (actualDateInput && actualDateInput.value) {
+      body.actual_delivery_date = actualDateInput.value;
+    }
   }
 
-  order.status = STATUS.COMPLETED;
-  order.statusHistory.push({ status: STATUS.COMPLETED, date: nowStr(), user: getCurrentUser(), memo: memo });
-  closeModal();
-  renderOrders();
+  apiPost('api/orders/status.php', body)
+    .then(function(data) {
+      if (!data.success) {
+        alert(data.message || 'エラーが発生しました');
+        return;
+      }
+      closeModal();
+      fetchOrders(function() { renderOrders(); });
+    })
+    .catch(function(e) {
+      console.error('doComplete failed:', e);
+      alert('通信エラーが発生しました');
+    });
 }
 
 // ===== Edit Response Info =====
@@ -1035,7 +1075,6 @@ function canEditResponseInfo(o) {
   if (viewMode === 'admin') {
     return o.status >= STATUS.ORDERED;
   }
-  // 店舗: 修理済（自分が報告した情報）のみ編集可能
   return o.type === 'repair' && o.status === STATUS.DELIVERED;
 }
 
@@ -1044,41 +1083,40 @@ function getEditableFields(o) {
   if (viewMode === 'admin') {
     if (o.status >= STATUS.ORDERED && o.status < STATUS.COMPLETED) {
       if (o.type === 'repair') {
-        fields.push({ key: 'estimateAmount', label: '見積金額', type: 'number', value: o.estimateAmount });
-        fields.push({ key: 'repairScheduleDate', label: '修理予定日', type: 'date', value: o.repairScheduleDate });
+        fields.push({ key: 'estimate_amount', label: '見積金額', type: 'number', value: o.estimate_amount });
+        fields.push({ key: 'repair_schedule_date', label: '修理予定日', type: 'date', value: o.repair_schedule_date });
       } else {
-        fields.push({ key: 'estimateAmount', label: '見積金額', type: 'number', value: o.estimateAmount || o.amount });
-        fields.push({ key: 'deliveryDate', label: '納品予定日', type: 'date', value: o.deliveryDate });
+        fields.push({ key: 'estimate_amount', label: '見積金額', type: 'number', value: o.estimate_amount });
+        fields.push({ key: 'delivery_date', label: '納品予定日', type: 'date', value: o.delivery_date });
       }
-      fields.push({ key: 'finalAmount', label: '最終金額', type: 'number', value: o.finalAmount });
-      fields.push({ key: 'memo_current', label: 'メモ', type: 'textarea', statusIndex: findHistoryIndex(o, o.status) });
+      fields.push({ key: 'final_amount', label: '最終金額', type: 'number', value: o.final_amount });
+      fields.push({ key: 'memo', label: 'メモ', type: 'textarea', statusIndex: findHistoryIndex(o, o.status) });
     } else if (o.status === STATUS.COMPLETED) {
-      fields.push({ key: 'finalAmount', label: '最終金額', type: 'number', value: o.finalAmount });
+      fields.push({ key: 'final_amount', label: '最終金額', type: 'number', value: o.final_amount });
       if (o.type === 'equipment') {
-        fields.push({ key: 'actualDeliveryDate', label: '納品日', type: 'date', value: o.actualDeliveryDate });
+        fields.push({ key: 'actual_delivery_date', label: '納品日', type: 'date', value: o.actual_delivery_date });
       }
-      fields.push({ key: 'memo_completed', label: 'メモ', type: 'textarea', statusIndex: findHistoryIndex(o, STATUS.COMPLETED) });
+      fields.push({ key: 'memo', label: 'メモ', type: 'textarea', statusIndex: findHistoryIndex(o, STATUS.COMPLETED) });
     }
   } else {
     if (o.type === 'repair' && o.status === STATUS.DELIVERED) {
-      fields.push({ key: 'repairCompletedDate', label: '修理完了日', type: 'date', value: o.repairCompletedDate });
-      fields.push({ key: 'memo_repaired', label: 'メモ', type: 'textarea', statusIndex: findHistoryIndex(o, STATUS.DELIVERED) });
+      fields.push({ key: 'repair_completed_date', label: '修理完了日', type: 'date', value: o.repair_completed_date });
+      fields.push({ key: 'memo', label: 'メモ', type: 'textarea', statusIndex: findHistoryIndex(o, STATUS.DELIVERED) });
     }
   }
   return fields;
 }
 
 function findHistoryIndex(o, status) {
-  if (!o.statusHistory) return -1;
-  for (var i = o.statusHistory.length - 1; i >= 0; i--) {
-    if (o.statusHistory[i].status === status) return i;
+  if (!o.status_history) return -1;
+  for (var i = o.status_history.length - 1; i >= 0; i--) {
+    if (o.status_history[i].status === status) return i;
   }
   return -1;
 }
 
 function openEditInfoModal(orderId) {
-  var orders = viewMode === 'admin' ? adminOrders : storeOrders;
-  var order = orders.find(function(o) { return o.id === orderId; });
+  var order = findOrder(orderId);
   if (!order) return;
 
   var fields = getEditableFields(order);
@@ -1102,8 +1140,8 @@ function openEditInfoModal(orderId) {
         '<input class="modal-input" id="editField_' + f.key + '" type="date" value="' + (f.value || '') + '"></div>';
     } else if (f.type === 'textarea') {
       var memoVal = '';
-      if (f.statusIndex >= 0 && order.statusHistory[f.statusIndex]) {
-        memoVal = order.statusHistory[f.statusIndex].memo || '';
+      if (f.statusIndex >= 0 && order.status_history[f.statusIndex]) {
+        memoVal = order.status_history[f.statusIndex].memo || '';
       }
       html += '<div class="modal-row"><span class="modal-label">' + f.label + '</span>' +
         '<textarea class="modal-textarea" id="editField_' + f.key + '">' + memoVal + '</textarea></div>';
@@ -1118,35 +1156,62 @@ function openEditInfoModal(orderId) {
 }
 
 function doSaveEditInfo(orderId) {
-  var orders = viewMode === 'admin' ? adminOrders : storeOrders;
-  var order = orders.find(function(o) { return o.id === orderId; });
+  var order = findOrder(orderId);
   if (!order) return;
 
   var fields = getEditableFields(order);
+  var body = { order_id: orderId };
+  var validationError = null;
+
   fields.forEach(function(f) {
+    if (validationError) return;
     var el = document.getElementById('editField_' + f.key);
     if (!el) return;
     if (f.type === 'number') {
-      var val = parseInt(el.value);
-      if (!isNaN(val) && val > 0) {
-        order[f.key] = val;
+      var rawVal = el.value.trim();
+      if (rawVal === '') {
+        // 空欄はスキップ（変更しない）
+        return;
       }
+      var val = parseInt(rawVal, 10);
+      if (isNaN(val) || val <= 0) {
+        validationError = f.label + 'は1以上の数値を入力してください';
+        return;
+      }
+      body[f.key] = val;
     } else if (f.type === 'date') {
-      order[f.key] = el.value || '';
+      body[f.key] = el.value || '';
     } else if (f.type === 'textarea') {
-      if (f.statusIndex >= 0 && order.statusHistory[f.statusIndex]) {
-        order.statusHistory[f.statusIndex].memo = el.value || '';
+      // memo field - determine the status context for the memo
+      body.memo = el.value || '';
+      if (f.statusIndex >= 0 && order.status_history[f.statusIndex]) {
+        body.memo_status = order.status_history[f.statusIndex].status;
       }
     }
   });
 
-  closeModal();
-  renderOrders();
+  if (validationError) {
+    alert(validationError);
+    return;
+  }
+
+  apiPost('api/orders/update-info.php', body)
+    .then(function(data) {
+      if (!data.success) {
+        alert(data.message || 'エラーが発生しました');
+        return;
+      }
+      closeModal();
+      fetchOrders(function() { renderOrders(); });
+    })
+    .catch(function(e) {
+      console.error('doSaveEditInfo failed:', e);
+      alert('通信エラーが発生しました');
+    });
 }
 
 // ===== Other Actions =====
 function onRowClick(e, id) {
-  // チェックボックス列は除外
   if (e.target.closest('.td-checkbox')) return;
   toggleDetail(id);
 }
@@ -1157,19 +1222,77 @@ function toggleDetail(id) {
 }
 
 function toggleAll(checkbox) {
-  document.querySelectorAll('.order-check').forEach(function(cb) { cb.checked = checkbox.checked; });
+  document.querySelectorAll('.order-check').forEach(function(cb) {
+    cb.checked = checkbox.checked;
+    var id = cb.getAttribute('data-id');
+    if (checkbox.checked) {
+      selectedIds[id] = true;
+    } else {
+      delete selectedIds[id];
+    }
+  });
+}
+
+function onCheckChange(checkbox) {
+  var id = checkbox.getAttribute('data-id');
+  if (checkbox.checked) {
+    selectedIds[id] = true;
+  } else {
+    delete selectedIds[id];
+  }
 }
 
 function exportExcel() {
-  alert('Excel出力（モックアップ）\n\n選択された発注をExcelファイルとしてダウンロードします。');
+  var params = [];
+
+  // チェックされた発注がある場合は ids パラメータで限定、それ以外はフィルタ条件で抽出
+  var checkedIds = getCheckedOrderIds();
+  if (checkedIds.length > 0) {
+    params.push('ids=' + encodeURIComponent(checkedIds.join(',')));
+  } else {
+    var dateFrom = document.getElementById('filterDateFrom');
+    var dateTo = document.getElementById('filterDateTo');
+    if (dateFrom && dateFrom.value) params.push('date_from=' + encodeURIComponent(dateFrom.value));
+    if (dateTo && dateTo.value) params.push('date_to=' + encodeURIComponent(dateTo.value));
+
+    if (viewMode === 'admin') {
+      var catA = document.getElementById('adminFilterCategory');
+      var typeA = document.getElementById('adminFilterType');
+      var statusA = document.getElementById('adminFilterStatus');
+      var zone = document.getElementById('filterZone');
+      var area = document.getElementById('filterArea');
+      var shop = document.getElementById('filterShop');
+      if (catA && catA.value) params.push('category=' + encodeURIComponent(catA.value));
+      if (typeA && typeA.value) params.push('type=' + encodeURIComponent(typeA.value));
+      if (statusA && statusA.value) params.push('status=' + encodeURIComponent(statusA.value));
+      if (zone && zone.value) params.push('zone=' + encodeURIComponent(zone.value));
+      if (area && area.value) params.push('area=' + encodeURIComponent(area.value));
+      if (shop && shop.value) params.push('shop=' + encodeURIComponent(shop.value));
+    } else {
+      var cat = document.getElementById('filterCategory');
+      var type = document.getElementById('filterType');
+      var status = document.getElementById('filterStatus');
+      if (cat && cat.value) params.push('category=' + encodeURIComponent(cat.value));
+      if (type && type.value) params.push('type=' + encodeURIComponent(type.value));
+      if (status && status.value) params.push('status=' + encodeURIComponent(status.value));
+    }
+  }
+
+  window.location.href = 'api/export/orders.php' + (params.length ? '?' + params.join('&') : '');
 }
 
 // ===== Bulk Status Change =====
+function getCheckedOrderIds() {
+  return Object.keys(selectedIds);
+}
+
 function getCheckedOrders() {
-  var orders = viewMode === 'admin' ? adminOrders : storeOrders;
-  var ids = [];
-  document.querySelectorAll('.order-check:checked').forEach(function(cb) { ids.push(cb.dataset.id); });
-  return orders.filter(function(o) { return ids.indexOf(o.id) >= 0; });
+  var ids = getCheckedOrderIds();
+  return currentOrders.filter(function(o) { return ids.indexOf(o.id) >= 0; });
+}
+
+function clearSelection() {
+  selectedIds = {};
 }
 
 function bulkStatusChange() {
@@ -1194,17 +1317,17 @@ function bulkStatusChange() {
 
   // 一括変更可能なアクションを提示
   var actions = [];
-  if (byStatus[STATUS.REQUESTING]) {
-    actions.push({ status: STATUS.REQUESTING, nextStatus: STATUS.ORDERED, label: '依頼中 → 発注済', count: byStatus[STATUS.REQUESTING].length });
+  if (byStatus[STATUS.REQUESTING] && viewMode === 'admin') {
+    actions.push({ status: STATUS.REQUESTING, action: 'order', label: '依頼中 → 発注済', count: byStatus[STATUS.REQUESTING].length });
   }
-  if (byStatus[STATUS.ORDERED]) {
+  if (byStatus[STATUS.ORDERED] && viewMode === 'admin') {
     var nonEquip = byStatus[STATUS.ORDERED].filter(function(o) { return o.type !== 'equipment'; });
     if (nonEquip.length > 0) {
-      actions.push({ status: STATUS.ORDERED, nextStatus: STATUS.DELIVERING, label: '発注済 → 配達中/修理待ち', count: nonEquip.length, filter: function(o) { return o.type !== 'equipment'; } });
+      actions.push({ status: STATUS.ORDERED, action: 'to-delivering', label: '発注済 → 配達中/修理待ち', count: nonEquip.length, filterEquip: true });
     }
   }
-  if (byStatus[STATUS.DELIVERED]) {
-    actions.push({ status: STATUS.DELIVERED, nextStatus: STATUS.COMPLETED, label: '納品済/修理済 → 完了', count: byStatus[STATUS.DELIVERED].length });
+  if (byStatus[STATUS.DELIVERED] && viewMode === 'admin') {
+    actions.push({ status: STATUS.DELIVERED, action: 'complete', label: '納品済/修理済 → 完了', count: byStatus[STATUS.DELIVERED].length });
   }
 
   if (actions.length === 0) {
@@ -1230,7 +1353,6 @@ function bulkStatusChange() {
   listHtml += '<div class="modal-row"><span class="modal-label">メモ</span><textarea class="modal-textarea" id="modalMemo" placeholder="任意入力（全件共通）"></textarea></div>';
 
   body.innerHTML = listHtml;
-  // Store actions data for use in execute
   window._bulkActions = actions;
 
   footer.innerHTML =
@@ -1255,37 +1377,401 @@ function doBulkStatusChange() {
   if (!actionDef) return;
 
   var checked = getCheckedOrders();
-  var targets = checked.filter(function(o) {
-    if (o.status !== actionDef.status) return false;
-    if (actionDef.filter && !actionDef.filter(o)) return false;
-    return true;
+  var targetIds = [];
+  checked.forEach(function(o) {
+    if (o.status !== actionDef.status) return;
+    if (actionDef.filterEquip && o.type === 'equipment') return;
+    targetIds.push(o.id);
   });
+
+  if (targetIds.length === 0) {
+    alert('対象の発注がありません。');
+    return;
+  }
 
   var memo = (document.getElementById('modalMemo') || {}).value || '';
-  var ts = nowStr();
-  var user = getCurrentUser();
 
-  targets.forEach(function(o) {
-    // 依頼中→発注済の場合、見積金額が必要だがバルクでは省略（備品の自動発注シミュレーション）
-    if (actionDef.nextStatus === STATUS.ORDERED && o.type === 'equipment' && o.equipDetails) {
-      var total = 0;
-      o.equipDetails.forEach(function(d) { total += d.price * d.qty; });
-      o.estimateAmount = total;
-      o.deliveryDate = o.deliveryDate || getEquipmentDeliveryDate();
-    }
-    // 納品済/修理済→完了の場合、最終金額が未入力なら見積金額を適用
-    if (actionDef.nextStatus === STATUS.COMPLETED && !o.finalAmount) {
-      o.finalAmount = o.estimateAmount || o.amount || 0;
-    }
-    o.status = actionDef.nextStatus;
-    o.statusHistory.push({ status: actionDef.nextStatus, date: ts, user: user, memo: memo });
-  });
-
-  closeModal();
-  var selectAll = document.getElementById('selectAll');
-  if (selectAll) selectAll.checked = false;
-  renderOrders();
+  apiPost('api/orders/bulk-status.php', {
+    order_ids: targetIds,
+    action: actionDef.action,
+    memo: memo
+  })
+    .then(function(data) {
+      if (!data.success) {
+        alert(data.message || 'エラーが発生しました');
+        return;
+      }
+      closeModal();
+      var selectAll = document.getElementById('selectAll');
+      if (selectAll) selectAll.checked = false;
+      clearSelection();
+      fetchOrders(function() { renderOrders(); });
+    })
+    .catch(function(e) {
+      console.error('doBulkStatusChange failed:', e);
+      alert('通信エラーが発生しました');
+    });
 }
 
-// ===== Init =====
-initView();
+// ===== Boot: wait for userLoaded event from common-nav.js =====
+function bootOrderList(user) {
+  if (currentUser) return; // 二重起動防止
+  currentUser = user;
+  // admin/system/zone/area は admin ビュー（複数店舗横断）。shop は store ビュー（自店のみ）
+  var managerRoles = ['admin', 'system', 'zone', 'area'];
+  viewMode = managerRoles.indexOf(currentUser.role) !== -1 ? 'admin' : 'store';
+  // ステータス操作・一括変更は admin/system のみ可能。zone/area は閲覧専用。
+  window.__canOperate = (currentUser.role === 'admin' || currentUser.role === 'system');
+
+  // 店舗ユーザーの場合、取扱カテゴリのみをドロップダウンに表示（プレースホルダは「すべてのカテゴリ」）
+  if (viewMode === 'store' && Array.isArray(user.categories)) {
+    var filterCategoryEl = document.getElementById('filterCategory');
+    if (filterCategoryEl) {
+      var opts = '<option value="">すべてのカテゴリ</option>';
+      user.categories.forEach(function(c) {
+        opts += '<option value="' + c.code + '">' + c.name + '</option>';
+      });
+      filterCategoryEl.innerHTML = opts;
+      // categoriesMap を user.categories から構築（表セルの日本語ラベル表示用）
+      user.categories.forEach(function(c) {
+        categoriesMap[c.code] = { name: c.name };
+      });
+    }
+  }
+
+  fetchMasterData(function() {
+    initView();
+  });
+}
+
+window.addEventListener('userLoaded', function(e) {
+  bootOrderList(e.detail);
+});
+
+// レース条件対策: common-nav.jsが先に完了していた場合
+if (window.__currentUser) {
+  bootOrderList(window.__currentUser);
+}
+
+// ===== Draft Mails (Phase 1) =====
+// 「依頼中」の備品発注を仕入先単位に集計し、メーラー起動 / 本文コピー / 発注済化を提供する
+var draftMailsState = {
+  suppliers: [],
+  activeIndex: 0
+};
+
+function openDraftMails() {
+  if (viewMode !== 'admin') return;
+
+  var params = [];
+  // チェックがある場合はその発注のみ対象、なければ画面のフィルタを引き継ぐ
+  var checkedIds = getCheckedOrderIds();
+  if (checkedIds.length > 0) {
+    params.push('ids=' + encodeURIComponent(checkedIds.join(',')));
+  } else {
+    var zone = document.getElementById('filterZone');
+    var area = document.getElementById('filterArea');
+    var shop = document.getElementById('filterShop');
+    var cat  = document.getElementById('adminFilterCategory');
+    var df   = document.getElementById('filterDateFrom');
+    var dt   = document.getElementById('filterDateTo');
+    if (zone && zone.value) params.push('zone=' + encodeURIComponent(zone.value));
+    if (area && area.value) params.push('area=' + encodeURIComponent(area.value));
+    if (shop && shop.value) params.push('shop=' + encodeURIComponent(shop.value));
+    if (cat && cat.value)   params.push('category=' + encodeURIComponent(cat.value));
+    if (df && df.value)     params.push('date_from=' + encodeURIComponent(df.value));
+    if (dt && dt.value)     params.push('date_to=' + encodeURIComponent(dt.value));
+  }
+
+  var url = 'api/orders/draft-mails.php' + (params.length ? '?' + params.join('&') : '');
+
+  if (typeof window.showLoading === 'function') window.showLoading('集計中…');
+
+  apiGet(url)
+    .then(function(res) {
+      if (!res || !res.success) {
+        alert('メール下書きの取得に失敗しました');
+        return;
+      }
+      draftMailsState.suppliers = (res.data && res.data.suppliers) || [];
+      draftMailsState.activeIndex = 0;
+      renderDraftMails();
+      var ov = document.getElementById('draftMailsOverlay');
+      if (ov) ov.classList.add('open');
+    })
+    .catch(function(e) {
+      console.error(e);
+      alert('通信エラーが発生しました');
+    })
+    .finally(function() {
+      if (typeof window.hideLoading === 'function') window.hideLoading();
+    });
+}
+
+function closeDraftMails() {
+  var ov = document.getElementById('draftMailsOverlay');
+  if (ov) ov.classList.remove('open');
+}
+
+function escapeHtml(s) {
+  if (s === null || s === undefined) return '';
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function formatYen(n) {
+  return '¥' + (Number(n) || 0).toLocaleString();
+}
+
+function buildMailSubject(sup) {
+  var today = new Date();
+  var ymd = today.getFullYear() + ('0' + (today.getMonth() + 1)).slice(-2) + ('0' + today.getDate()).slice(-2);
+  return '【発注依頼】' + ymd + '_' + sup.supplier + ' 御中';
+}
+
+function buildMailBody(sup) {
+  var lines = [];
+  var contactName = sup.contact ? (sup.contact + ' 様') : 'ご担当者様';
+  lines.push(sup.supplier + ' 御中');
+  lines.push(contactName);
+  lines.push('');
+  lines.push('いつもお世話になっております。');
+  lines.push('快活フロンティア商品部です。');
+  lines.push('');
+  lines.push('下記のとおり発注いたしますので、ご手配のほど');
+  lines.push('よろしくお願いいたします。');
+  lines.push('');
+  lines.push('─────────────────────────');
+  lines.push('■ 発注明細');
+  lines.push('─────────────────────────');
+
+  // 店舗単位でまとめる
+  var byShop = {};
+  sup.items.forEach(function(it) {
+    var key = it.shop_code + ':' + it.shop_name;
+    if (!byShop[key]) byShop[key] = [];
+    byShop[key].push(it);
+  });
+
+  Object.keys(byShop).forEach(function(key) {
+    var label = key.split(':').slice(1).join(':');
+    lines.push('');
+    lines.push('【' + label + '店】');
+    byShop[key].forEach(function(it) {
+      var codePart = it.product_code ? ' (' + it.product_code + ')' : '';
+      var priceLine = it.price > 0
+        ? '  ・' + it.product_name + codePart + ' ×' + it.qty + ' @' + it.price.toLocaleString() + '円'
+        : '  ・' + it.product_name + codePart + ' ×' + it.qty;
+      lines.push(priceLine);
+    });
+  });
+
+  lines.push('');
+  lines.push('─────────────────────────');
+  lines.push('合計数量: ' + sup.total_qty + ' 点');
+  if (sup.total_amount > 0) {
+    lines.push('合計金額（税抜）: ' + sup.total_amount.toLocaleString() + ' 円');
+  }
+  lines.push('─────────────────────────');
+  lines.push('');
+  lines.push('納期・納品先・運送条件など、ご不明な点があれば');
+  lines.push('ご連絡くださいますようお願いいたします。');
+  lines.push('');
+  lines.push('以上、よろしくお願いいたします。');
+  lines.push('');
+  lines.push('────────────────────────');
+  lines.push('快活フロンティア 商品部');
+  lines.push('────────────────────────');
+
+  return lines.join('\n');
+}
+
+function renderDraftMails() {
+  var body = document.getElementById('draftMailsBody');
+  if (!body) return;
+
+  var suppliers = draftMailsState.suppliers;
+
+  if (!suppliers || suppliers.length === 0) {
+    body.innerHTML = '<div class="draft-mails-empty">対象となる「依頼中」の備品発注がありません。<br>発注一覧のフィルタ条件をご確認ください。</div>';
+    return;
+  }
+
+  // Tabs
+  var tabsHtml = '<div class="draft-mails-tabs">';
+  suppliers.forEach(function(sup, i) {
+    var active = (i === draftMailsState.activeIndex) ? ' active' : '';
+    tabsHtml += '<button type="button" class="draft-mails-tab' + active + '" onclick="switchDraftTab(' + i + ')">' +
+      escapeHtml(sup.supplier) +
+      '<span class="badge-count">' + sup.order_ids.length + '</span>' +
+    '</button>';
+  });
+  tabsHtml += '</div>';
+
+  // Cards
+  var cardsHtml = '';
+  suppliers.forEach(function(sup, i) {
+    var active = (i === draftMailsState.activeIndex) ? ' active' : '';
+    var subject = buildMailSubject(sup);
+    var bodyText = buildMailBody(sup);
+    cardsHtml += '<div class="draft-mail-card' + active + '" id="draftMailCard-' + i + '">';
+    cardsHtml +=   '<div class="draft-mail-summary">';
+    cardsHtml +=     '<div><span class="draft-mail-summary-label">仕入先:</span><span class="draft-mail-summary-value">' + escapeHtml(sup.supplier) + '</span></div>';
+    cardsHtml +=     '<div><span class="draft-mail-summary-label">対象発注数:</span><span class="draft-mail-summary-value">' + sup.order_ids.length + ' 件</span></div>';
+    cardsHtml +=     '<div><span class="draft-mail-summary-label">合計数量:</span><span class="draft-mail-summary-value">' + sup.total_qty + ' 点</span></div>';
+    cardsHtml +=     '<div><span class="draft-mail-summary-label">合計金額:</span><span class="draft-mail-summary-value">' + formatYen(sup.total_amount) + '</span></div>';
+    cardsHtml +=     '<div style="grid-column:1/-1"><span class="draft-mail-summary-label">対象店舗:</span><span class="draft-mail-summary-value">' + escapeHtml(sup.shops.join(' / ')) + '</span></div>';
+    cardsHtml +=   '</div>';
+
+    cardsHtml +=   '<div class="draft-mail-field">';
+    cardsHtml +=     '<label>To（送信先メールアドレス）</label>';
+    cardsHtml +=     '<input type="text" class="draft-mail-input" id="draftMailTo-' + i + '" value="' + escapeHtml(sup.email || '') + '" placeholder="例: contact@supplier.co.jp">';
+    cardsHtml +=   '</div>';
+
+    cardsHtml +=   '<div class="draft-mail-field">';
+    cardsHtml +=     '<label>件名</label>';
+    cardsHtml +=     '<input type="text" class="draft-mail-input" id="draftMailSubject-' + i + '" value="' + escapeHtml(subject) + '">';
+    cardsHtml +=   '</div>';
+
+    cardsHtml +=   '<div class="draft-mail-field">';
+    cardsHtml +=     '<label>本文（編集可）</label>';
+    cardsHtml +=     '<textarea class="draft-mail-textarea" id="draftMailBody-' + i + '">' + escapeHtml(bodyText) + '</textarea>';
+    cardsHtml +=   '</div>';
+
+    cardsHtml +=   '<div class="draft-mail-actions">';
+    cardsHtml +=     '<button type="button" class="btn-action btn-secondary" onclick="openMailtoForSupplier(' + i + ')">';
+    cardsHtml +=       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>';
+    cardsHtml +=       'メーラーで開く</button>';
+    cardsHtml +=     '<button type="button" class="btn-action btn-secondary" onclick="copyDraftBody(' + i + ')">';
+    cardsHtml +=       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
+    cardsHtml +=       '本文コピー</button>';
+    cardsHtml +=     '<span class="copy-feedback" id="copyFeedback-' + i + '">コピーしました</span>';
+    cardsHtml +=     '<div class="spacer"></div>';
+    cardsHtml +=     '<button type="button" class="btn-action btn-primary" onclick="markSupplierOrdered(' + i + ')">';
+    cardsHtml +=       'この仕入先分を発注済にする</button>';
+    cardsHtml +=   '</div>';
+    cardsHtml += '</div>';
+  });
+
+  body.innerHTML = tabsHtml + cardsHtml;
+}
+
+function switchDraftTab(i) {
+  draftMailsState.activeIndex = i;
+  // クラス切り替えのみ（再描画すると編集中のテキストが消えるため）
+  document.querySelectorAll('.draft-mails-tab').forEach(function(el, idx) {
+    if (idx === i) el.classList.add('active'); else el.classList.remove('active');
+  });
+  document.querySelectorAll('.draft-mail-card').forEach(function(el, idx) {
+    if (idx === i) el.classList.add('active'); else el.classList.remove('active');
+  });
+}
+
+function openMailtoForSupplier(i) {
+  var toEl   = document.getElementById('draftMailTo-' + i);
+  var subEl  = document.getElementById('draftMailSubject-' + i);
+  var bodyEl = document.getElementById('draftMailBody-' + i);
+  if (!toEl || !subEl || !bodyEl) return;
+
+  var to      = (toEl.value || '').trim();
+  var subject = subEl.value || '';
+  var body    = bodyEl.value || '';
+
+  var qs = [];
+  qs.push('subject=' + encodeURIComponent(subject));
+  qs.push('body=' + encodeURIComponent(body));
+  var url = 'mailto:' + encodeURIComponent(to) + '?' + qs.join('&');
+
+  // URL 長制限（実装によっては ~2000 文字）の警告
+  if (url.length > 2000) {
+    if (!confirm('本文が長いため、メーラーで開いた際に途中で切れる可能性があります。\n「本文コピー」の利用を推奨します。\n\nそれでもメーラーを起動しますか？')) {
+      return;
+    }
+  }
+
+  // 一部ブラウザ/メーラーで location.href にすると現画面が遷移してしまうため新規ウィンドウ経由が安全
+  window.location.href = url;
+}
+
+function copyDraftBody(i) {
+  var bodyEl = document.getElementById('draftMailBody-' + i);
+  if (!bodyEl) return;
+  var text = bodyEl.value || '';
+
+  var fb = document.getElementById('copyFeedback-' + i);
+
+  function showFeedback() {
+    if (!fb) return;
+    fb.classList.add('show');
+    setTimeout(function() { fb.classList.remove('show'); }, 1500);
+  }
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(showFeedback).catch(function() {
+      // フォールバック
+      legacyCopy(text);
+      showFeedback();
+    });
+  } else {
+    legacyCopy(text);
+    showFeedback();
+  }
+}
+
+function legacyCopy(text) {
+  var ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.left = '-9999px';
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); } catch (e) {}
+  document.body.removeChild(ta);
+}
+
+function markSupplierOrdered(i) {
+  var sup = draftMailsState.suppliers[i];
+  if (!sup) return;
+
+  var msg = '【' + sup.supplier + '】に紐付く ' + sup.order_ids.length + ' 件の発注を「発注済」に変更します。\n' +
+            'よろしいですか？';
+  if (!confirm(msg)) return;
+
+  if (typeof window.showLoading === 'function') window.showLoading('発注済に更新中…');
+
+  apiPost('api/orders/bulk-status.php', {
+    order_ids: sup.order_ids,
+    action: 'order',
+    memo: 'メール下書きから発注: ' + sup.supplier
+  })
+    .then(function(res) {
+      if (!res || !res.success) {
+        alert('一括ステータス変更に失敗しました');
+        return;
+      }
+      var processed = (res.processed || []).length;
+      var skipped   = (res.skipped || []).length;
+      alert('発注済に更新しました（' + processed + ' 件 / スキップ: ' + skipped + ' 件）');
+
+      // この仕入先タブを閉じてリストから除外
+      draftMailsState.suppliers.splice(i, 1);
+      if (draftMailsState.activeIndex >= draftMailsState.suppliers.length) {
+        draftMailsState.activeIndex = Math.max(0, draftMailsState.suppliers.length - 1);
+      }
+      renderDraftMails();
+
+      // 発注一覧側も再読込
+      fetchOrders(function() { renderOrders(); });
+    })
+    .catch(function(e) {
+      console.error(e);
+      alert('通信エラーが発生しました');
+    })
+    .finally(function() {
+      if (typeof window.hideLoading === 'function') window.hideLoading();
+    });
+}

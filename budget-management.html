@@ -4,58 +4,73 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>予算管理画面</title>
+  <style>html.auth-pending body{visibility:hidden}</style>
+  <script>document.documentElement.classList.add('auth-pending');</script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/common.css">
-  <link rel="stylesheet" href="css/budget-management.css">
+  <link rel="stylesheet" href="css/common.css?v=20260526b">
+  <link rel="stylesheet" href="css/budget-management.css?v=20260526b">
 </head>
 <body>
   <header class="header" data-title="予算管理画面"></header>
   <nav class="nav" data-active="budget-management.html"></nav>
-  <script src="js/common-nav.js"></script>
+  <script src="js/mock-api.js?v=20260527"></script>
+  <script src="js/common-nav.js?v=20260521"></script>
   <main class="main">
-    <h2 class="page-title" id="pageTitle">予算管理</h2>
-    <p class="page-desc" id="pageDesc">店舗別の予算・実績・消化状況を管理します。行をクリックすると月別明細を表示します。</p>
-
     <!-- Admin Filters -->
-    <div class="toolbar" id="adminToolbar">
-      <div class="toolbar-filters">
-        <select class="form-select" id="filterZone" onchange="onZoneChange()">
-          <option value="">ゾーン</option>
-          <option value="100">100:東日本</option>
-          <option value="200">200:西日本</option>
-        </select>
-        <select class="form-select" id="filterArea" onchange="onAreaChange()">
-          <option value="">エリア</option>
-        </select>
-        <select class="form-select" id="filterShop" onchange="filterBudget()">
-          <option value="">店舗</option>
-        </select>
-        <select class="form-select" id="filterDept" onchange="filterBudget()">
-          <option value="">すべての部門</option>
-          <option value="fit">フィットネス</option>
-          <option value="ig">インドアゴルフ</option>
-        </select>
-        <select class="form-select" id="filterYear" onchange="filterBudget()">
-          <option value="2026" selected>2026年度</option>
-          <option value="2025">2025年度</option>
-        </select>
+    <div class="admin-filter-bar" id="adminToolbar">
+      <div class="admin-filter-row">
+        <div class="filter-group">
+          <span class="filter-label">ゾーン</span>
+          <select class="form-select" id="filterZone" onchange="onZoneChange()">
+            <option value="">すべて</option>
+            <option value="100">100:東日本</option>
+            <option value="200">200:西日本</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <span class="filter-label">エリア</span>
+          <select class="form-select" id="filterArea" onchange="onAreaChange()">
+            <option value="">すべて</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <span class="filter-label">店舗</span>
+          <select class="form-select" id="filterShop" onchange="filterBudget()">
+            <option value="">すべて</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <span class="filter-label">カテゴリ</span>
+          <select class="form-select" id="filterDept" onchange="filterBudget()">
+            <option value="">すべてのカテゴリ</option>
+            <!-- カテゴリは JS で動的に追加 -->
+          </select>
+        </div>
+        <div class="filter-group">
+          <span class="filter-label">年度</span>
+          <select class="form-select" id="filterYear" onchange="filterBudget()">
+          </select>
+        </div>
       </div>
     </div>
 
     <!-- Store Filters -->
-    <div class="toolbar" id="storeToolbar" style="display:none">
-      <div class="toolbar-filters">
-        <select class="form-select" id="storeDept" onchange="filterBudget()">
-          <option value="">すべての部門</option>
-          <option value="fit">フィットネス</option>
-          <option value="ig">インドアゴルフ</option>
-        </select>
-        <select class="form-select" id="storeYear" onchange="filterBudget()">
-          <option value="2026" selected>2026年度</option>
-          <option value="2025">2025年度</option>
-        </select>
+    <div class="admin-filter-bar" id="storeToolbar" style="display:none">
+      <div class="admin-filter-row">
+        <div class="filter-group">
+          <span class="filter-label">カテゴリ</span>
+          <select class="form-select" id="storeDept" onchange="filterBudget()">
+            <option value="">すべてのカテゴリ</option>
+            <!-- カテゴリは JS で動的に追加 -->
+          </select>
+        </div>
+        <div class="filter-group">
+          <span class="filter-label">年度</span>
+          <select class="form-select" id="storeYear" onchange="filterBudget()">
+          </select>
+        </div>
       </div>
     </div>
 
@@ -68,16 +83,25 @@
     </div>
 
     <!-- Summary Cards -->
-    <div class="summary-count" id="summaryCount"></div>
-    <div class="summary-grid" id="summaryCards">
-      <!-- JS renders -->
+    <div class="summary-section">
+      <div class="summary-toggle-bar">
+        <div class="summary-count" id="summaryCount"></div>
+        <button type="button" class="btn-summary-toggle" id="summaryToggleBtn" onclick="toggleSummary()" aria-expanded="true">
+          <span id="summaryToggleLabel">サマリーを隠す</span>
+          <svg id="summaryToggleIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
+        </button>
+      </div>
+      <div class="summary-grid" id="summaryCards">
+        <!-- JS renders -->
+      </div>
     </div>
 
     <!-- Budget Table -->
     <div class="table-container">
       <table class="budget-table">
-        <thead>
+        <thead id="budgetTableHead">
           <tr>
+            <th rowspan="2" class="col-check budget-check-col" style="display:none"><input type="checkbox" id="budgetSelectAll" onchange="toggleAllBudget(this)"></th>
             <th rowspan="2" class="col-shop sticky-col">店舗</th>
             <th colspan="4" class="group-header group-period">当期</th>
             <th colspan="4" class="group-header group-midterm" id="midtermHeader">期中</th>
@@ -94,8 +118,23 @@
         </tbody>
       </table>
     </div>
+
+    <!-- Pagination（admin専用。店舗ユーザーは自店のみ表示のため不要） -->
+    <div class="pagination-bar" id="budgetPaginationBar" style="display:none">
+      <div class="pagination-info" id="budgetPaginationInfo"></div>
+      <div class="pagination-controls">
+        <label class="pagination-label">1ページの件数</label>
+        <select class="form-select" id="budgetPageSizeSelect" onchange="onBudgetPageSizeChange()">
+          <option value="20">20件</option>
+          <option value="50">50件</option>
+          <option value="100">100件</option>
+          <option value="all">すべて</option>
+        </select>
+        <button type="button" class="btn-action btn-secondary" id="budgetShowMoreBtn" onclick="showMoreBudgetRows()" style="display:none">次を表示</button>
+      </div>
+    </div>
   </main>
 
-  <script src="js/budget-management.js"></script>
+  <script src="js/budget-management.js?v=20260526c"></script>
 </body>
 </html>
