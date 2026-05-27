@@ -1,5 +1,6 @@
 /* ===== Wide Layout (table page) ===== */
-.main { max-width: 1400px; }
+/* テーブル画面はカラム数が多いため 1500px に拡張（予算管理と統一） */
+.main { max-width: 1500px; }
 
 /* ===== Filter Bars (admin/store とも初期非表示。JS で role に応じて表示。スタイル本体は common.css) ===== */
 #adminFilterBar,

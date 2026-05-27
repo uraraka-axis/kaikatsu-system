@@ -1,5 +1,6 @@
 /* ===== Wide Layout (table page) ===== */
-.main { max-width: 1400px; }
+/* 12列の数値テーブルが入る幅。1500px で 1440px以上のPCなら全列見切れず表示可能 */
+.main { max-width: 1500px; }
 
 /* ===== Excel出力対象選択チェックボックス列（admin only） ===== */
 /* 発注一覧のスタイルに揃える: 列幅40px / 中央寄せ / checkbox はブラウザデフォルトサイズ */
@@ -105,7 +106,7 @@
   margin-top: 4px;
 }
 .progress-bar-inline {
-  width: 60px;
+  width: 48px;
   height: 6px;
   background: #e2e8f0;
   border-radius: 3px;
