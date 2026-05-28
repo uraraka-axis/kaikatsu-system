@@ -710,8 +710,16 @@ function renderStatusHistory(o) {
 // ===== Action Button =====
 function renderActionButton(o) {
   var html = '<div class="detail-actions">';
-  var action = getAvailableAction(o);
 
+  // 取消ボタン: admin/system のみ、status=0 (依頼中) のみ
+  if (viewMode === 'admin' && window.__canOperate && o.status === STATUS.REQUESTING) {
+    html += '<button class="btn-sm btn-sm-danger" onclick="openCancelOrderModal(\'' + o.id + '\')" ' +
+            'style="background:#fff;color:#dc2626;border-color:#dc2626" ' +
+            'onmouseover="this.style.background=\'#fef2f2\'" ' +
+            'onmouseout="this.style.background=\'#fff\'">取消</button>';
+  }
+
+  var action = getAvailableAction(o);
   if (action) {
     html += '<button class="btn-sm ' + action.btnClass + '" onclick="openStatusModal(\'' + o.id + '\', \'' + action.key + '\')">' + action.label + '</button>';
   } else {
@@ -721,6 +729,56 @@ function renderActionButton(o) {
   html += '</div>';
   return html;
 }
+
+// ===== Cancel Order =====
+window.openCancelOrderModal = function(orderId) {
+  var order = findOrder(orderId);
+  if (!order) return;
+  if (order.status !== STATUS.REQUESTING) return;
+
+  var modal = document.getElementById('modalOverlay');
+  var title = document.getElementById('modalTitle');
+  var body = document.getElementById('modalBody');
+  var footer = document.getElementById('modalFooter');
+
+  title.textContent = '発注を取消する';
+  body.innerHTML =
+    '<div class="modal-row"><span class="modal-label">発注番号</span>' +
+      '<input class="modal-input readonly" value="' + escapeHtml(order.id) + '" readonly></div>' +
+    '<hr class="modal-divider">' +
+    '<div class="modal-info" style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;padding:10px;border-radius:6px;font-size:13px;margin-bottom:8px">' +
+      '⚠ この発注を取消します。取消すると一覧から非表示になります（履歴は残ります）。' +
+    '</div>' +
+    '<div class="modal-row"><span class="modal-label">取消理由 <span class="required">*</span></span>' +
+      '<textarea class="modal-textarea" id="cancelReasonInput" placeholder="例: 誤発注のため / 店舗側で在庫確認したら不要だった 等"></textarea></div>';
+  footer.innerHTML =
+    '<button class="btn-modal btn-modal-cancel" onclick="closeModal()">キャンセル</button>' +
+    '<button class="btn-modal" onclick="doCancelOrder(\'' + orderId + '\')" ' +
+      'style="background:#dc2626;color:#fff;border:none">取消を実行</button>';
+  modal.classList.add('open');
+};
+
+window.doCancelOrder = function(orderId) {
+  var reasonInput = document.getElementById('cancelReasonInput');
+  var reason = reasonInput ? reasonInput.value.trim() : '';
+  if (reason === '') {
+    alert('取消理由は必須です');
+    return;
+  }
+  apiPost('api/orders/cancel.php', { order_id: orderId, cancel_reason: reason })
+    .then(function(data) {
+      if (!data.success) {
+        alert(data.message || data.error || '取消に失敗しました');
+        return;
+      }
+      closeModal();
+      fetchOrders(function() { renderOrders(); });
+    })
+    .catch(function(e) {
+      console.error('doCancelOrder failed:', e);
+      alert('通信エラーが発生しました');
+    });
+};
 
 function getAvailableAction(o) {
   // zone / area は閲覧専用なのでアクションボタン無し（API 側でも 403 で防御）

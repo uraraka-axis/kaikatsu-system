@@ -99,7 +99,8 @@ $sql = 'SELECT o.id, o.type, o.category_code, o.status, o.shop_code, o.date,
         JOIN shops s ON o.shop_code = s.code';
 
 $joins = [];
-$where = [];
+// 取消発注は Excel 出力から除外
+$where = ['o.cancelled_at IS NULL'];
 $params = [];
 
 if ($zoneCode !== '') {

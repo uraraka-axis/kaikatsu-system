@@ -223,6 +223,9 @@ CREATE TABLE orders (
   created_by            INT          NULL     COMMENT '作成者ユーザーID',
   created_at            DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at            DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  cancelled_at          DATETIME     NULL DEFAULT NULL COMMENT '取消日時 (NULL=未取消)',
+  cancelled_by          VARCHAR(50)  NULL DEFAULT NULL COMMENT '取消者のユーザー名 (snapshot)',
+  cancel_reason         TEXT         NULL DEFAULT NULL COMMENT '取消理由 (取消時に必須入力)',
   PRIMARY KEY (id),
   INDEX idx_orders_type (type),
   INDEX idx_orders_status (status),
@@ -231,6 +234,7 @@ CREATE TABLE orders (
   INDEX idx_orders_date (date),
   INDEX idx_orders_created_by (created_by),
   INDEX idx_orders_type_status_date (type, status, date),
+  INDEX idx_orders_cancelled (cancelled_at),
   CONSTRAINT fk_orders_shop FOREIGN KEY (shop_code) REFERENCES shops(code)
     ON UPDATE CASCADE ON DELETE RESTRICT,
   CONSTRAINT fk_orders_category FOREIGN KEY (category_code) REFERENCES categories(code)

@@ -131,6 +131,7 @@ if (in_array('0to1', $opts['only'], true)) {
                 FROM orders
                 WHERE status = 0
                   AND type = 'equipment'
+                  AND cancelled_at IS NULL
                   AND category_code IN (" . implode(',', $placeholders) . ")";
         $targets = query($sql, $params);
 
@@ -183,6 +184,7 @@ if (in_array('1to2', $opts['only'], true)) {
                 FROM orders
                 WHERE status = 1
                   AND type = 'equipment'
+                  AND cancelled_at IS NULL
                   AND category_code IN (" . implode(',', $placeholders) . ")";
         $targets = query($sql, $params);
 
@@ -223,6 +225,7 @@ if (in_array('2to3', $opts['only'], true)) {
          FROM orders
          WHERE status = 2
            AND type = 'equipment'
+           AND cancelled_at IS NULL
            AND delivery_date = :today",
         [':today' => $todayStr]
     );
@@ -257,6 +260,7 @@ if (in_array('3to4', $opts['only'], true)) {
          FROM orders
          WHERE status = 3
            AND type = 'equipment'
+           AND cancelled_at IS NULL
            AND delivery_date = :yesterday",
         [':yesterday' => $yesterdayStr]
     );

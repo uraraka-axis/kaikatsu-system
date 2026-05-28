@@ -65,7 +65,8 @@ $sql = "SELECT
         JOIN shops s ON o.shop_code = s.code
         JOIN order_equipment_items i ON i.order_id = o.id
         WHERE o.status = 0
-          AND o.type = 'equipment'";
+          AND o.type = 'equipment'
+          AND o.cancelled_at IS NULL";
 
 $joins  = [];
 $where  = [];

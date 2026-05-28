@@ -75,6 +75,12 @@ try {
         $orderType   = $order['type'];
         $orderStatus = (int)$order['status'];
 
+        // 取消済みはスキップ
+        if ($order['cancelled_at'] !== null) {
+            $skipped[] = $orderId;
+            continue;
+        }
+
         // ステータスが一致しない場合はスキップ
         if ($orderStatus !== $requiredStatus) {
             $skipped[] = $orderId;

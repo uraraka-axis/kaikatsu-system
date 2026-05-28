@@ -32,6 +32,9 @@ $order = getOne('SELECT * FROM orders WHERE id = :id', [':id' => $orderId]);
 if ($order === null) {
     jsonError('発注が見つかりません', 404);
 }
+if ($order['cancelled_at'] !== null) {
+    jsonError('取消された発注は編集できません', 400);
+}
 
 $currentStatus = (int)$order['status'];
 $orderType     = $order['type'];
