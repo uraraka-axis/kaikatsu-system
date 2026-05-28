@@ -203,6 +203,54 @@ function applyBudgetActualDeltaByDelivery(array $order, int $delta): bool
 }
 
 /**
+ * 任意の日付 (例: 自店調達申請日) を計上月キーに変換する。
+ *
+ * @param string $shopCode
+ * @param string $categoryCode  カテゴリ = 予算の department
+ * @param string $dateStr       'YYYY-MM-DD'
+ * @return array{shop_code:string, fiscal_year:int, month:int, department:string}
+ */
+function resolveBudgetKeyByDate(string $shopCode, string $categoryCode, string $dateStr): array
+{
+    $d = new DateTimeImmutable($dateStr);
+    $month = (int)$d->format('n');
+    $year  = (int)$d->format('Y');
+    $fiscalYear = $month >= 4 ? $year : $year - 1;
+
+    return [
+        'shop_code'   => $shopCode,
+        'fiscal_year' => $fiscalYear,
+        'month'       => $month,
+        'department'  => $categoryCode,
+    ];
+}
+
+/**
+ * 指定日付の月の budgets.actual_amount に delta を加算する。
+ * 自店調達 (procurement_requests) のように、納品概念がなく申請日 = 計上日となる
+ * トランザクションで使用する。
+ */
+function applyBudgetActualDeltaByDate(string $shopCode, string $categoryCode, string $dateStr, int $delta): void
+{
+    if ($delta === 0) return;
+
+    $key = resolveBudgetKeyByDate($shopCode, $categoryCode, $dateStr);
+
+    execute(
+        'INSERT INTO budgets (shop_code, fiscal_year, month, department, budget_amount, actual_amount)
+         VALUES (:s, :y, :m, :d, 0, :a)
+         ON DUPLICATE KEY UPDATE actual_amount = actual_amount + VALUES(actual_amount)',
+        [
+            ':s' => $key['shop_code'],
+            ':y' => $key['fiscal_year'],
+            ':m' => $key['month'],
+            ':d' => $key['department'],
+            ':a' => $delta,
+        ]
+    );
+}
+
+/**
  * 計上月が属する四半期 (Q1=4-6 / Q2=7-9 / Q3=10-12 / Q4=1-3) の月配列を返す。
  */
 function getQuarterMonths(int $month): array

@@ -20,6 +20,7 @@
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../includes/budget.php';
 
 requireLogin();
 
@@ -246,6 +247,9 @@ if ($method === 'GET') {
                 ':created_by'    => $user['id'],
             ]
         );
+
+        // 予算実績反映: 申請月の budgets.actual_amount に金額を加算（即時反映）
+        applyBudgetActualDeltaByDate($shopCode, $categoryCode, $today, $amount);
 
         commit();
 

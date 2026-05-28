@@ -1,23 +1,24 @@
 <?php declare(strict_types=1);
 
 /**
- * 一回限り実行: budgets.actual_amount を実発注から再集計してリセットする。
+ * 一回限り実行: budgets.actual_amount を実発注 + 自店調達から再集計してリセットする。
  *
- * 【現行ルール（納品月ベース計上）】
- *   - status = 0,1,2: 未納品のため actual に乗らない
- *   - status = 3 (納品済/修理済): estimate_amount を加算
- *   - status = 4 (完了)         : final_amount を加算（NULL なら estimate）
- *   - 計上月:
- *       備品/部品 → orders.actual_delivery_date
- *       修理     → order_repair_details.repair_completed_date
- *   - 取消発注 (cancelled_at IS NOT NULL) は除外
+ * 【現行ルール】
+ *   発注 (orders):
+ *     - status = 0,1,2: 未納品のため actual に乗らない
+ *     - status = 3 (納品済/修理済/作業済): estimate_amount を加算
+ *     - status = 4 (完了)                 : final_amount を加算（NULL なら estimate）
+ *     - 計上月:
+ *         備品/部品       → orders.actual_delivery_date
+ *         修理/シート交換 → order_*_details.repair_completed_date
+ *     - 取消発注 (cancelled_at IS NOT NULL) は除外
+ *
+ *   自店調達 (procurement_requests):
+ *     - 申請月 = MONTH(date) に amount を加算（即時計上）
+ *     - status は問わない（現状は全件 'approved'）
  *
  * 使い方:
  *   "C:/xampp/php/php.exe" rebuild_budgets_actual.php
- *
- * 備考:
- *   旧ルール（発注日 + カテゴリ締めルール）で計上していたものを、今回の改修で
- *   納品月ベースに切り替えるための baseline 作成にも使用する。
  */
 
 require_once __DIR__ . '/../includes/db.php';
@@ -83,8 +84,44 @@ foreach ($orders as $o) {
 }
 
 echo sprintf(
-    "[done] 反映: %d 件 / 日付未設定スキップ: %d 件 / その他スキップ: %d 件\n",
+    "[done orders] 反映: %d 件 / 日付未設定スキップ: %d 件 / その他スキップ: %d 件\n",
     $applied, $noDateSkipped, $skipped
+);
+
+// ステップ3: 自店調達 (procurement_requests) を申請月ベースで加算
+$procRows = query(
+    "SELECT id, shop_code, category_code, date, amount
+       FROM procurement_requests
+      ORDER BY date, id"
+);
+echo sprintf("[fetch] 対象 procurement_requests 件数: %d\n", count($procRows));
+
+$procApplied = 0;
+$procSkipped = 0;
+
+foreach ($procRows as $p) {
+    $amt = (int)$p['amount'];
+    if ($amt <= 0) {
+        $procSkipped++;
+        continue;
+    }
+    try {
+        applyBudgetActualDeltaByDate(
+            (string)$p['shop_code'],
+            (string)$p['category_code'],
+            (string)$p['date'],
+            $amt
+        );
+        $procApplied++;
+    } catch (Throwable $e) {
+        echo sprintf("[error] procurement=%s: %s\n", $p['id'], $e->getMessage());
+        $procSkipped++;
+    }
+}
+
+echo sprintf(
+    "[done procurement] 反映: %d 件 / スキップ: %d 件\n",
+    $procApplied, $procSkipped
 );
 
 // 確認用: 反映後の budgets サマリ
