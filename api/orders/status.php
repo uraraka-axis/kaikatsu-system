@@ -137,12 +137,13 @@ switch ($action) {
             jsonError('配達中の発注のみ変更できます');
         }
         $newStatus = 3;
-        // actual_delivery_date
+        // actual_delivery_date は必須（予算計上月の決定キー）
         $actualDeliveryDate = $input['actual_delivery_date'] ?? null;
-        if ($actualDeliveryDate !== null && $actualDeliveryDate !== '') {
-            $updateCols[] = 'actual_delivery_date = :actual_delivery_date';
-            $updateVals[':actual_delivery_date'] = $actualDeliveryDate;
+        if ($actualDeliveryDate === null || $actualDeliveryDate === '') {
+            jsonError('納品実績日は必須です');
         }
+        $updateCols[] = 'actual_delivery_date = :actual_delivery_date';
+        $updateVals[':actual_delivery_date'] = $actualDeliveryDate;
         break;
 
     case 'complete':
@@ -234,31 +235,62 @@ try {
         ]
     );
 
-    // 4. budgets.actual_amount 反映
-    //    - 'order'    : estimate_amount を加算 (発注済になった瞬間に予算消費)
-    //    - 'complete' : final_amount - estimate_amount の差分を加算 (確定時の補正)
+    // 4. budgets.actual_amount 反映 (納品月ベース)
+    //    - 'order'                    : 加算なし（発注済段階では予算消費しない）
+    //    - 'delivery-done'/'repair-done' (status=3) : estimate_amount を加算
+    //    - 'complete' (status=4)      : final_amount - estimate_amount の差分を加算
+    //    計上月: 備品/部品=actual_delivery_date, 修理=repair_completed_date
     $budgetDelta = 0;
-    if ($action === 'order') {
-        $budgetDelta = (int)($updateVals[':estimate_amount'] ?? 0);
+    $budgetKey   = null;
+
+    if ($action === 'delivery-done' || $action === 'repair-done') {
+        $afterRow = getOne(
+            'SELECT estimate_amount, actual_delivery_date FROM orders WHERE id = :id',
+            [':id' => $orderId]
+        );
+        $budgetDelta = (int)($afterRow['estimate_amount'] ?? 0);
         if ($budgetDelta > 0) {
-            applyBudgetActualDelta($order, $budgetDelta);
+            $orderForBudget = array_merge($order, [
+                'actual_delivery_date' => $afterRow['actual_delivery_date'],
+            ]);
+            if (applyBudgetActualDeltaByDelivery($orderForBudget, $budgetDelta)) {
+                $budgetKey = resolveBudgetKeyByDelivery($orderForBudget);
+            } else {
+                // 納品日が無いまま status=3 になるケースは通常無いが、保険として記録
+                error_log(sprintf(
+                    'budget: delivery date missing for order %s on %s — actual_amount not updated',
+                    $orderId, $action
+                ));
+            }
         }
     } elseif ($action === 'complete') {
-        // 完了時は orders を再取得して final_amount の確定値を得る
-        $afterFinal = getOne('SELECT final_amount, estimate_amount FROM orders WHERE id = :id', [':id' => $orderId]);
+        $afterFinal = getOne(
+            'SELECT final_amount, estimate_amount, actual_delivery_date FROM orders WHERE id = :id',
+            [':id' => $orderId]
+        );
         $finalAmt    = (int)($afterFinal['final_amount'] ?? 0);
         $estimateAmt = (int)($afterFinal['estimate_amount'] ?? 0);
         $budgetDelta = $finalAmt - $estimateAmt;
         if ($budgetDelta !== 0) {
-            applyBudgetActualDelta($order, $budgetDelta);
+            $orderForBudget = array_merge($order, [
+                'actual_delivery_date' => $afterFinal['actual_delivery_date'],
+            ]);
+            if (applyBudgetActualDeltaByDelivery($orderForBudget, $budgetDelta)) {
+                $budgetKey = resolveBudgetKeyByDelivery($orderForBudget);
+            } else {
+                error_log(sprintf(
+                    'budget: delivery date missing for order %s on complete — final/estimate diff not applied',
+                    $orderId
+                ));
+            }
         }
     }
 
     commit();
 
     // 5. 四半期予算超過通知（commit 後、加算で初めて超えた場合のみ）
-    if ($budgetDelta > 0) {
-        notifyIfQuarterBudgetCrossed($order, $budgetDelta);
+    if ($budgetDelta > 0 && $budgetKey !== null) {
+        notifyIfQuarterBudgetCrossed($order, $budgetDelta, $budgetKey);
     }
 } catch (Throwable $e) {
     rollback();

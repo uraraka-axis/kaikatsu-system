@@ -135,29 +135,38 @@ try {
             ]
         );
 
-        // budgets.actual_amount 反映 & 四半期予算超過通知
+        // budgets.actual_amount 反映 (納品月ベース)
+        //  - 'order'/'to-delivering' : 加算なし
+        //  - 'complete' (status=4)   : final_amount - estimate_amount の差分
+        //    計上月: 備品/部品=actual_delivery_date, 修理=repair_completed_date
         $budgetDelta = 0;
-        if ($action === 'order') {
-            $budgetDelta = (int)($updateVals[':estimate_amount'] ?? $order['estimate_amount'] ?? 0);
-            if ($budgetDelta > 0) {
-                applyBudgetActualDelta($order, $budgetDelta);
-            }
-        } elseif ($action === 'complete') {
+        $budgetKey   = null;
+        if ($action === 'complete') {
             $afterFinal = getOne(
-                'SELECT final_amount, estimate_amount FROM orders WHERE id = :id',
+                'SELECT final_amount, estimate_amount, actual_delivery_date FROM orders WHERE id = :id',
                 [':id' => $orderId]
             );
             $finalAmt    = (int)($afterFinal['final_amount'] ?? 0);
             $estimateAmt = (int)($afterFinal['estimate_amount'] ?? 0);
             $budgetDelta = $finalAmt - $estimateAmt;
             if ($budgetDelta !== 0) {
-                applyBudgetActualDelta($order, $budgetDelta);
+                $orderForBudget = array_merge($order, [
+                    'actual_delivery_date' => $afterFinal['actual_delivery_date'],
+                ]);
+                if (applyBudgetActualDeltaByDelivery($orderForBudget, $budgetDelta)) {
+                    $budgetKey = resolveBudgetKeyByDelivery($orderForBudget);
+                } else {
+                    error_log(sprintf(
+                        'bulk: delivery date missing for order %s on complete — final/estimate diff not applied',
+                        $orderId
+                    ));
+                }
             }
         }
         // 一括処理ではトランザクション内だが、ON DUPLICATE KEY での更新は反映されているので
         // commit 前でも getQuarterlyBudgetTotal は最新値を返す（同一トランザクション内のため）
-        if ($budgetDelta > 0) {
-            $pendingNotifications[] = ['order' => $order, 'delta' => $budgetDelta];
+        if ($budgetDelta > 0 && $budgetKey !== null) {
+            $pendingNotifications[] = ['order' => $order, 'delta' => $budgetDelta, 'key' => $budgetKey];
         }
 
         $processed[] = $orderId;
@@ -172,7 +181,7 @@ try {
 
 // commit 後に予算超過通知メールを送信
 foreach ($pendingNotifications as $n) {
-    notifyIfQuarterBudgetCrossed($n['order'], $n['delta']);
+    notifyIfQuarterBudgetCrossed($n['order'], $n['delta'], $n['key']);
 }
 
 jsonResponse([

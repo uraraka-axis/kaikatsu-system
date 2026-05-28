@@ -11,9 +11,10 @@
  *                    delivery_date が未設定なら 締め日+4日 で仮設定
  *   2→3 (備品のみ): 「予定日 = 当日」の備品発注を 3 に遷移
  *                    actual_delivery_date 未設定なら当日をセット
+ *                    予算実績(actual_amount)に estimate_amount を加算（納品月ベース）
  *   3→4 (備品のみ): 「予定日翌日 = 当日」の備品発注を 4 に遷移
  *                    final_amount 未設定なら estimate_amount をコピー
- *                    予算実績(actual_amount)に差分を反映
+ *                    予算実績(actual_amount)に final-estimate 差分を反映（納品月ベース）
  *
  * 修理発注・部品発注は最終金額が変動するため、すべての遷移を商品部が手動で行う。
  *
@@ -26,7 +27,8 @@
  *   - 各発注を個別トランザクションで処理（1件失敗しても他に影響しない）
  *   - 多重起動防止: flock + .lockファイル
  *   - 履歴記録: order_status_history に changed_by='system_batch'
- *   - 予算実績: 3→4 のみ applyBudgetActualDelta() で反映
+ *   - 予算実績: 2→3 で estimate を加算, 3→4 で final-estimate 差分を加算
+ *               （いずれも納品月ベース: applyBudgetActualDeltaByDelivery）
  *
  * 本番 cron 設定例:
  *   0 0 * * * /usr/local/bin/php /home/.../setup/auto_advance_status.php
@@ -256,7 +258,7 @@ if (in_array('2to3', $opts['only'], true)) {
 // ================================================================
 if (in_array('3to4', $opts['only'], true)) {
     $targets = query(
-        "SELECT id, type, category_code, shop_code, date, delivery_date, estimate_amount, final_amount
+        "SELECT id, type, category_code, shop_code, date, delivery_date, actual_delivery_date, estimate_amount, final_amount
          FROM orders
          WHERE status = 3
            AND type = 'equipment'
@@ -410,9 +412,13 @@ function advanceOrderStatusOneToTwo(array $order, string $tempDeliveryDate): voi
 
 /**
  * 2→3 遷移（備品のみ）。actual_delivery_date 未設定なら今日をセット。
+ * 予算実績(actual_amount)に estimate_amount を納品月ベースで加算。
  */
 function advanceOrderStatusTwoToThree(array $order, string $todayStr): void
 {
+    $estimate = (int)($order['estimate_amount'] ?? 0);
+    $deliveryDate = !empty($order['actual_delivery_date']) ? $order['actual_delivery_date'] : $todayStr;
+
     beginTransaction();
     try {
         if (empty($order['actual_delivery_date'])) {
@@ -428,6 +434,13 @@ function advanceOrderStatusTwoToThree(array $order, string $todayStr): void
         }
 
         insertStatusHistory($order['id'], 3, '自動遷移バッチ: 2→3 (予定日到来)');
+
+        // 予算実績反映（納品月ベース）
+        if ($estimate > 0) {
+            $orderForBudget = array_merge($order, ['actual_delivery_date' => $deliveryDate]);
+            applyBudgetActualDeltaByDelivery($orderForBudget, $estimate);
+        }
+
         commit();
     } catch (Throwable $e) {
         rollback();
@@ -463,9 +476,9 @@ function advanceOrderStatusThreeToFour(array $order): array
 
         insertStatusHistory($order['id'], 4, '自動遷移バッチ: 3→4 (予定日翌日)');
 
-        // 予算実績反映（差分が 0 でも applyBudgetActualDelta 内でスキップされる）
+        // 予算実績反映（納品月ベース、差分が 0 ならスキップ）
         if ($delta !== 0) {
-            applyBudgetActualDelta($order, $delta);
+            applyBudgetActualDeltaByDelivery($order, $delta);
         }
 
         commit();

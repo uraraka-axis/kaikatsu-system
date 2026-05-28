@@ -10,11 +10,17 @@
  * 備品発注は items[{id, price}] で明細の単価を編集できる。
  * 単価編集時は orders.estimate_amount = Σ(price × qty) を自動再計算する。
  * 編集可能ステータスは発注済(1)〜納品済(3)。完了後の単価編集は不可。
+ *
+ * 予算実績の差分反映（納品月ベース）:
+ *   - status=3 (納品済) 編集: estimate_amount の差分を加減算
+ *   - status=4 (完了)   編集: final_amount   の差分を加減算
+ *   - status<=2 編集: 予算未計上のため反映不要
  */
 
 require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/functions.php';
+require_once __DIR__ . '/../../includes/budget.php';
 
 requireLogin();
 requireMethod('POST');
@@ -102,6 +108,10 @@ if (isset($input['items']) && is_array($input['items'])) {
         $itemsToUpdate[] = ['id' => $itemId, 'price' => $price];
     }
 }
+
+// --- 予算差分計算用: 編集前の金額を記録 ---
+$beforeEstimate = (int)($order['estimate_amount'] ?? 0);
+$beforeFinal    = $order['final_amount'] !== null ? (int)$order['final_amount'] : null;
 
 // --- 更新処理 ---
 try {
@@ -218,6 +228,39 @@ try {
                     'UPDATE order_status_history SET memo = :memo WHERE id = :id',
                     [':memo' => $input['memo'], ':id' => $latestHistory['id']]
                 );
+            }
+        }
+    }
+
+    // --- 予算実績の差分反映 (admin/system のみ、status 3 or 4) ---
+    //  status=3: estimate_amount の前後差分を加算
+    //  status=4: final_amount    の前後差分を加算
+    //  計上月: 備品/部品=actual_delivery_date, 修理=repair_completed_date
+    if (in_array($user['role'], ['admin', 'system'], true) && in_array($currentStatus, [3, 4], true)) {
+        $after = getOne(
+            'SELECT estimate_amount, final_amount, actual_delivery_date FROM orders WHERE id = :id',
+            [':id' => $orderId]
+        );
+        $afterEstimate = (int)($after['estimate_amount'] ?? 0);
+        $afterFinal    = $after['final_amount'] !== null ? (int)$after['final_amount'] : null;
+
+        $budgetDelta = 0;
+        if ($currentStatus === 3) {
+            $budgetDelta = $afterEstimate - $beforeEstimate;
+        } elseif ($currentStatus === 4 && $afterFinal !== null && $beforeFinal !== null) {
+            $budgetDelta = $afterFinal - $beforeFinal;
+        }
+
+        if ($budgetDelta !== 0) {
+            $orderForBudget = array_merge($order, [
+                'actual_delivery_date' => $after['actual_delivery_date'],
+            ]);
+            $applied = applyBudgetActualDeltaByDelivery($orderForBudget, $budgetDelta);
+            if (!$applied) {
+                error_log(sprintf(
+                    'update-info: delivery date missing for order %s — budget delta %d not applied',
+                    $orderId, $budgetDelta
+                ));
             }
         }
     }

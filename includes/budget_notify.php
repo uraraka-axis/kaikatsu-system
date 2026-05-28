@@ -16,15 +16,18 @@ require_once __DIR__ . '/mailer.php';
  * 呼び出し側で applyBudgetActualDelta() の "直前と直後" にこの関数を挟むのではなく、
  * 1回呼び出すだけで before/after 差分判定からメール送信まで完結させる。
  *
- * @param array $order orders 行 (shop_code, category_code, date 必須)
- * @param int   $delta 加算済みの差分額（applyBudgetActualDelta で適用したのと同じ値）
- *                     正の値: actual が増えた / 負の値: 減った
+ * @param array      $order       orders 行 (shop_code, category_code, date 必須)
+ * @param int        $delta       加算済みの差分額（applyBudgetActualDelta で適用したのと同じ値）
+ *                                正の値: actual が増えた / 負の値: 減った
+ * @param array|null $explicitKey 計上月キー（resolveBudgetKey*() の戻り値）。指定があればこれを使用。
+ *                                null の場合は旧ルール (resolveBudgetKey = 発注日+締めルール) で算出。
+ *                                納品月ベースで加算した場合は必ず resolveBudgetKeyByDelivery の戻り値を渡すこと。
  */
-function notifyIfQuarterBudgetCrossed(array $order, int $delta): void
+function notifyIfQuarterBudgetCrossed(array $order, int $delta, ?array $explicitKey = null): void
 {
     if ($delta <= 0) return; // 加算でなければ通知不要
 
-    $key = resolveBudgetKey($order);
+    $key = $explicitKey ?? resolveBudgetKey($order);
     $after = getQuarterlyBudgetTotal(
         $key['shop_code'], $key['fiscal_year'], $key['month'], $key['department']
     );

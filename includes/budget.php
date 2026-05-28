@@ -3,18 +3,26 @@
 /**
  * 快活システム - 予算実績(actual_amount)の更新ヘルパ
  *
- * 発注ステータス遷移 (依頼中→発注済 / 納品済→完了) のタイミングで
- * 計上月の budgets.actual_amount を増減する。
+ * 発注ステータス遷移のタイミングで計上月の budgets.actual_amount を増減する。
  *
- * 計上月はカテゴリの締めルール (closing_type/closing_day) に基づいて
- * 発注日から決定する。computeSettlementDate() を参照。
+ * 【納品月ベース計上 (現行ルール)】
+ *  - 加算: status=3 (納品済/修理済) 遷移時 → estimate_amount を += する
+ *  - 修正: status=4 (完了) 遷移時 → final_amount - estimate_amount の差分を += する
+ *  - 修正: 完了後の final_amount 編集時 → 差分を += する
+ *  - 計上月:
+ *      備品/部品 → orders.actual_delivery_date
+ *      修理     → order_repair_details.repair_completed_date
+ *  → applyBudgetActualDeltaByDelivery() / resolveBudgetKeyByDelivery() を使う。
  *
- * - 加算: 発注済 (status=1) 遷移時 → estimate_amount を += する
- * - 修正: 完了 (status=4) 遷移時 → final_amount - estimate_amount の差分を += する
- *         (差分が 0 のときは何もしない)
+ * 【旧ルール (カテゴリ締め日ベース)】
+ *  - applyBudgetActualDelta() / resolveBudgetKey()
+ *  - 現在は rebuild_budgets_actual.php の旧バージョン互換用に残置。
+ *    新規呼び出しは納品月ベースに統一すること。
  *
- * 対象 budgets 行が存在しない場合 (年度途中で新規 shop×dept の発注など) は
- * budget_amount=0 で INSERT してから加算する (DB側 UNIQUE 制約と整合)。
+ * カテゴリ締めルール (closing_type/closing_day) は発注期限カレンダー用として
+ * categories テーブルに残しているが、予算計上には使わない。
+ *
+ * 対象 budgets 行が存在しない場合は budget_amount=0 で INSERT してから加算する。
  */
 
 require_once __DIR__ . '/db.php';
@@ -102,6 +110,89 @@ function applyBudgetActualDelta(array $order, int $delta): void
             ':a' => $delta,
         ]
     );
+}
+
+/**
+ * 納品月ベースの計上月キーを返す（現行ルール）。
+ *
+ *   備品/部品 : orders.actual_delivery_date
+ *   修理      : order_repair_details.repair_completed_date
+ *
+ * 該当日付が NULL の場合は null を返す（呼び出し側で扱いを決める）。
+ *
+ * @param array $order orders 行 (id, shop_code, category_code, type を必須)
+ *                     actual_delivery_date が配列に含まれていればそれを優先（DB再取得を回避）。
+ * @return array{shop_code:string, fiscal_year:int, month:int, department:string}|null
+ */
+function resolveBudgetKeyByDelivery(array $order): ?array
+{
+    $type = $order['type'] ?? '';
+
+    if ($type === 'repair') {
+        $row = getOne(
+            'SELECT repair_completed_date FROM order_repair_details WHERE order_id = :oid',
+            [':oid' => $order['id']]
+        );
+        $dateStr = $row['repair_completed_date'] ?? null;
+    } else {
+        // equipment / parts
+        $dateStr = $order['actual_delivery_date'] ?? null;
+        if ($dateStr === null) {
+            $row = getOne(
+                'SELECT actual_delivery_date FROM orders WHERE id = :oid',
+                [':oid' => $order['id']]
+            );
+            $dateStr = $row['actual_delivery_date'] ?? null;
+        }
+    }
+
+    if ($dateStr === null || $dateStr === '') {
+        return null;
+    }
+
+    $d = new DateTimeImmutable($dateStr);
+    $month = (int)$d->format('n');
+    $year  = (int)$d->format('Y');
+    $fiscalYear = $month >= 4 ? $year : $year - 1;
+
+    return [
+        'shop_code'   => (string)$order['shop_code'],
+        'fiscal_year' => $fiscalYear,
+        'month'       => $month,
+        'department'  => (string)$order['category_code'],
+    ];
+}
+
+/**
+ * 納品月ベースで budgets.actual_amount に delta を加算する。
+ * 納品日（修理は完了日）がセットされていない場合は false を返してスキップする。
+ *
+ * @param array $order orders 行
+ * @param int   $delta 加算したい金額（負数で減算）
+ * @return bool true=反映 / false=日付未設定でスキップ
+ */
+function applyBudgetActualDeltaByDelivery(array $order, int $delta): bool
+{
+    if ($delta === 0) return true;
+
+    $key = resolveBudgetKeyByDelivery($order);
+    if ($key === null) {
+        return false;
+    }
+
+    execute(
+        'INSERT INTO budgets (shop_code, fiscal_year, month, department, budget_amount, actual_amount)
+         VALUES (:s, :y, :m, :d, 0, :a)
+         ON DUPLICATE KEY UPDATE actual_amount = actual_amount + VALUES(actual_amount)',
+        [
+            ':s' => $key['shop_code'],
+            ':y' => $key['fiscal_year'],
+            ':m' => $key['month'],
+            ':d' => $key['department'],
+            ':a' => $delta,
+        ]
+    );
+    return true;
 }
 
 /**

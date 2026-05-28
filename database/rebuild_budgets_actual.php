@@ -1,64 +1,91 @@
 <?php declare(strict_types=1);
 
 /**
- * 一回限り実行: budgets.actual_amount を実発注 (status>=1) から再集計してリセットする。
+ * 一回限り実行: budgets.actual_amount を実発注から再集計してリセットする。
  *
- * Plan B 移行用: api/budgets.php の動的集計を撤廃するに伴い、
- * budgets.actual_amount を Single Source of Truth にするための baseline 作成。
+ * 【現行ルール（納品月ベース計上）】
+ *   - status = 0,1,2: 未納品のため actual に乗らない
+ *   - status = 3 (納品済/修理済): estimate_amount を加算
+ *   - status = 4 (完了)         : final_amount を加算（NULL なら estimate）
+ *   - 計上月:
+ *       備品/部品 → orders.actual_delivery_date
+ *       修理     → order_repair_details.repair_completed_date
+ *   - 取消発注 (cancelled_at IS NOT NULL) は除外
  *
  * 使い方:
  *   "C:/xampp/php/php.exe" rebuild_budgets_actual.php
  *
- * 仕様:
- *   - status = 0 (依頼中) の発注は actual に乗らない
- *   - status >= 1 の発注:
- *       - final_amount が NULL でなければ final_amount を採用
- *       - そうでなければ estimate_amount
- *       - 両方 NULL なら 0 (スキップ)
- *   - 計上月はカテゴリの締めルール (closing_type/closing_day) で計算
- *   - budgets 行が無ければ budget_amount=0 で作成して加算
+ * 備考:
+ *   旧ルール（発注日 + カテゴリ締めルール）で計上していたものを、今回の改修で
+ *   納品月ベースに切り替えるための baseline 作成にも使用する。
  */
 
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/budget.php';
 
-echo "== Plan B: budgets.actual_amount 再集計 開始 ==\n";
+echo "== 納品月ベース: budgets.actual_amount 再集計 開始 ==\n";
 
 // ステップ1: 既存の actual_amount をゼロクリア
-$reset = execute('UPDATE budgets SET actual_amount = 0');
+execute('UPDATE budgets SET actual_amount = 0');
 echo "[reset] actual_amount = 0 を全行に適用\n";
 
-// ステップ2: status >= 1 の発注を取得
+// ステップ2: status >= 3 かつ取消されていない発注を取得
+//          修理の場合は repair_completed_date を JOIN で取得
 $orders = query(
-    'SELECT id, shop_code, category_code, date, status, estimate_amount, final_amount
-     FROM orders
-     WHERE status >= 1
-     ORDER BY date, id'
+    "SELECT o.id, o.type, o.shop_code, o.category_code, o.date,
+            o.status, o.estimate_amount, o.final_amount, o.actual_delivery_date,
+            rd.repair_completed_date
+       FROM orders o
+       LEFT JOIN order_repair_details rd ON rd.order_id = o.id
+      WHERE o.status >= 3
+        AND o.cancelled_at IS NULL
+      ORDER BY o.date, o.id"
 );
-echo sprintf("[fetch] 対象 orders 件数: %d\n", count($orders));
+echo sprintf("[fetch] 対象 orders 件数 (status>=3, 未取消): %d\n", count($orders));
 
-// ステップ3: 各 order の計上月に金額を加算
-$applied  = 0;
-$skipped  = 0;
+$applied = 0;
+$skipped = 0;
+$noDateSkipped = 0;
+
 foreach ($orders as $o) {
-    $amount = $o['final_amount'] !== null ? (int)$o['final_amount']
-            : ($o['estimate_amount'] !== null ? (int)$o['estimate_amount'] : 0);
+    $status   = (int)$o['status'];
+    $estimate = (int)($o['estimate_amount'] ?? 0);
+    $finalRaw = $o['final_amount'];
+
+    // 採用金額: status=3 は estimate / status=4 は final (NULLなら estimate)
+    if ($status === 3) {
+        $amount = $estimate;
+    } else { // status >= 4
+        $amount = $finalRaw !== null ? (int)$finalRaw : $estimate;
+    }
 
     if ($amount <= 0) {
         $skipped++;
         continue;
     }
 
+    // 納品月ベースで加算（修理は repair_completed_date を使うため
+    // applyBudgetActualDeltaByDelivery が DB を再参照する）
     try {
-        applyBudgetActualDelta($o, $amount);
-        $applied++;
+        $ok = applyBudgetActualDeltaByDelivery($o, $amount);
+        if ($ok) {
+            $applied++;
+        } else {
+            // 日付未設定でスキップされた件は警告として記録
+            $noDateSkipped++;
+            $dateField = ($o['type'] === 'repair') ? 'repair_completed_date' : 'actual_delivery_date';
+            echo sprintf("[warn] %s: %s 未設定のため除外 (status=%d)\n", $o['id'], $dateField, $status);
+        }
     } catch (Throwable $e) {
         echo sprintf("[error] order=%s: %s\n", $o['id'], $e->getMessage());
         $skipped++;
     }
 }
 
-echo sprintf("[done] 反映: %d 件 / スキップ: %d 件\n", $applied, $skipped);
+echo sprintf(
+    "[done] 反映: %d 件 / 日付未設定スキップ: %d 件 / その他スキップ: %d 件\n",
+    $applied, $noDateSkipped, $skipped
+);
 
 // 確認用: 反映後の budgets サマリ
 $summary = query(

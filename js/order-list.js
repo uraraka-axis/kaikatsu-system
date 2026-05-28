@@ -906,10 +906,12 @@ function openStatusModal(orderId, action) {
 
   } else if (action === 'delivery-done') {
     title.textContent = '納品済にする';
+    var todayStr = (new Date()).toISOString().slice(0, 10);
     body.innerHTML =
       '<div class="modal-row"><span class="modal-label">発注番号</span><input class="modal-input readonly" value="' + order.id + '" readonly></div>' +
       '<div class="modal-row"><span class="modal-label">内容</span><input class="modal-input readonly" value="' + (order.content_label || '') + '" readonly></div>' +
       '<hr class="modal-divider">' +
+      '<div class="modal-row"><span class="modal-label">納品実績日 <span class="required">*</span></span><input class="modal-input" id="modalActualDeliveryDate" type="date" value="' + todayStr + '"></div>' +
       '<div class="modal-row"><span class="modal-label">メモ</span><textarea class="modal-textarea" id="modalMemo" placeholder="任意入力"></textarea></div>';
     footer.innerHTML =
       '<button class="btn-modal btn-modal-cancel" onclick="closeModal()">キャンセル</button>' +
@@ -1059,10 +1061,17 @@ function doRepairDone(orderId) {
 // ③配達中 → ④納品済
 function doDeliveryDone(orderId) {
   var memo = (document.getElementById('modalMemo') || {}).value || '';
+  var actualDateInput = document.getElementById('modalActualDeliveryDate');
+  var actualDate = actualDateInput ? actualDateInput.value : '';
+  if (!actualDate) {
+    alert('納品実績日を入力してください');
+    return;
+  }
 
   apiPost('api/orders/status.php', {
     order_id: orderId,
     action: 'delivery-done',
+    actual_delivery_date: actualDate,
     memo: memo
   })
     .then(function(data) {
