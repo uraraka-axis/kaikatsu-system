@@ -494,7 +494,7 @@ function renderOrders() {
     var typeLabel = o.type === 'repair' ? '修理'
                   : o.type === 'equipment' ? '備品'
                   : o.type === 'parts' ? '部品'
-                  : o.type === 'seat-replacement' ? 'シート交換'
+                  : o.type === 'seat-replacement' ? '交換'
                   : o.type;
     var statusClass = getStatusClass(o.status, o.type);
     var statusLabel = getStatusLabel(o.status, o.type);

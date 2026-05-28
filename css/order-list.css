@@ -72,6 +72,7 @@
 .order-row.repair { border-left: 4px solid #ef4444; }
 .order-row.equipment { border-left: 4px solid #3b82f6; }
 .order-row.parts { border-left: 4px solid #22c55e; }
+.order-row.seat-replacement { border-left: 4px solid #a855f7; }
 
 /* ===== Status / Type Badges ===== */
 .status-requesting      { background-color: #fef3c7; color: #92400e; }
@@ -93,6 +94,7 @@
 .type-repair { background-color: #fef2f2; color: #dc2626; }
 .type-equipment { background-color: #eff6ff; color: #2563eb; }
 .type-parts { background-color: #f0fdf4; color: #16a34a; }
+.type-seat-replacement { background-color: #faf5ff; color: #9333ea; }
 
 /* ===== Detail Panel ===== */
 .detail-panel {
