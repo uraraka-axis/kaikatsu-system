@@ -46,6 +46,58 @@ function jsonError(string $message, int $status = 400): void
 }
 
 /**
+ * JSON レスポンスをクライアントに送信したのち、接続を閉じてスクリプトを継続実行する。
+ *
+ * 用途: 重い後続処理 (メール送信等) を UX に影響させず背景で実行したい場合に使う。
+ *   commit();
+ *   jsonResponseAndContinue(['success' => true, ...]);
+ *   notifyProductDeptNewOrder(...);   // クライアントは既にレスポンス受信済み
+ *   exit;
+ *
+ * 実装:
+ *   - PHP-FPM 環境: fastcgi_finish_request() でレスポンスを確定し継続
+ *   - mod_php 環境: Content-Length + Connection: close + flush で擬似的に接続を閉じる
+ *
+ * 注意:
+ *   - 呼び出し後の echo はクライアントに届かない
+ *   - 後続処理が失敗しても error_log にのみ記録される (リトライ不可)
+ *   - 永続化リトライが必要なら mail_queue 等のキュー機構を別途実装すること
+ */
+function jsonResponseAndContinue(mixed $data, int $status = 200): void
+{
+    http_response_code($status);
+    header('Content-Type: application/json; charset=utf-8');
+    $body = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+    // クライアント切断後もスクリプト継続
+    ignore_user_abort(true);
+    @set_time_limit(60);
+
+    // zlib 圧縮が ON だと Content-Length が合わなくなるため OFF
+    @ini_set('zlib.output_compression', 'Off');
+
+    // PHP-FPM: fastcgi_finish_request 一発で済む
+    if (function_exists('fastcgi_finish_request')) {
+        echo $body;
+        fastcgi_finish_request();
+        return;
+    }
+
+    // mod_php (XAMPP / Apache): 出力バッファを全クリア後、新規バッファに本文を書き、
+    // Content-Length / Connection: close をセットして flush することで接続を閉じる
+    while (ob_get_level() > 0) {
+        ob_end_clean();
+    }
+    ob_start();
+    echo $body;
+    $size = ob_get_length();
+    header('Content-Length: ' . $size);
+    header('Connection: close');
+    ob_end_flush();
+    flush();
+}
+
+/**
  * 発注番号の採番
  * 種別×店舗×日付ごとに連番を管理
  *

@@ -285,11 +285,6 @@ try {
     }
 
     commit();
-
-    // 5. 四半期予算超過通知（commit 後、加算で初めて超えた場合のみ）
-    if ($budgetDelta > 0 && $budgetKey !== null) {
-        notifyIfQuarterBudgetCrossed($order, $budgetDelta, $budgetKey);
-    }
 } catch (Throwable $e) {
     rollback();
     error_log('Status change error: ' . $e->getMessage());
@@ -299,8 +294,21 @@ try {
 // --- 更新後のデータ返却 ---
 $updated = getOne('SELECT * FROM orders WHERE id = :id', [':id' => $orderId]);
 
-jsonResponse([
+// 5. レスポンスを先に返してから四半期予算超過通知メールを送る
+//    (commit 後、加算で初めて超えた場合のみ通知)
+$needNotify = ($budgetDelta > 0 && $budgetKey !== null);
+if (!$needNotify) {
+    jsonResponse([
+        'success'  => true,
+        'order_id' => $orderId,
+        'status'   => (int)$updated['status'],
+    ]);
+}
+
+jsonResponseAndContinue([
     'success'  => true,
     'order_id' => $orderId,
     'status'   => (int)$updated['status'],
 ]);
+notifyIfQuarterBudgetCrossed($order, $budgetDelta, $budgetKey);
+exit;

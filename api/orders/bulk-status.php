@@ -175,13 +175,22 @@ try {
     jsonError('一括ステータス変更に失敗しました', 500);
 }
 
-// commit 後に予算超過通知メールを送信
-foreach ($pendingNotifications as $n) {
-    notifyIfQuarterBudgetCrossed($n['order'], $n['delta'], $n['key']);
+// レスポンスを先に返してから予算超過通知メールを送る
+// (一括処理では複数件の通知メールが連続発生し得るため、UX への影響大)
+if (empty($pendingNotifications)) {
+    jsonResponse([
+        'success'   => true,
+        'processed' => $processed,
+        'skipped'   => $skipped,
+    ]);
 }
 
-jsonResponse([
+jsonResponseAndContinue([
     'success'   => true,
     'processed' => $processed,
     'skipped'   => $skipped,
 ]);
+foreach ($pendingNotifications as $n) {
+    notifyIfQuarterBudgetCrossed($n['order'], $n['delta'], $n['key']);
+}
+exit;

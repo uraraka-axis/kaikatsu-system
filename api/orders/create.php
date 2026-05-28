@@ -115,14 +115,16 @@ try {
 
     commit();
 
-    // --- 商品部への発注通知メール（コミット成功後・失敗してもレスポンスは返す） ---
-    notifyProductDeptNewOrder($orderId, $type, $shopCode, $category, $user);
-
-    jsonResponse([
+    // レスポンスを先にクライアントへ返してから商品部への発注通知メールを送る。
+    // SMTP 応答時間 (本番: 1-3秒) を発注 UX に乗せないため。
+    // 失敗時は error_log のみ (リトライしない設計)。
+    jsonResponseAndContinue([
         'success'  => true,
         'order_id' => $orderId,
         'message'  => '発注を登録しました',
     ]);
+    notifyProductDeptNewOrder($orderId, $type, $shopCode, $category, $user);
+    exit;
 } catch (Exception $e) {
     rollback();
     error_log('Order create error: ' . $e->getMessage());
