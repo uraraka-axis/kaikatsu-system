@@ -49,7 +49,6 @@ var categoriesMap = {}; // code -> { closing_type, closing_day }
 // ===== Date Helpers =====
 // 備品の納品予定日デフォルト値
 // カテゴリの締めルールから「次の締め日 + 4日」を返す（配達に約4日かかる前提）。
-// setup/auto_advance_status.php の 1→2 自動遷移フォールバック値（締め日+4日）と同じロジック。
 // none の場合は空文字を返し、admin に手入力させる。
 function getEquipmentDeliveryDate(order) {
   if (!order || !order.category_code) return '';
@@ -790,8 +789,8 @@ function getAvailableAction(o) {
     return { key: 'order', label: '発注済にする', btnClass: 'btn-sm-primary' };
   }
 
-  // ②発注済 → ③配達中/修理待ち: 部品・修理は商品部が手動
-  if (o.status === STATUS.ORDERED && viewMode === 'admin' && o.type !== 'equipment') {
+  // ②発注済 → ③配達中/修理待ち: 全種別とも商品部が手動
+  if (o.status === STATUS.ORDERED && viewMode === 'admin') {
     var label = o.type === 'repair' ? '修理待ちにする' : '配達中にする';
     return { key: 'to-delivering', label: label, btnClass: 'btn-sm-primary' };
   }
@@ -1465,10 +1464,7 @@ function bulkStatusChange() {
     actions.push({ status: STATUS.REQUESTING, action: 'order', label: '依頼中 → 発注済', count: byStatus[STATUS.REQUESTING].length });
   }
   if (byStatus[STATUS.ORDERED] && viewMode === 'admin') {
-    var nonEquip = byStatus[STATUS.ORDERED].filter(function(o) { return o.type !== 'equipment'; });
-    if (nonEquip.length > 0) {
-      actions.push({ status: STATUS.ORDERED, action: 'to-delivering', label: '発注済 → 配達中/修理待ち', count: nonEquip.length, filterEquip: true });
-    }
+    actions.push({ status: STATUS.ORDERED, action: 'to-delivering', label: '発注済 → 配達中/修理待ち', count: byStatus[STATUS.ORDERED].length });
   }
   if (byStatus[STATUS.DELIVERED] && viewMode === 'admin') {
     actions.push({ status: STATUS.DELIVERED, action: 'complete', label: '納品済/修理済 → 完了', count: byStatus[STATUS.DELIVERED].length });
@@ -1524,7 +1520,6 @@ function doBulkStatusChange() {
   var targetIds = [];
   checked.forEach(function(o) {
     if (o.status !== actionDef.status) return;
-    if (actionDef.filterEquip && o.type === 'equipment') return;
     targetIds.push(o.id);
   });
 

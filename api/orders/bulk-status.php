@@ -87,11 +87,7 @@ try {
             continue;
         }
 
-        // to-delivering はrepair/partsのみ
-        if ($action === 'to-delivering' && !in_array($orderType, ['repair', 'parts'], true)) {
-            $skipped[] = $orderId;
-            continue;
-        }
+        // to-delivering は全種別対応（備品も商品部の手動運用に変更）
 
         $updateCols = ['status = :new_status'];
         $updateVals = [':new_status' => $newStatus, ':order_id' => $orderId];

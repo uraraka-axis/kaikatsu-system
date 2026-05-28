@@ -88,15 +88,12 @@ switch ($action) {
         break;
 
     case 'to-delivering':
-        // 1→2: admin only, repair/parts only
+        // 1→2: admin only (全種別 — 備品も商品部の手動運用に変更)
         if ($user['role'] !== 'admin') {
             jsonError('権限がありません', 403);
         }
         if ($currentStatus !== 1) {
             jsonError('発注済の発注のみ変更できます');
-        }
-        if (!in_array($orderType, ['repair', 'parts'], true)) {
-            jsonError('修理・部品発注のみ変更できます');
         }
         $newStatus = 2;
         break;

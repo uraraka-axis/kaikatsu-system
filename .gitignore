@@ -18,4 +18,3 @@ backup_*.sql
 
 # cron 多重起動防止ロックファイル
 setup/.apply_scheduled_changes.lock
-setup/.auto_advance_status.lock

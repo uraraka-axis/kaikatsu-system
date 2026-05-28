@@ -384,15 +384,15 @@ IT 管理者向けの新ロール `system`。admin の全権限に加え、以�
 - **発注メール下書き Phase 2 (SMTP 直送 + 仕入先別テンプレ)**: Phase 1 の mailto/コピー方式で十分なため当面実装しない
 
 #### 完了済
-- **ステータス自動遷移**: `setup/auto_advance_status.php` 実装完了。1→2（備品・カテゴリ締め日翌日）/ 2→3（予定日）/ 3→4（予定日翌日、final_amount 確定 + 予算実績反映）。cron 登録は本番デプロイ時
-- **予算実績締め処理**: 当初の cron バッチは廃止。2026-05-23 から `applyBudgetActualDelta()` が status 遷移時にリアルタイム反映する設計（Plan B）に変更済
+- **ステータス自動遷移**: 当初 `setup/auto_advance_status.php` で備品の全遷移を自動化していたが、2026-05-28 に **廃止**。商品部の運用要望により全ステータス遷移を手動運用へ変更（`to-delivering` も備品対応に拡張、ファイルは削除済）
+- **予算実績締め処理**: 当初の cron バッチは廃止。2026-05-23 から status 遷移時にリアルタイム反映する設計に変更。さらに 2026-05-28 に **納品月ベース** に切替（`applyBudgetActualDeltaByDelivery()`、status=3 で estimate 加算、status=4 で final-estimate 差分）
 - **予算超過通知の条件検証**: `tools/test_budget_notify.php` で 9 ケース網羅テスト全 PASS（境界クロス・既超過・delta=0/負・メアド未設定 など）
 - **iPad レスポンシブ対応 4 項目**: breakpoint を 1024→1280px に拡張、テーブル横スクロール、タッチターゲット 44px、iOS Safari ズーム対策（input/select 16px）— iPad 9/10 の portrait/landscape 計 4 ビューポートで実機サイズ検証済
 - **自店調達のハードコード解消**: 年度プルダウンを DB 由来化（`GET /api/procurement.php?action=years` 追加）、カテゴリフィルタを categories マスタから動的構築、カテゴリ・role バリデーションをマスタ参照に変更、admin の「商品部様」表示を共通ナビ任せに統一
 - **3 画面のフィルタバー UI 統一**: 発注一覧 admin/store・予算管理・自店調達の全 5 フィルタを `.admin-filter-bar > .admin-filter-row > .filter-group > .filter-label + control` の共通レイアウトに統一（スタイル本体は `common.css` に集約）
 - **予算管理のプルダウン挙動を発注一覧に整合**: ゾーン未選択時に全エリア・全店舗を表示、ゾーン/エリア選択時のみ絞り込み（カスケード）。option ラベルも「ゾーン/エリア/店舗」→「すべて」に統一
 - **備品発注フィルタラベル統一**: `.filter-label` を `.form-label`（14px / #334155）に揃え、修理・部品発注のフォームラベルと同じ見た目に
-- **発注済モーダルの納品予定日デフォルトを「締め日+4日」に統一**: 画面側 `getEquipmentDeliveryDate()` をバッチ `auto_advance_status.php` の 1→2 自動遷移フォールバック値と同じ「締め日+4日」に変更（配達 4 日想定）
+- **発注済モーダルの納品予定日デフォルトを「締め日+4日」に統一**: 画面側 `getEquipmentDeliveryDate()` で「締め日+4日」をデフォルト表示（配達 4 日想定。当初は同名ロジックを自動遷移バッチでも使っていたが、バッチ廃止後は画面側のみ）
 - **ステータス履歴メモの改行表示 + XSS 対策**: `.timeline-memo` に `white-space: pre-wrap` を追加して入力時の改行を画面で再現、同時に memo / changed_at / changed_by を `escapeHtml()` で安全に出力
 - **テストデータ整備**:
   - `tools/seed_yokohama_test_data.php` — 横浜店(10303)で 3 種別 × 5 ステータス + 備品 10 明細サンプル = 計 16 件

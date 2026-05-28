@@ -344,13 +344,14 @@ zone / area の管轄スコープは、画面フィルタ UI で「ゾーン」�
   - `closing_type`: `none`（都度）/ `monthly`（月次）/ `weekly`（週次）
   - `closing_day`: monthly なら日(1-31)、weekly なら曜日(0=日〜6=土)
 - 初期値: フィットネス備品=毎月8日、ゴルフ備品=毎週火曜日
-- 締め日の翌日に、商品部が「発注済にする」操作で 0→1 に進める（自動発注は対象外運用 — 9-2参照）
-- バッチ `setup/auto_advance_status.php` が以下を実行（cron 想定）:
-  - **1→2**: 備品のみ、カテゴリ締め日の翌日に自動遷移。`delivery_date` 未設定なら **「締め日+4日」** で仮設定
-  - **2→3**: 全種別、`delivery_date`（修理は `repair_schedule_date`）= 当日の発注を遷移
-  - **3→4**: 全種別、予定日翌日 = 当日の発注を遷移。`final_amount` 未設定なら見積金額を適用し、`applyBudgetActualDelta()` で予算実績反映
-- 画面「発注済にする」モーダルの納品予定日デフォルトも **「締め日+4日」** で統一（`js/order-list.js` `getEquipmentDeliveryDate()`、配達 4 日想定）
-- カテゴリの `closing_type = 'none'` の場合は都度発注（自動バッチ対象外）
+- 締め日の翌日に、商品部が「発注済にする」操作で 0→1 に進める
+- ステータス遷移はすべて手動運用（自動遷移バッチは廃止 — 9-2参照）:
+  - **0→1**: 商品部が「発注済にする」（個別 or 一括）
+  - **1→2**: 商品部が「配達中にする / 修理待ちにする」（個別 or 一括）
+  - **2→3**: 店舗が「納品済にする / 修理完了報告」（個別）
+  - **3→4**: 商品部が「完了にする」（個別 or 一括）
+- 画面「発注済にする」モーダルの納品予定日デフォルトは **「締め日+4日」**（`js/order-list.js` `getEquipmentDeliveryDate()`、配達 4 日想定）
+- カテゴリの `closing_type = 'none'` の場合は都度発注
 
 ### 5.2 修理発注の対応不可日
 
@@ -577,72 +578,38 @@ cron バッチは `setup/apply_scheduled_changes.php`（5 分間隔想定）。
 
 | 処理 | タイミング | 対象 | 動作 | 状況 |
 |------|-----------|------|------|------|
-| ~~備品自動発注~~ | ~~カテゴリの締め日 0:00~~ | ~~ステータス0の備品発注~~ | ~~→ ステータス1へ~~ | **対象外**（手動運用で代替） |
-| 配達中自動遷移（備品のみ） | カテゴリ締め日翌日 0:00 | ステータス1の備品発注（該当カテゴリのみ） | → ステータス2へ。delivery_date 未設定なら **締め日+4日** で仮設定 | **完成** `setup/auto_advance_status.php` |
-| 納品済/修理済自動遷移 | 毎日 0:00 | ステータス2かつ「予定日=当日」 | → ステータス3へ。actual_delivery_date / repair_completed_date を当日でセット（未設定時のみ） | **完成** 同上 |
-| 完了自動遷移 | 毎日 0:00 | ステータス3かつ「予定日翌日=当日」 | → ステータス4へ。final_amount 未設定なら estimate_amount を適用 + 予算実績に差分反映 | **完成** 同上 |
-| ~~予算実績締め処理~~ | ~~カテゴリ締め日 0:00~~ | ~~budgets テーブル~~ | ~~発注確定額を actual_amount に集計反映~~ | **設計変更**（下記） |
+| ~~ステータス自動遷移バッチ~~ | ~~毎日 0:00~~ | ~~備品発注（全遷移）~~ | ~~0→1, 1→2, 2→3, 3→4 を自動化~~ | **廃止**（2026-05-28、全て手動運用に変更） |
 | マスタ予約更新の自動反映 | 5 分間隔 | master_scheduled_changes | pending を検出して反映 | **完成** `setup/apply_scheduled_changes.php` |
 
-全ての自動遷移で `order_status_history` にレコードを追加する。
-`changed_by` は `'system_batch'` とする。
+### ステータス遷移を全て手動運用とした理由
 
-### 備品自動発注を対象外とした理由
+備品の自動遷移バッチ（`setup/auto_advance_status.php`）を当初運用していたが、2026-05-28 に廃止：
 
-カテゴリ締め日に「依頼中の備品発注を一括で発注済化」する仕組みを当初計画していたが、以下の理由で対象外とする：
+- 商品部の運用では「**実際に業者へ発注／配達／納品されたタイミング**でステータスを進めたい」というニーズが強い
+- 自動化するとシステム上のステータスと実態がずれ、予算消化のタイミングも実態と乖離する
+- 発注一覧画面の「ステータス一括変更」で複数発注をまとめて進められるため、手動でも十分運用可能
 
-- 商品部の運用では「**実際に業者へ発注したタイミング**で `発注済` にしたい」というニーズが強い
-- 締め日ピッタリに業者発注が完了するわけではないため、自動化するとシステム上のステータスと実態がずれる
-- 発注一覧画面の「ステータス一括変更」＋「📧 メール下書き → この仕入先分を発注済にする」で十分対応可能
+現在の全遷移ルール（[`api/orders/status.php`](api/orders/status.php) / [`api/orders/bulk-status.php`](api/orders/bulk-status.php)）:
 
-### ステータス自動遷移バッチ（`setup/auto_advance_status.php`）
-
-#### 引数
-
-| オプション | 用途 |
-|---|---|
-| `--date=YYYY-MM-DD` | 任意の日付を「当日」として実行（テスト用、省略時は今日） |
-| `--dry-run` | DB 変更なしで対象だけ表示 |
-| `--only=1to2,2to3,3to4` | 実行する遷移を限定（カンマ区切り） |
-
-#### 1→2 遷移ルール（備品のみ）
-
-| カテゴリ | closing_type | closing_day | 自動実行日 |
+| 遷移 | 操作者 | 操作 | 一括対応 |
 |---|---|---|---|
-| フィットネス備品 | monthly | 8 | 毎月 9 日 |
-| ゴルフ備品 | weekly | 2 (火曜) | 毎週水曜 |
+| 0→1 (依頼中→発注済) | 商品部 (admin) | 「発注済にする」 | ◯ |
+| 1→2 (発注済→配達中/修理待ち) | 商品部 (admin) | 「配達中にする / 修理待ちにする」 | ◯ |
+| 2→3 (配達中→納品済) | 店舗 (shop) | 「納品済にする」（納品実績日入力必須） | ✗ |
+| 2→3 (修理待ち→修理済) | 店舗 (shop) | 「修理完了報告」（修理完了日入力必須） | ✗ |
+| 3→4 (納品済/修理済→完了) | 商品部 (admin) | 「完了にする」 | ◯ |
 
-`delivery_date` 未設定時は「締め日 + 4 日」で仮設定する（既存値は維持）。修理・部品の 1→2 は手動運用（`api/orders/bulk-status.php` の `action=to-delivering`）のまま。
+### 予算実績反映の設計（納品月ベース / 2026-05-28〜）
 
-#### 2→3 遷移ルール（全種別）
+`budgets.actual_amount` は **納品月（修理は完了月）に発生分を加算する** 設計。詳細は [`includes/budget.php`](includes/budget.php) `applyBudgetActualDeltaByDelivery()` 参照。
 
-| 種別 | 予定日フィールド | 完了日の自動セット |
+| 遷移 | 加算額 | 計上月のキー |
 |---|---|---|
-| 修理 | `order_repair_details.repair_schedule_date` | `repair_completed_date = 当日`（未設定時） |
-| 備品 | `orders.delivery_date` | `actual_delivery_date = 当日`（未設定時） |
-| 部品 | `orders.delivery_date` | （なし） |
+| 2→3 (納品済/修理済) | `estimate_amount` | 備品/部品: `orders.actual_delivery_date` / 修理: `order_repair_details.repair_completed_date` |
+| 3→4 (完了) | `final_amount - estimate_amount` の差分 | 同上 |
+| 完了後の `final_amount` 編集 | 差分のみ加減算 | 同上 |
 
-#### 3→4 遷移ルール（全種別）
-
-- 「予定日 + 1 = 当日」の発注を対象
-- `final_amount` 未設定なら `estimate_amount` をコピー
-- 既存の `applyBudgetActualDelta()` を呼んで `budgets.actual_amount` に差分を反映
-
-### 予算実績締め処理の設計変更（Plan B / 2026-05-23）
-
-当初は「カテゴリ締め日 0:00 のバッチで `budgets.actual_amount` を集計反映」する設計だったが、2026-05-23 から **status 遷移時にリアルタイムで反映する設計（Plan B）** に変更済。
-
-| 設計 | 反映タイミング | 反映ロジック |
-|---|---|---|
-| Plan A（旧） | 締め日 0:00 のバッチ | 当日までの発注合計を actual_amount に上書き |
-| **Plan B（現行）** | status 0→1、3→4 の各遷移時 | `applyBudgetActualDelta()` で差分加算 |
-
-メリット:
-- `budgets.actual_amount` が常に最新値（DB と画面表示が一致）
-- 別バッチ不要、cron 不要
-- 1 status 遷移 = 1 トランザクションで一貫性確保
-
-詳細: `includes/budget.php` の `applyBudgetActualDelta()` および `api/orders/status.php` / `api/orders/bulk-status.php` 参照。
+旧設計（カテゴリ締め日ベース）は廃止。カテゴリの `closing_type` / `closing_day` は発注期限カレンダー用としてのみ残存。
 
 ---
 
