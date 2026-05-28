@@ -1,6 +1,8 @@
-/* ===== Menu Container (Centered) ===== */
+/* ===== Menu Container (Centered) =====
+   .main の max-width (1200px / common.css) と一致させる。
+   管理メニュー画面と同じ横幅にし、大型モニタで中央に小さく見えるのを回避。 */
 .menu-container {
-  max-width: 840px;
+  max-width: 1200px;
   margin: 0 auto;
 }
 
