@@ -1,7 +1,7 @@
 # 引継ぎドキュメント — 快活フロンティア 発注管理システム
 
-最終更新: 2026-05-26
-最新コミット: `0625490 発注メール下書き機能 (Phase 1) + 管理画面 UI 微修正`（develop ブランチ push 済み）以降、未コミット作業あり
+最終更新: 2026-05-28
+最新コミット: `b7a5735 発注API: メール送信を非同期化してレスポンス即時返却`（develop ブランチ push 済み）
 
 ---
 
@@ -324,6 +324,84 @@ IT 管理者向けの新ロール `system`。admin の全権限に加え、以�
 - `tools/seed_users_sort_and_emails.php` で sort_order を振り直し: shop=1〜30、zone=60〜61、area=70〜74、admin=80、system=99
 - 各 shop ユーザーに `zone_manager_email` / `area_manager_email` を投入（`zone-east@example.test` など）
 
+### 7-15. 発注の論理削除（取消）機能（2026-05-28）
+誤発注対応として `orders.cancelled_at` で論理削除する仕組みを追加。
+
+- **DB**: `orders` に `cancelled_at` / `cancelled_by` / `cancel_reason` の 3 カラム + `idx_orders_cancelled` 追加
+- **API**: `api/orders/cancel.php`（admin/system のみ、status=0 のみ取消可、cancel_reason 500字以内必須）
+- **挙動**: `order_status_history` に「【取消】<理由>」として履歴記録。以後の一覧・Excel・メール下書きは `cancelled_at IS NULL` で完全に非表示
+- **既存 API 影響**: `orders.php` / `bulk-status.php` / `update-info.php` / `draft-mails.php` / `export/orders.php` 全てに `cancelled_at IS NULL` フィルタ追加
+- 詳細は [backend-spec.md §5.6](backend-spec.md) 参照
+
+### 7-16. 予算実績計上を納品月ベースに変更（2026-05-28）
+予算消化のタイミングを「ステータス遷移日」ではなく「実納品月」ベースに修正。
+
+- **新ヘルパー**: `includes/budget.php` の `applyBudgetActualDeltaByDelivery()` / `resolveBudgetKeyByDelivery()`
+  - 備品/部品: `orders.actual_delivery_date` の月
+  - 修理/シート交換: `order_repair_details.repair_completed_date` / `order_seat_replacement_details.repair_completed_date` の月
+- **DB**: `orders.actual_delivery_date` を **必須相当**（status=3 遷移時に入力強制、`api/orders/status.php` の `delivery-done` でバリデーション）
+- **加算ルール**:
+  - status=3 (納品済/修理済): `estimate_amount` を加算
+  - status=4 (完了): `final_amount - estimate_amount` の差分を加算
+  - 完了後の final_amount 編集: 差分のみ加減算
+- 詳細は [backend-spec.md §7 予算実績反映の設計](backend-spec.md)
+
+### 7-17. 備品ステータス自動遷移バッチ廃止（2026-05-28）
+備品の全自動遷移バッチ `setup/auto_advance_status.php` を **廃止**（ファイル削除）。
+
+- 商品部の運用要望「実際に業者へ発注／配達／納品されたタイミングで進めたい」に対応
+- `to-delivering`（1→2）も従来は備品のみバッチ自動だったが、商品部の手動操作（個別・一括）に変更
+- 一括ステータス変更（`api/orders/bulk-status.php`）も備品を含む全種別が対象に
+- 検証: `tools/verify_2026_05_28.php`（21 ケース、全 PASS）
+
+### 7-18. シート交換発注機能（2026-05-28）
+マシンのシート交換専用の発注種別を追加。修理発注と同じステータスフロー / UI。
+
+- **DB**: `database/migration_seat_replacement.sql`
+  - `orders.type` ENUM に `seat-replacement` 追加
+  - `order_seat_replacement_details` テーブル新設（修理 details と同等カラム）
+- **画面**: `seat-replacement.html` / `js/seat-replacement.js`
+  - フィットネス固定（カテゴリ強制）
+  - 依頼内容「マシンのシート交換」固定文言
+  - ボタン名「交換を依頼する」
+- **メニュー**: `menu.html` に「シート交換」カード追加（部品発注 ⇔ 発注一覧の間、トレーニングマシンアイコン）
+- **発注番号 prefix**: `SHT`（例: `SHT-S01-20260528-0001`）— `includes/config.php` に `ORDER_PREFIX_SEAT_REPLACEMENT` 定義
+- **修理ライク判定**: `includes/functions.php` に `isRepairLikeType()` / `getRepairLikeDetailTable()` を追加し、全 API・全 JS の `type === 'repair'` チェックを置換
+- **発注一覧表示**: バッジ「交換」+ 紫色（`#9333ea`）、行左ボーダー紫
+- **検証**: `tools/verify_seat_replacement.php`（14 ケース、全 PASS）
+
+### 7-19. 自店調達申請の予算反映（2026-05-28）
+自店調達申請の作成時に申請月の `budgets.actual_amount` へ即時加算する仕様を追加。
+
+- **対象 API**: `POST /api/procurement.php`
+- **計上月**: `procurement_requests.date`（申請日）の月
+- **新ヘルパー**: `includes/budget.php` の `resolveBudgetKeyByDate()` / `applyBudgetActualDeltaByDate()`
+- 納品概念がないため `actual_delivery_date` ベースの発注ロジックとは別物
+- **検証**: `tools/verify_procurement_budget.php`（PASS）
+
+### 7-20. メール下書きに CC（商品部）欄追加（2026-05-28）
+メール下書き画面に商品部メールアドレスを CC で自動セット。
+
+- **設定保存**: `system_settings.product_dept_email`（単一アドレス・email 検証）
+- **取得 API**: `GET /api/orders/draft-mails.php` のレスポンスに `cc_email` を追加
+- **編集 UI**: `system-settings.html` に「商品部メールアドレス」入力欄追加（GET/POST 共に `api/admin/system-settings.php`）
+- **フロント**: `js/order-list.js` の `draftMailsState.ccEmail` で保持、CC 入力欄 + `mailto:?cc=` に反映
+
+### 7-21. メール送信の非同期化（2026-05-28）
+発注作成・ステータス変更時のメール送信が SMTP タイムアウト時に UI を止めていたため、レスポンス先行返却に切替。
+
+- **対象**: `api/orders/create.php` / `api/orders/status.php` / `api/orders/bulk-status.php`
+- **共通ヘルパー**: `includes/functions.php` の `jsonResponseAndContinue(mixed $data, int $status = 200)`
+  - PHP-FPM: `fastcgi_finish_request()`
+  - mod_php (XAMPP): `Content-Length` + `Connection: close` + `flush()`
+- **規約**: `commit()` 後に `jsonResponseAndContinue()` を呼び、続けてメール送信、最後に `exit;`
+- **制約**: メール送信失敗はクライアントへ伝わらず `error_log` のみ。永続化リトライが必要なら別途 mail_queue 機構を用意
+
+### 7-22. メニュー画面の改善（2026-05-28）
+- `.menu-container` の最大幅を **840px → 1200px** に拡張（大型モニタで中央に小さく見える問題を解消）
+- スケジュール枠の見出し: 「5月のスケジュール」（動的）→ **「直近の締めスケジュール」**（固定）
+- シート交換用に新規 SVG アイコン（トレーニングマシン）を追加
+
 ---
 
 ## 8. コーディング規約（重要）
@@ -365,7 +443,7 @@ IT 管理者向けの新ロール `system`。admin の全権限に加え、以�
 
 ### 9-2. 中期で残っている開発項目
 
-詳細は **[docs/快活システム_画面機能一覧_開発状況.xlsx](docs/快活システム_画面機能一覧_開発状況.xlsx)** を参照（2026-05-26 時点）。
+詳細は **[docs/快活システム_画面機能一覧_開発状況.xlsx](docs/快活システム_画面機能一覧_開発状況.xlsx)** を参照（2026-05-28 時点）。
 
 5シート構成:
 1. **画面一覧** — 全画面のフロント/バック開発状況
@@ -376,8 +454,9 @@ IT 管理者向けの新ロール `system`。admin の全権限に加え、以�
 
 > 更新方法: `docs/generate_status_excel.py` を編集して `python generate_status_excel.py` で再生成。
 
-#### 主な残作業（2026-05-26 時点）
+#### 主な残作業（2026-05-28 時点）
 - 本番デプロイ（さくらレンタルサーバー）準備（cron 登録含む）
+- 本番 SMTP 設定（Mailpit → 本番メールサーバへ切替）
 
 #### 対象外（手動運用 or 不採用）
 - **備品自動発注**: 締め日に status=0 → 1 を自動化する想定だったが、商品部の手動「ステータス一括変更」＋「発注メール下書き → 発注済化」で代替できるため対象外

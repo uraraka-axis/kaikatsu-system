@@ -2,7 +2,7 @@
 
 **システム名:** 快活フロンティア 発注管理・予算管理システム
 **作成日:** 2026-03-26
-**最終更新:** 2026-05-26
+**最終更新:** 2026-05-28
 **対応DB:** MySQL 8.0
 
 ---
@@ -36,22 +36,23 @@
 | 8 | users | ユーザーマスタ | システム利用者の情報 |
 | 9 | system_settings | システム設定 | システム全体のキーバリュー設定 |
 
-#### トランザクションテーブル（10テーブル）
+#### トランザクションテーブル（11テーブル）
 
 日々の業務で発生するデータを記録するテーブル群です。
 
 | # | テーブル名 | 日本語名 | 概要 |
 |---|-----------|---------|------|
-| 1 | orders | 発注ヘッダ | 修理・備品・部品発注の親レコード |
+| 1 | orders | 発注ヘッダ | 修理・備品・部品・シート交換発注の親レコード |
 | 2 | order_repair_details | 修理発注詳細 | 修理発注の詳細情報（orders と 1:1） |
-| 3 | order_repair_unavail_dates | 修理対応不可日時 | 修理時に対応できない日時 |
-| 4 | order_repair_unavail_days | 修理対応不可曜日 | 修理時に対応できない曜日 |
-| 5 | order_equipment_items | 備品発注明細 | 備品発注の商品明細行 |
-| 6 | order_parts_details | 部品発注詳細 | 部品発注の詳細情報（orders と 1:1） |
-| 7 | order_photos | 発注写真 | 修理・部品発注に添付する写真（最大3枚） |
-| 8 | order_status_history | ステータス変更履歴 | 発注ステータスの変更ログ |
-| 9 | procurement_requests | 自店調達申請 | 店舗が自ら調達する場合の申請 |
-| 10 | budgets | 予算 | 店舗ごとの月次予算・実績 ※マスタ兼トランザクション |
+| 3 | order_seat_replacement_details | シート交換発注詳細 | マシンシート交換発注の詳細（orders と 1:1） |
+| 4 | order_repair_unavail_dates | 対応不可日時 | 修理／シート交換時に対応できない日時（流用） |
+| 5 | order_repair_unavail_days | 対応不可曜日 | 修理／シート交換時に対応できない曜日（流用） |
+| 6 | order_equipment_items | 備品発注明細 | 備品発注の商品明細行 |
+| 7 | order_parts_details | 部品発注詳細 | 部品発注の詳細情報（orders と 1:1） |
+| 8 | order_photos | 発注写真 | 修理・部品・シート交換発注に添付する写真（最大3枚） |
+| 9 | order_status_history | ステータス変更履歴 | 発注ステータスの変更ログ |
+| 10 | procurement_requests | 自店調達申請 | 店舗が自ら調達する場合の申請（申請月の budgets に即時加算） |
+| 11 | budgets | 予算 | 店舗ごとの月次予算・実績 ※マスタ兼トランザクション |
 
 #### ユーティリティテーブル（4テーブル）
 
@@ -470,14 +471,14 @@
 
 ### 3.10 orders（発注ヘッダ）
 
-**用途:** 修理・備品・部品の全発注に共通する親レコードです。発注種別ごとに子テーブル（repair_details, equipment_items, parts_details）と連携します。
+**用途:** 修理・備品・部品・シート交換の全発注に共通する親レコードです。発注種別ごとに子テーブル（repair_details, seat_replacement_details, equipment_items, parts_details）と連携します。
 
 #### カラム一覧
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|----------|------|
 | id | VARCHAR(30) | NO | - | 発注番号（REP-S01-20260301-0001 等） |
-| type | ENUM('repair','equipment','parts') | NO | - | 発注種別（repair=修理, equipment=備品, parts=部品） |
+| type | ENUM('repair','equipment','parts','seat-replacement') | NO | - | 発注種別（repair=修理, equipment=備品, parts=部品, seat-replacement=シート交換） |
 | category_code | VARCHAR(20) | NO | - | カテゴリコード |
 | status | TINYINT | NO | 0 | ステータス（0:依頼中 ~ 4:完了）※詳細は補足参照 |
 | shop_code | VARCHAR(5) | NO | - | 発注元店舗コード |
@@ -485,10 +486,13 @@
 | estimate_amount | INT | YES | NULL | 見積金額 |
 | final_amount | INT | YES | NULL | 最終金額 |
 | delivery_date | DATE | YES | NULL | 納品予定日 |
-| actual_delivery_date | DATE | YES | NULL | 実納品日（備品のみ） |
+| actual_delivery_date | DATE | YES | NULL | 実納品日（備品・部品。予算計上月決定キー） |
 | created_by | INT | YES | NULL | 作成者ユーザーID |
 | created_at | DATETIME | NO | CURRENT_TIMESTAMP | 作成日時 |
 | updated_at | DATETIME | NO | CURRENT_TIMESTAMP (自動更新) | 更新日時 |
+| cancelled_at | DATETIME | YES | NULL | 取消日時（NULL=未取消）※論理削除フラグ |
+| cancelled_by | VARCHAR(50) | YES | NULL | 取消者のユーザー名（スナップショット） |
+| cancel_reason | TEXT | YES | NULL | 取消理由（必須入力、500文字以内） |
 
 - **主キー:** `id`
 - **外部キー:**
@@ -503,7 +507,16 @@
   - `idx_orders_date` (date)
   - `idx_orders_created_by` (created_by)
   - `idx_orders_type_status_date` (type, status, date) ※複合インデックス
+  - `idx_orders_cancelled` (cancelled_at) ※取消フィルタ用
 - **ユニーク制約:** なし（主キーのみ）
+
+#### 補足: 論理削除（取消）
+
+- 誤発注時の救済として `cancelled_at` で論理削除する。
+- 取消可能条件: `status=0`（依頼中）かつ admin/system ロールのみ。
+- 取消発注は API レイヤで `cancelled_at IS NULL` フィルタにより一覧・Excel・メール下書きから完全に非表示（履歴は DB に保持）。
+- 取消理由は必須入力で、`order_status_history` にも「【取消】<理由>」として記録される。
+- 詳細: [api/orders/cancel.php](../api/orders/cancel.php)
 
 ---
 
@@ -527,6 +540,36 @@
 - **外部キー:** `order_id` -> `orders.id`
 - **インデックス:** なし（主キーのみ）
 - **ユニーク制約:** なし（主キーのみ）
+
+---
+
+### 3.11.1 order_seat_replacement_details（シート交換発注詳細）
+
+**用途:** マシンシート交換発注の詳細情報を保持します。修理発注と同じステータスフロー（0→1→2→3→4）を持ちます。orders テーブルと1対1の関係です。
+
+#### カラム一覧
+
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|-----|------|----------|------|
+| order_id | VARCHAR(30) | NO | - | 発注番号（SHT-S01-20260528-0001 等） |
+| equipment_name | VARCHAR(100) | NO | - | マシン名・品番 |
+| issue | TEXT | NO | - | 依頼内容（"マシンのシート交換" 固定） |
+| repair_schedule_date | DATE | YES | NULL | 作業予定日 |
+| repair_completed_date | DATE | YES | NULL | 作業完了日（予算計上月決定キー） |
+| created_at | DATETIME | NO | CURRENT_TIMESTAMP | 作成日時 |
+| updated_at | DATETIME | NO | CURRENT_TIMESTAMP (自動更新) | 更新日時 |
+
+- **主キー:** `order_id`（orders.id と1:1対応）
+- **外部キー:** `order_id` -> `orders.id`
+- **インデックス:** なし（主キーのみ）
+- **ユニーク制約:** なし（主キーのみ）
+
+#### 補足
+
+- カテゴリは `fitness` 固定（サーバ側で強制）。
+- 不可日時/曜日は `order_repair_unavail_dates` / `order_repair_unavail_days` を流用（order_id 参照のため type 非依存）。
+- 写真添付は `order_photos` を流用（最大3枚）。
+- ステータス遷移は修理発注と同じ手動運用（`isRepairLikeType()` ヘルパで判定）。
 
 ---
 

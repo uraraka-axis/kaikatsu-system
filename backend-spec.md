@@ -2,7 +2,7 @@
 
 快活フロンティア フィットネス／ゴルフ 発注管理・予算管理システム
 
-最終更新: 2026-05-26
+最終更新: 2026-05-28
 
 ---
 
@@ -135,7 +135,7 @@ zone / area の管轄スコープは、画面フィルタ UI で「ゾーン」�
 | カラム | 型 | 説明 |
 |--------|------|------|
 | id | VARCHAR(30) PK | 発注番号（採番ルールは後述） |
-| type | ENUM('repair','equipment','parts') | 発注種別 |
+| type | ENUM('repair','equipment','parts','seat-replacement') | 発注種別 |
 | category_code | VARCHAR(20) FK | カテゴリ |
 | status | TINYINT | ステータス（0〜4） |
 | shop_code | VARCHAR(5) FK | 発注元店舗 |
@@ -143,9 +143,12 @@ zone / area の管轄スコープは、画面フィルタ UI で「ゾーン」�
 | estimate_amount | INT NULL | 見積金額 |
 | final_amount | INT NULL | 最終金額 |
 | delivery_date | DATE NULL | 納品予定日 |
-| actual_delivery_date | DATE NULL | 実納品日（備品のみ） |
+| actual_delivery_date | DATE NULL | 実納品日（備品・部品。予算計上月決定キー） |
 | created_at | DATETIME | 作成日時 |
 | updated_at | DATETIME | 更新日時 |
+| cancelled_at | DATETIME NULL | 取消日時（NULL=未取消、論理削除フラグ） |
+| cancelled_by | VARCHAR(50) NULL | 取消者のユーザー名（スナップショット） |
+| cancel_reason | TEXT NULL | 取消理由（必須入力、500文字以内） |
 
 #### order_repair_details（修理発注の詳細）
 
@@ -253,6 +256,7 @@ zone / area の管轄スコープは、画面フィルタ UI で「ゾーン」�
 | 修理 | REP | REP-{店舗短縮コード}-{YYYYMMDD}-{連番4桁} | REP-S01-20260301-0001 |
 | 備品 | EQU | EQU-{店舗短縮コード}-{YYYYMMDD}-{連番4桁} | EQU-S01-20260226-0001 |
 | 部品 | PTS | PTS-{店舗短縮コード}-{YYYYMMDD}-{連番4桁} | PTS-S01-20260303-0001 |
+| シート交換 | SHT | SHT-{店舗短縮コード}-{YYYYMMDD}-{連番4桁} | SHT-S01-20260528-0001 |
 | 自店調達 | REQ | REQ-{店舗短縮コード}-{YYYYMMDD}-{連番4桁} | REQ-S01-20260226-0001 |
 
 連番は種別×店舗×日付ごとにリセット。
@@ -360,9 +364,24 @@ zone / area の管轄スコープは、画面フィルタ UI で「ゾーン」�
 - 対応不可曜日は複数指定可
 - 修理予定日は3営業日以上先の日付のみ指定可能
 
+### 5.2.1 シート交換発注（2026-05-28 追加）
+
+マシンのシート交換専用の発注種別。修理発注と同じステータスフロー / UI を持つ。
+
+- **専用画面**: [seat-replacement.html](seat-replacement.html) / [js/seat-replacement.js](js/seat-replacement.js)
+- **詳細テーブル**: [order_seat_replacement_details](database/db-spec.md#3111-order_seat_replacement_details純シート交換発注詳細)
+- **カテゴリ**: フィットネス固定（サーバ側で強制）
+- **依頼内容**: 「マシンのシート交換」固定文言
+- **対応不可日時/曜日 UI**: 修理と同じ（`order_repair_unavail_*` テーブルを流用）
+- **写真アップロード**: 最大3枚
+- **ステータスフロー**: 修理発注と同一（0→1→2→3→4）
+- **修理ライク判定 helper**: `includes/functions.php` の `isRepairLikeType()` / `getRepairLikeDetailTable()` を全 API/フロントで使用
+- **発注番号 prefix**: SHT（例: `SHT-S01-20260528-0001`）
+- **業務上の区別**: 発注一覧／Excel／メール下書きでは「シート交換」として独立表示。仕入先・集計でも区別される
+
 ### 5.3 写真アップロード
 
-- 修理発注・部品発注で写真添付可能
+- 修理発注・部品発注・シート交換発注で写真添付可能
 - 最大3枚まで
 - プレビュー表示あり
 
@@ -384,7 +403,49 @@ zone / area の管轄スコープは、画面フィルタ UI で「ゾーン」�
 
 - チェックボックスで複数発注を選択
 - 同一ステータスの発注をまとめて次のステータスに遷移可能
-- 備品の「発注済→配達中」は自動遷移のため一括変更対象外
+- 全種別（修理・備品・部品・シート交換）が一括変更対象（2026-05-28 にバッチ廃止後、備品も対象に）
+
+### 5.6 論理削除（発注取消）
+
+- 誤発注対応として `orders.cancelled_at` で論理削除する仕組み。
+- **取消可能条件**: status=0（依頼中）かつ admin/system ロールのみ
+- **必須項目**: cancel_reason（取消理由、500文字以内）
+- **挙動**:
+  - `cancelled_at` / `cancelled_by` / `cancel_reason` を `orders` に記録
+  - `order_status_history` に「【取消】<理由>」として履歴記録
+  - 取消後は API レイヤ（`cancelled_at IS NULL` フィルタ）で一覧・Excel・メール下書きから完全に非表示
+  - ステータス変更・編集 API は取消発注を拒否
+- **API**: [POST /api/orders/cancel.php](api/orders/cancel.php)
+
+### 5.7 自店調達申請の予算反映（2026-05-28）
+
+- POST /api/procurement.php 成功時、トランザクション内で `applyBudgetActualDeltaByDate()` を呼び申請月の `budgets.actual_amount` に金額を即時加算。
+- 計上月 = `procurement_requests.date`（申請日）の月。納品概念がないため `actual_delivery_date` ベースの発注とは別ロジック。
+- ヘルパー: `includes/budget.php` の `resolveBudgetKeyByDate()` / `applyBudgetActualDeltaByDate()`。
+
+### 5.8 メール送信の非同期化（2026-05-28）
+
+発注作成・ステータス変更・一括ステータス変更の各 API は、SMTP 送信完了を待たずに先にクライアントへ JSON レスポンスを返す。
+
+- **対象**:
+  - `api/orders/create.php` — 商品部向け新規発注通知（`notifyProductDeptNewOrder()`）
+  - `api/orders/status.php` — 四半期予算超過通知（`notifyIfQuarterBudgetCrossed()`）
+  - `api/orders/bulk-status.php` — 同上（複数件発生し得る）
+- **共通ヘルパー**: `includes/functions.php` の `jsonResponseAndContinue(mixed $data, int $status = 200)`
+  - PHP-FPM 環境: `fastcgi_finish_request()` でレスポンスを確定し以後の処理を継続
+  - mod_php / XAMPP 環境: 出力バッファをクリアし `Content-Length` + `Connection: close` を発行 → `flush()` で接続をクローズ
+  - 共通の追加処理: `ignore_user_abort(true)` / `set_time_limit(60)` / `zlib.output_compression = Off`
+- **呼び出し規約**: DB トランザクションを必ず `commit()` した後にレスポンスを返し、続けてメール送信を行うこと。トランザクション内で送信すると失敗時に矛盾が出る。
+  ```php
+  commit();
+  jsonResponseAndContinue(['success' => true, ...]);
+  notifyProductDeptNewOrder(...);
+  exit;
+  ```
+- **背景**: SMTP タイムアウト（Mailpit 停止時等）で発注ボタン押下後に数秒〜十数秒の停止が発生していた。UX 影響と本番運用上のリスクを切り離す目的。
+- **既知の制約**:
+  - メール送信失敗はクライアントへ伝わらない（`error_log` のみ）。永続化リトライが必要なら mail_queue 機構を別途用意すること
+  - 送信中はリクエストワーカーを占有する（Apache mpm_prefork 環境では並列度に注意）
 
 ---
 
@@ -437,7 +498,7 @@ DB で `is_active=0` または削除されていた場合は自動ログアウ�
 
 | パラメータ | 型 | 説明 |
 |-----------|------|------|
-| type | string | 種別フィルタ（repair/equipment/parts） |
+| type | string | 種別フィルタ（repair/equipment/parts/seat-replacement） |
 | status | int | ステータスフィルタ（0〜4） |
 | category | string | カテゴリフィルタ |
 | shop | string | 店舗コード（admin/system は自由 / zone/area は管轄内のみ受理） |
