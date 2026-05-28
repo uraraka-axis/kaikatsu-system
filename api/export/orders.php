@@ -206,29 +206,31 @@ $sheet = $spreadsheet->getActiveSheet();
 $sheet->setTitle('発注一覧');
 
 // ヘッダ定義
-// 2026-05-28: 品名横に会社商品コード/仕入先商品コードを追加（M, N列）。
-//              見積金額(H列)は備品の場合は明細単位の小計を表示するよう変更。
+// 2026-05-28: 列順を業務上見やすい順に並べ替え。
+//   発注日 > 種別 > 発注番号 > 店舗 > カテゴリ > 品名 > 会社商品コード >
+//   仕入先商品コード > 仕入先 > 数量 > 単価 > 小計 > 納品予定日 >
+//   確定金額 > 納品実績日 > ステータス > 詳細 > 登録日時
+// 店舗は "10101:札幌" 形式でコードと名前を1列に結合。
+// 見積金額列は単価編集可能化により Σ小計 と常に一致するため削除。
 $headers = [
-    'A' => '発注番号',
+    'A' => '発注日',
     'B' => '種別',
-    'C' => 'カテゴリ',
-    'D' => 'ステータス',
-    'E' => '店舗コード',
-    'F' => '店舗名',
-    'G' => '発注日',
-    'H' => '見積金額',
-    'I' => '確定金額',
-    'J' => '納品予定日',
-    'K' => '納品実績日',
-    'L' => '品名',
-    'M' => '会社商品コード',
-    'N' => '仕入先商品コード',
-    'O' => '数量',
-    'P' => '単価',
-    'Q' => '小計',
-    'R' => '仕入先',
-    'S' => '詳細',
-    'T' => '登録日時',
+    'C' => '発注番号',
+    'D' => '店舗',
+    'E' => 'カテゴリ',
+    'F' => '品名',
+    'G' => '会社商品コード',
+    'H' => '仕入先商品コード',
+    'I' => '仕入先',
+    'J' => '数量',
+    'K' => '単価',
+    'L' => '小計',
+    'M' => '納品予定日',
+    'N' => '確定金額',
+    'O' => '納品実績日',
+    'P' => 'ステータス',
+    'Q' => '詳細',
+    'R' => '登録日時',
 ];
 
 // ヘッダ行書き込み
@@ -237,7 +239,7 @@ foreach ($headers as $col => $label) {
 }
 
 // ヘッダスタイル
-$headerRange = 'A1:T1';
+$headerRange = 'A1:R1';
 $sheet->getStyle($headerRange)->applyFromArray([
     'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF'], 'size' => 10],
     'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '4472C4']],
@@ -249,20 +251,36 @@ $sheet->getRowDimension(1)->setRowHeight(24);
 // カラム幅（データ書き込み後に自動調整）
 
 // --- 共通カラム生成 ---
-function orderBaseCols(array $order, array $typeLabels, array $categoryLabels, array $statusLabels): array
-{
+// 新列順（A〜R）に合わせて行データを組み立てるヘルパ。
+// $variable は per-type の差異（F品名 / G会社商品コード / H仕入先商品コード / I仕入先 /
+// J数量 / K単価 / L小計 / Q詳細）の連想配列。
+function buildRow(
+    array $order,
+    array $typeLabels,
+    array $categoryLabels,
+    array $statusLabels,
+    array $variable
+): array {
+    $shopCombined = $order['shop_code'] . ':' . $order['shop_name'];
     return [
-        $order['id'],
-        $typeLabels[$order['type']] ?? $order['type'],
-        $categoryLabels[$order['category_code']] ?? $order['category_code'],
-        $statusLabels[(int)$order['status']] ?? $order['status'],
-        $order['shop_code'],
-        $order['shop_name'],
-        $order['date'],
-        $order['estimate_amount'] !== null ? (int)$order['estimate_amount'] : '',
-        $order['final_amount'] !== null ? (int)$order['final_amount'] : '',
-        $order['delivery_date'] ?? '',
-        $order['actual_delivery_date'] ?? '',
+        $order['date'],                                                                      // A 発注日
+        $typeLabels[$order['type']] ?? $order['type'],                                       // B 種別
+        $order['id'],                                                                        // C 発注番号
+        $shopCombined,                                                                       // D 店舗
+        $categoryLabels[$order['category_code']] ?? $order['category_code'],                 // E カテゴリ
+        $variable['product_name']     ?? '',                                                 // F 品名
+        $variable['product_code']     ?? '',                                                 // G 会社商品コード
+        $variable['supplier_product_code'] ?? '',                                            // H 仕入先商品コード
+        $variable['supplier']         ?? '',                                                 // I 仕入先
+        $variable['qty']              ?? '',                                                 // J 数量
+        $variable['price']            ?? '',                                                 // K 単価
+        $variable['subtotal']         ?? '',                                                 // L 小計
+        $order['delivery_date']       ?? '',                                                 // M 納品予定日
+        $order['final_amount'] !== null ? (int)$order['final_amount'] : '',                  // N 確定金額
+        $order['actual_delivery_date'] ?? '',                                                // O 納品実績日
+        $statusLabels[(int)$order['status']] ?? $order['status'],                            // P ステータス
+        $variable['detail']           ?? '',                                                 // Q 詳細
+        $order['created_at'],                                                                // R 登録日時
     ];
 }
 
@@ -272,21 +290,13 @@ $rowNum = 2;
 foreach ($orders as $order) {
     $id    = $order['id'];
     $oType = $order['type'];
-    $base  = orderBaseCols($order, $typeLabels, $categoryLabels, $statusLabels);
 
     if ($oType === 'repair') {
         $rd = $repairDetails[$id] ?? null;
-        // 品名 / 会社商品コード / 仕入先商品コード / 数量 / 単価 / 小計 / 仕入先 / 詳細 / 登録日時
-        $rowData = array_merge($base, [
-            $rd['equipment_name'] ?? '',
-            '',
-            '',
-            1,
-            '',
-            '',
-            '',
-            $rd['issue'] ?? '',
-            $order['created_at'],
+        $rowData = buildRow($order, $typeLabels, $categoryLabels, $statusLabels, [
+            'product_name' => $rd['equipment_name'] ?? '',
+            'qty'          => 1,
+            'detail'       => $rd['issue'] ?? '',
         ]);
         writeRow($sheet, $rowNum, $rowData);
         $rowNum++;
@@ -294,25 +304,20 @@ foreach ($orders as $order) {
     } elseif ($oType === 'equipment') {
         $items = $equipItems[$id] ?? [];
         if (empty($items)) {
-            $rowData = array_merge($base, ['', '', '', '', '', '', '', '', $order['created_at']]);
+            $rowData = buildRow($order, $typeLabels, $categoryLabels, $statusLabels, []);
             writeRow($sheet, $rowNum, $rowData);
             $rowNum++;
         } else {
             foreach ($items as $ei) {
                 $subtotal = (int)$ei['price'] * (int)$ei['qty'];
-                // 備品は見積金額(H列)を明細単位の小計で上書きする
-                $baseForLine = $base;
-                $baseForLine[7] = $subtotal;
-                $rowData = array_merge($baseForLine, [
-                    $ei['product_name'],
-                    $ei['product_code'] ?? '',
-                    $ei['supplier_product_code'] ?? '',
-                    (int)$ei['qty'],
-                    (int)$ei['price'],
-                    $subtotal,
-                    $ei['supplier'] ?? '',
-                    '',
-                    $order['created_at'],
+                $rowData = buildRow($order, $typeLabels, $categoryLabels, $statusLabels, [
+                    'product_name'          => $ei['product_name'],
+                    'product_code'          => $ei['product_code'] ?? '',
+                    'supplier_product_code' => $ei['supplier_product_code'] ?? '',
+                    'supplier'              => $ei['supplier'] ?? '',
+                    'qty'                   => (int)$ei['qty'],
+                    'price'                 => (int)$ei['price'],
+                    'subtotal'              => $subtotal,
                 ]);
                 writeRow($sheet, $rowNum, $rowData);
                 $rowNum++;
@@ -328,16 +333,10 @@ foreach ($orders as $order) {
         if (($pd['reason'] ?? '') !== '') {
             $detail .= ($detail !== '' ? ' / ' : '') . '理由: ' . $pd['reason'];
         }
-        $rowData = array_merge($base, [
-            $pd['parts_name'] ?? '',
-            '',
-            '',
-            $pd['quantity'] ?? 1,
-            '',
-            '',
-            '',
-            $detail,
-            $order['created_at'],
+        $rowData = buildRow($order, $typeLabels, $categoryLabels, $statusLabels, [
+            'product_name' => $pd['parts_name'] ?? '',
+            'qty'          => $pd['quantity'] ?? 1,
+            'detail'       => $detail,
         ]);
         writeRow($sheet, $rowNum, $rowData);
         $rowNum++;
@@ -347,26 +346,26 @@ foreach ($orders as $order) {
 // データ行スタイル（罫線）
 $lastRow = $rowNum - 1;
 if ($lastRow >= 2) {
-    $dataRange = 'A2:T' . $lastRow;
+    $dataRange = 'A2:R' . $lastRow;
     $sheet->getStyle($dataRange)->applyFromArray([
         'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
         'font' => ['size' => 10],
         'alignment' => ['vertical' => Alignment::VERTICAL_CENTER],
     ]);
-    // 金額列は右寄せ・カンマ区切り（H=見積/I=確定/P=単価/Q=小計）
-    foreach (['H', 'I', 'P', 'Q'] as $moneyCol) {
+    // 金額列は右寄せ・カンマ区切り（K=単価/L=小計/N=確定）
+    foreach (['K', 'L', 'N'] as $moneyCol) {
         $sheet->getStyle($moneyCol . '2:' . $moneyCol . $lastRow)
               ->getNumberFormat()->setFormatCode('#,##0');
         $sheet->getStyle($moneyCol . '2:' . $moneyCol . $lastRow)
               ->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
     }
-    // 数量列(O)は中央
-    $sheet->getStyle('O2:O' . $lastRow)
+    // 数量列(J)は中央
+    $sheet->getStyle('J2:J' . $lastRow)
           ->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 }
 
 // カラム幅自動調整
-foreach (range('A', 'T') as $col) {
+foreach (range('A', 'R') as $col) {
     $sheet->getColumnDimension($col)->setAutoSize(true);
 }
 
@@ -393,7 +392,7 @@ exit;
 // --- ヘルパー ---
 function writeRow(\PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet, int $rowNum, array $data): void
 {
-    $cols = range('A', 'T');
+    $cols = range('A', 'R');
     foreach ($data as $i => $val) {
         if (isset($cols[$i])) {
             $sheet->setCellValue($cols[$i] . $rowNum, $val);

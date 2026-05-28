@@ -6,6 +6,10 @@
  * POST /api/orders/update-info.php
  * リクエスト:
  *   { "order_id": "REP-S01-20260301-0001", "estimate_amount": 35000, ... }
+ *
+ * 備品発注は items[{id, price}] で明細の単価を編集できる。
+ * 単価編集時は orders.estimate_amount = Σ(price × qty) を自動再計算する。
+ * 編集可能ステータスは発注済(1)〜納品済(3)。完了後の単価編集は不可。
  */
 
 require_once __DIR__ . '/../../includes/auth.php';
@@ -69,11 +73,65 @@ if (isset($input['final_amount'])) {
     $input['final_amount'] = $fin;
 }
 
+// --- 備品明細の単価編集バリデーション ---
+// items: [{ id: 123, price: 2800 }, ...]
+$itemsToUpdate = null;
+if (isset($input['items']) && is_array($input['items'])) {
+    if ($orderType !== 'equipment') {
+        jsonError('明細単価編集は備品発注のみ対応しています');
+    }
+    if (!in_array($user['role'], ['admin', 'system'], true)) {
+        jsonError('明細単価編集は管理者のみ操作できます', 403);
+    }
+    if ($currentStatus < 1 || $currentStatus > 3) {
+        jsonError('発注済〜納品済の備品発注のみ単価を編集できます');
+    }
+    $itemsToUpdate = [];
+    foreach ($input['items'] as $item) {
+        $itemId = filter_var($item['id'] ?? null, FILTER_VALIDATE_INT);
+        $price  = filter_var($item['price'] ?? null, FILTER_VALIDATE_INT);
+        if ($itemId === false || $itemId === null || $itemId <= 0) {
+            jsonError('明細IDが不正です');
+        }
+        if ($price === false || $price === null || $price < 0) {
+            jsonError('単価は0以上の数値を入力してください');
+        }
+        $itemsToUpdate[] = ['id' => $itemId, 'price' => $price];
+    }
+}
+
 // --- 更新処理 ---
 try {
     beginTransaction();
 
     if (in_array($user['role'], ['admin', 'system'], true)) {
+        // 備品明細の単価更新（estimate_amount より先に処理し、最後に再計算で上書き）
+        if ($itemsToUpdate !== null) {
+            // 対象明細が本発注に属するかチェックして UPDATE
+            foreach ($itemsToUpdate as $it) {
+                $owns = getOne(
+                    'SELECT id FROM order_equipment_items WHERE id = :iid AND order_id = :oid',
+                    [':iid' => $it['id'], ':oid' => $orderId]
+                );
+                if ($owns === null) {
+                    throw new InvalidArgumentException('明細ID ' . $it['id'] . ' はこの発注に属していません');
+                }
+                execute(
+                    'UPDATE order_equipment_items SET price = :p WHERE id = :iid',
+                    [':p' => $it['price'], ':iid' => $it['id']]
+                );
+            }
+            // orders.estimate_amount を Σ(price × qty) で再計算
+            $sumRow = getOne(
+                'SELECT COALESCE(SUM(price * qty), 0) AS total
+                   FROM order_equipment_items WHERE order_id = :oid',
+                [':oid' => $orderId]
+            );
+            $newEstimate = (int)$sumRow['total'];
+            // 単価編集による estimate_amount 上書き（input['estimate_amount'] より優先）
+            $input['estimate_amount'] = $newEstimate;
+        }
+
         // 管理者 / システム管理者: orders テーブルの各フィールドを更新
         $updateCols = [];
         $updateVals = [':order_id' => $orderId];

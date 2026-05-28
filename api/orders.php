@@ -186,13 +186,14 @@ foreach ($photoRows as $row) {
 
 // --- 備品明細 ---
 $equipItems = [];
-$equipSql = "SELECT order_id, product_name, product_code, price, qty, supplier, arrival_date
+$equipSql = "SELECT id, order_id, product_name, product_code, price, qty, supplier, arrival_date
              FROM order_equipment_items
              WHERE order_id IN ({$placeholders})
              ORDER BY id";
 $equipRows = query($equipSql, $idParams);
 foreach ($equipRows as $row) {
     $equipItems[$row['order_id']][] = [
+        'id'           => (int)$row['id'],
         'product_name' => $row['product_name'],
         'product_code' => $row['product_code'],
         'price'        => (int)$row['price'],

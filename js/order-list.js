@@ -1085,6 +1085,10 @@ function getEditableFields(o) {
       if (o.type === 'repair') {
         fields.push({ key: 'estimate_amount', label: '見積金額', type: 'number', value: o.estimate_amount });
         fields.push({ key: 'repair_schedule_date', label: '修理予定日', type: 'date', value: o.repair_schedule_date });
+      } else if (o.type === 'equipment') {
+        // 備品は明細ごとに単価編集。estimate_amount は自動再計算なので入力欄なし
+        fields.push({ key: 'equip_items', label: '明細単価', type: 'items', value: o.equip_items || [] });
+        fields.push({ key: 'delivery_date', label: '納品予定日', type: 'date', value: o.delivery_date });
       } else {
         fields.push({ key: 'estimate_amount', label: '見積金額', type: 'number', value: o.estimate_amount });
         fields.push({ key: 'delivery_date', label: '納品予定日', type: 'date', value: o.delivery_date });
@@ -1145,6 +1149,34 @@ function openEditInfoModal(orderId) {
       }
       html += '<div class="modal-row"><span class="modal-label">' + f.label + '</span>' +
         '<textarea class="modal-textarea" id="editField_' + f.key + '">' + memoVal + '</textarea></div>';
+    } else if (f.type === 'items') {
+      // 備品明細の単価編集: items テーブルを表示し、各行に単価入力欄
+      html += '<div class="modal-row" style="flex-direction:column;align-items:stretch;gap:8px">' +
+        '<span class="modal-label" style="margin-bottom:4px">' + f.label + '<span style="font-size:11px;color:#94a3b8;margin-left:8px">単価を変更すると見積金額が自動再計算されます</span></span>' +
+        '<table class="edit-items-table" style="width:100%;border-collapse:collapse;font-size:13px">' +
+        '<thead><tr style="background:#f1f5f9">' +
+        '<th style="padding:6px 10px;text-align:left;border:1px solid #e2e8f0">商品名</th>' +
+        '<th style="padding:6px 10px;text-align:center;border:1px solid #e2e8f0;width:60px">数量</th>' +
+        '<th style="padding:6px 10px;text-align:right;border:1px solid #e2e8f0;width:120px">単価</th>' +
+        '<th style="padding:6px 10px;text-align:right;border:1px solid #e2e8f0;width:110px">小計</th>' +
+        '</tr></thead><tbody>';
+      (f.value || []).forEach(function(it) {
+        var subtotal = Number(it.price) * Number(it.qty);
+        html +=
+          '<tr data-item-id="' + it.id + '" data-qty="' + it.qty + '">' +
+          '<td style="padding:6px 10px;border:1px solid #e2e8f0">' + escapeHtml(it.product_name) + '</td>' +
+          '<td style="padding:6px 10px;text-align:center;border:1px solid #e2e8f0">' + it.qty + '</td>' +
+          '<td style="padding:4px 6px;border:1px solid #e2e8f0">' +
+            '<input type="text" inputmode="numeric" class="edit-item-price" data-item-id="' + it.id + '" value="' + it.price + '" ' +
+            'style="width:100%;padding:4px 6px;border:1px solid #cbd5e1;border-radius:4px;text-align:right;font-size:13px;font-family:inherit" ' +
+            'oninput="recalcEditItemsTotal()"></td>' +
+          '<td class="edit-item-subtotal" data-item-id="' + it.id + '" style="padding:6px 10px;text-align:right;border:1px solid #e2e8f0;font-variant-numeric:tabular-nums">¥' + subtotal.toLocaleString() + '</td>' +
+          '</tr>';
+      });
+      html += '</tbody><tfoot><tr style="background:#f8fafc;font-weight:600">' +
+        '<td colspan="3" style="padding:6px 10px;text-align:right;border:1px solid #e2e8f0">見積金額（再計算）</td>' +
+        '<td id="editItemsTotal" style="padding:6px 10px;text-align:right;border:1px solid #e2e8f0;font-variant-numeric:tabular-nums">¥0</td>' +
+        '</tr></tfoot></table></div>';
     }
   });
 
@@ -1153,7 +1185,30 @@ function openEditInfoModal(orderId) {
     '<button class="btn-modal btn-modal-cancel" onclick="closeModal()">キャンセル</button>' +
     '<button class="btn-modal btn-modal-primary" onclick="doSaveEditInfo(\'' + orderId + '\')">保存</button>';
   modal.classList.add('open');
+
+  // items 表示の場合は初期合計を計算
+  if (document.getElementById('editItemsTotal')) {
+    recalcEditItemsTotal();
+  }
 }
+
+// 単価入力欄の変更時に、各行の小計と合計を再計算
+window.recalcEditItemsTotal = function() {
+  var total = 0;
+  document.querySelectorAll('.edit-item-price').forEach(function(input) {
+    var itemId = input.getAttribute('data-item-id');
+    var row    = input.closest('tr');
+    var qty    = Number(row.getAttribute('data-qty')) || 0;
+    var price  = parseInt(String(input.value).replace(/,/g, ''), 10);
+    if (isNaN(price) || price < 0) price = 0;
+    var subtotal = price * qty;
+    total += subtotal;
+    var subCell = document.querySelector('.edit-item-subtotal[data-item-id="' + itemId + '"]');
+    if (subCell) subCell.textContent = '¥' + subtotal.toLocaleString();
+  });
+  var totalCell = document.getElementById('editItemsTotal');
+  if (totalCell) totalCell.textContent = '¥' + total.toLocaleString();
+};
 
 function doSaveEditInfo(orderId) {
   var order = findOrder(orderId);
@@ -1165,6 +1220,28 @@ function doSaveEditInfo(orderId) {
 
   fields.forEach(function(f) {
     if (validationError) return;
+
+    // items は別UI（テーブル）なので getElementById('editField_xxx') にはない
+    if (f.type === 'items') {
+      var items = [];
+      var inputs = document.querySelectorAll('.edit-item-price');
+      for (var i = 0; i < inputs.length; i++) {
+        var inp     = inputs[i];
+        var itemId  = parseInt(inp.getAttribute('data-item-id'), 10);
+        var rawVal  = String(inp.value).trim();
+        var price   = parseInt(rawVal.replace(/,/g, ''), 10);
+        if (isNaN(price) || price < 0) {
+          validationError = '単価は0以上の数値を入力してください';
+          return;
+        }
+        items.push({ id: itemId, price: price });
+      }
+      if (items.length > 0) {
+        body.items = items;
+      }
+      return;
+    }
+
     var el = document.getElementById('editField_' + f.key);
     if (!el) return;
     if (f.type === 'number') {
