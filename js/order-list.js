@@ -1628,6 +1628,7 @@ if (window.__currentUser) {
 // 「依頼中」の備品発注を仕入先単位に集計し、メーラー起動 / 本文コピー / 発注済化を提供する
 var draftMailsState = {
   suppliers: [],
+  ccEmail: '',
   activeIndex: 0
 };
 
@@ -1665,6 +1666,7 @@ function openDraftMails() {
         return;
       }
       draftMailsState.suppliers = (res.data && res.data.suppliers) || [];
+      draftMailsState.ccEmail = (res.data && res.data.cc_email) || '';
       draftMailsState.activeIndex = 0;
       renderDraftMails();
       var ov = document.getElementById('draftMailsOverlay');
@@ -1800,6 +1802,11 @@ function renderDraftMails() {
     cardsHtml +=   '</div>';
 
     cardsHtml +=   '<div class="draft-mail-field">';
+    cardsHtml +=     '<label>CC（商品部）</label>';
+    cardsHtml +=     '<input type="text" class="draft-mail-input" id="draftMailCc-' + i + '" value="' + escapeHtml(draftMailsState.ccEmail || '') + '" placeholder="例: shohinbu@example.com">';
+    cardsHtml +=   '</div>';
+
+    cardsHtml +=   '<div class="draft-mail-field">';
     cardsHtml +=     '<label>件名</label>';
     cardsHtml +=     '<input type="text" class="draft-mail-input" id="draftMailSubject-' + i + '" value="' + escapeHtml(subject) + '">';
     cardsHtml +=   '</div>';
@@ -1840,15 +1847,18 @@ function switchDraftTab(i) {
 
 function openMailtoForSupplier(i) {
   var toEl   = document.getElementById('draftMailTo-' + i);
+  var ccEl   = document.getElementById('draftMailCc-' + i);
   var subEl  = document.getElementById('draftMailSubject-' + i);
   var bodyEl = document.getElementById('draftMailBody-' + i);
   if (!toEl || !subEl || !bodyEl) return;
 
   var to      = (toEl.value || '').trim();
+  var cc      = ccEl ? (ccEl.value || '').trim() : '';
   var subject = subEl.value || '';
   var body    = bodyEl.value || '';
 
   var qs = [];
+  if (cc !== '') qs.push('cc=' + encodeURIComponent(cc));
   qs.push('subject=' + encodeURIComponent(subject));
   qs.push('body=' + encodeURIComponent(body));
   var url = 'mailto:' + encodeURIComponent(to) + '?' + qs.join('&');

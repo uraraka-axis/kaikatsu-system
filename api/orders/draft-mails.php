@@ -184,10 +184,17 @@ foreach ($rows as $r) {
 // 連想配列 → リスト化（フロントが扱いやすいよう）
 $suppliers = array_values($grouped);
 
+// CC 用: 商品部メアド (system_settings.product_dept_email)
+$ccRow = getOne(
+    "SELECT `value` FROM system_settings WHERE `key` = 'product_dept_email' AND is_active = 1"
+);
+$ccEmail = $ccRow['value'] ?? '';
+
 jsonResponse([
     'success' => true,
     'data'    => [
         'suppliers'    => $suppliers,
+        'cc_email'     => $ccEmail,
         'fetched_at'   => date('Y-m-d H:i:s'),
         'requester'    => $user['name'] ?? '',
     ],

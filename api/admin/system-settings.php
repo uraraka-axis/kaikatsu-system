@@ -33,10 +33,14 @@ function handleGet(): void
     $row = getOne("SELECT value FROM system_settings WHERE `key` = 'fiscal_start_month'");
     $month = $row ? (int)$row['value'] : 4;
 
+    $emailRow = getOne("SELECT value FROM system_settings WHERE `key` = 'product_dept_email' AND is_active = 1");
+    $productDeptEmail = $emailRow['value'] ?? '';
+
     jsonResponse([
         'success' => true,
         'data'    => [
             'fiscal_start_month' => $month,
+            'product_dept_email' => $productDeptEmail,
         ],
     ]);
 }
@@ -52,6 +56,17 @@ function handlePost(): void
     );
     if ($fiscalStartMonth === false) {
         jsonError('期の開始月は1〜12で指定してください', 400);
+    }
+
+    // 商品部メールアドレス（空文字許容、空でない場合はメール形式チェック）
+    $productDeptEmail = trim((string)($body['product_dept_email'] ?? ''));
+    if ($productDeptEmail !== '') {
+        if (!filter_var($productDeptEmail, FILTER_VALIDATE_EMAIL)) {
+            jsonError('商品部メールアドレスの形式が正しくありません', 400);
+        }
+        if (mb_strlen($productDeptEmail) > 255) {
+            jsonError('商品部メールアドレスは255文字以内で入力してください', 400);
+        }
     }
 
     $categories = $body['categories'] ?? null;
@@ -140,6 +155,14 @@ function handlePost(): void
              VALUES ('fiscal_start_month', :v, '期の開始月（1-12）')
              ON DUPLICATE KEY UPDATE value = :v2",
             [':v' => (string)$fiscalStartMonth, ':v2' => (string)$fiscalStartMonth]
+        );
+
+        // 商品部メールアドレスを更新（既存行があれば UPSERT）
+        execute(
+            "INSERT INTO system_settings (`key`, value, description, is_active)
+             VALUES ('product_dept_email', :v, '商品部メール通知先（全店舗共通／商品・修理・部品発注時に通知）', 1)
+             ON DUPLICATE KEY UPDATE value = :v2, is_active = 1",
+            [':v' => $productDeptEmail, ':v2' => $productDeptEmail]
         );
 
         foreach ($codesToDelete as $delCode) {

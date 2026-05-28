@@ -35,6 +35,7 @@ async function loadSettings() {
     }
 
     renderFiscalStartMonth(settings.data.fiscal_start_month);
+    renderProductDeptEmail(settings.data.product_dept_email);
     renderCategoryTable(categories.data);
   } catch (err) {
     console.error(err);
@@ -47,6 +48,12 @@ function renderFiscalStartMonth(month) {
   if (!select) return;
   const m = parseInt(month, 10);
   select.value = (m >= 1 && m <= 12) ? String(m) : '4';
+}
+
+function renderProductDeptEmail(email) {
+  const input = document.getElementById('productDeptEmail');
+  if (!input) return;
+  input.value = email || '';
 }
 
 function renderCategoryTable(categories) {
@@ -232,6 +239,13 @@ async function saveSettings() {
     return;
   }
 
+  const productDeptEmail = (document.getElementById('productDeptEmail').value || '').trim();
+  // 空文字は許容（通知/CCを使わない運用）。値があれば形式チェック
+  if (productDeptEmail !== '' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(productDeptEmail)) {
+    alert('商品部メールアドレスの形式が正しくありません');
+    return;
+  }
+
   const btn = document.querySelector('.btn-submit');
   if (btn) { btn.disabled = true; btn.textContent = '保存中...'; }
 
@@ -242,6 +256,7 @@ async function saveSettings() {
       headers: { 'Content-Type': 'application/json; charset=utf-8' },
       body: JSON.stringify({
         fiscal_start_month: fiscalStartMonth,
+        product_dept_email: productDeptEmail,
         categories,
       }),
     });
