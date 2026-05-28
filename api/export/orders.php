@@ -185,10 +185,15 @@ if (!empty($orders)) {
         $partsDetails[$row['order_id']] = $row;
     }
 
-    $equipSql = "SELECT order_id, product_name, product_code, price, qty, supplier
-                 FROM order_equipment_items
-                 WHERE order_id IN ({$placeholders})
-                 ORDER BY id";
+    // 仕入先商品コード(supplier_product_code) は order_equipment_items に
+    // スナップショットされていないため products テーブルから JOIN で取得する
+    $equipSql = "SELECT oei.order_id, oei.product_name, oei.product_code,
+                        oei.price, oei.qty, oei.supplier,
+                        p.supplier_product_code
+                 FROM order_equipment_items oei
+                 LEFT JOIN products p ON oei.product_id = p.id
+                 WHERE oei.order_id IN ({$placeholders})
+                 ORDER BY oei.id";
     foreach (query($equipSql, $idParams) as $row) {
         $equipItems[$row['order_id']][] = $row;
     }
@@ -201,6 +206,8 @@ $sheet = $spreadsheet->getActiveSheet();
 $sheet->setTitle('発注一覧');
 
 // ヘッダ定義
+// 2026-05-28: 品名横に会社商品コード/仕入先商品コードを追加（M, N列）。
+//              見積金額(H列)は備品の場合は明細単位の小計を表示するよう変更。
 $headers = [
     'A' => '発注番号',
     'B' => '種別',
@@ -214,12 +221,14 @@ $headers = [
     'J' => '納品予定日',
     'K' => '納品実績日',
     'L' => '品名',
-    'M' => '数量',
-    'N' => '単価',
-    'O' => '小計',
-    'P' => '仕入先',
-    'Q' => '詳細',
-    'R' => '登録日時',
+    'M' => '会社商品コード',
+    'N' => '仕入先商品コード',
+    'O' => '数量',
+    'P' => '単価',
+    'Q' => '小計',
+    'R' => '仕入先',
+    'S' => '詳細',
+    'T' => '登録日時',
 ];
 
 // ヘッダ行書き込み
@@ -228,7 +237,7 @@ foreach ($headers as $col => $label) {
 }
 
 // ヘッダスタイル
-$headerRange = 'A1:R1';
+$headerRange = 'A1:T1';
 $sheet->getStyle($headerRange)->applyFromArray([
     'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF'], 'size' => 10],
     'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '4472C4']],
@@ -267,8 +276,11 @@ foreach ($orders as $order) {
 
     if ($oType === 'repair') {
         $rd = $repairDetails[$id] ?? null;
+        // 品名 / 会社商品コード / 仕入先商品コード / 数量 / 単価 / 小計 / 仕入先 / 詳細 / 登録日時
         $rowData = array_merge($base, [
             $rd['equipment_name'] ?? '',
+            '',
+            '',
             1,
             '',
             '',
@@ -282,14 +294,19 @@ foreach ($orders as $order) {
     } elseif ($oType === 'equipment') {
         $items = $equipItems[$id] ?? [];
         if (empty($items)) {
-            $rowData = array_merge($base, ['', '', '', '', '', '', $order['created_at']]);
+            $rowData = array_merge($base, ['', '', '', '', '', '', '', '', $order['created_at']]);
             writeRow($sheet, $rowNum, $rowData);
             $rowNum++;
         } else {
             foreach ($items as $ei) {
                 $subtotal = (int)$ei['price'] * (int)$ei['qty'];
-                $rowData = array_merge($base, [
+                // 備品は見積金額(H列)を明細単位の小計で上書きする
+                $baseForLine = $base;
+                $baseForLine[7] = $subtotal;
+                $rowData = array_merge($baseForLine, [
                     $ei['product_name'],
+                    $ei['product_code'] ?? '',
+                    $ei['supplier_product_code'] ?? '',
                     (int)$ei['qty'],
                     (int)$ei['price'],
                     $subtotal,
@@ -313,6 +330,8 @@ foreach ($orders as $order) {
         }
         $rowData = array_merge($base, [
             $pd['parts_name'] ?? '',
+            '',
+            '',
             $pd['quantity'] ?? 1,
             '',
             '',
@@ -328,26 +347,26 @@ foreach ($orders as $order) {
 // データ行スタイル（罫線）
 $lastRow = $rowNum - 1;
 if ($lastRow >= 2) {
-    $dataRange = 'A2:R' . $lastRow;
+    $dataRange = 'A2:T' . $lastRow;
     $sheet->getStyle($dataRange)->applyFromArray([
         'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
         'font' => ['size' => 10],
         'alignment' => ['vertical' => Alignment::VERTICAL_CENTER],
     ]);
-    // 金額列は右寄せ・カンマ区切り
-    foreach (['H', 'I', 'N', 'O'] as $moneyCol) {
+    // 金額列は右寄せ・カンマ区切り（H=見積/I=確定/P=単価/Q=小計）
+    foreach (['H', 'I', 'P', 'Q'] as $moneyCol) {
         $sheet->getStyle($moneyCol . '2:' . $moneyCol . $lastRow)
               ->getNumberFormat()->setFormatCode('#,##0');
         $sheet->getStyle($moneyCol . '2:' . $moneyCol . $lastRow)
               ->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
     }
-    // 数量列は中央
-    $sheet->getStyle('M2:M' . $lastRow)
+    // 数量列(O)は中央
+    $sheet->getStyle('O2:O' . $lastRow)
           ->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 }
 
 // カラム幅自動調整
-foreach (range('A', 'R') as $col) {
+foreach (range('A', 'T') as $col) {
     $sheet->getColumnDimension($col)->setAutoSize(true);
 }
 
@@ -374,7 +393,7 @@ exit;
 // --- ヘルパー ---
 function writeRow(\PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet, int $rowNum, array $data): void
 {
-    $cols = range('A', 'R');
+    $cols = range('A', 'T');
     foreach ($data as $i => $val) {
         if (isset($cols[$i])) {
             $sheet->setCellValue($cols[$i] . $rowNum, $val);
