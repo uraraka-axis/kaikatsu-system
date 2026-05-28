@@ -58,6 +58,7 @@ define('ORDER_PREFIX_REPAIR', 'REP');
 define('ORDER_PREFIX_EQUIPMENT', 'EQU');
 define('ORDER_PREFIX_PARTS', 'PTS');
 define('ORDER_PREFIX_PROCUREMENT', 'REQ');
+define('ORDER_PREFIX_SEAT_REPLACEMENT', 'SHT');
 
 // ============================================================
 // ステータス定義

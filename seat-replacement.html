@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>シート交換依頼画面</title>
+  <style>html.auth-pending body{visibility:hidden}</style>
+  <script>document.documentElement.classList.add('auth-pending');</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/common.css?v=20260526b">
+  <link rel="stylesheet" href="css/repair-order.css">
+</head>
+<body>
+  <!-- Header -->
+  <header class="header" data-title="シート交換依頼画面"></header>
+
+  <nav class="nav" data-active="seat-replacement.html"></nav>
+  <script src="js/common-nav.js?v=20260521"></script>
+
+  <!-- Main Content -->
+  <main class="main">
+    <form id="seatReplacementForm" onsubmit="return false;">
+      <div class="form-grid">
+        <!-- Left Column -->
+        <div class="form-left">
+          <!-- Category (フィットネス固定) -->
+          <div class="form-group">
+            <label class="form-label">カテゴリ（部門）<span class="required">*</span></label>
+            <select id="category" class="form-select" disabled>
+              <option value="fitness" selected>フィットネス</option>
+            </select>
+          </div>
+
+          <!-- Machine Name (was 故障機材名・品番) -->
+          <div class="form-group">
+            <label class="form-label">マシン名・品番など<span class="required">*</span></label>
+            <input type="text" id="equipmentName" class="form-input" placeholder="ランニングマシン・XT-3000" oninput="updateSubmitState()">
+          </div>
+
+          <!-- Unavailable DateTime -->
+          <div class="form-group">
+            <label class="form-label">対応不可日時</label>
+            <div class="unavailable-section">
+              <!-- Date Picker -->
+              <div class="unavailable-date-row">
+                <div class="unavailable-date-label">日付を選択（3営業日以降）</div>
+                <div class="date-input-wrapper">
+                  <input type="date" id="slotDate" onchange="updateAddBtnState()">
+                </div>
+              </div>
+
+              <!-- All Day / Time Range -->
+              <div class="radio-group">
+                <label class="radio-label">
+                  <input type="radio" name="timeType" value="allday" checked onchange="toggleTimeSelection()">
+                  終日対応不可
+                </label>
+                <label class="radio-label">
+                  <input type="radio" name="timeType" value="timerange" onchange="toggleTimeSelection()">
+                  時間帯を指定
+                </label>
+              </div>
+
+              <!-- Time Dropdowns -->
+              <div class="time-selection" id="timeSelection">
+                <div class="time-select-group">
+                  <select id="startHour" class="time-select" onchange="updateAddBtnState()">
+                    <option value="">時</option>
+                  </select>
+                  <span class="time-colon">:</span>
+                  <select id="startMinute" class="time-select" onchange="updateAddBtnState()">
+                    <option value="">分</option>
+                    <option value="00">00</option>
+                    <option value="30">30</option>
+                  </select>
+                </div>
+                <span class="time-separator">〜</span>
+                <div class="time-select-group">
+                  <select id="endHour" class="time-select" onchange="updateAddBtnState()">
+                    <option value="">時</option>
+                  </select>
+                  <span class="time-colon">:</span>
+                  <select id="endMinute" class="time-select" onchange="updateAddBtnState()">
+                    <option value="">分</option>
+                    <option value="00">00</option>
+                    <option value="30">30</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Add Button -->
+              <button type="button" class="btn-add" id="addSlotBtn" disabled onclick="addSlot()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                追加する
+              </button>
+
+              <!-- Added Slots List -->
+              <div class="slots-list" id="slotsList"></div>
+            </div>
+          </div>
+
+          <!-- Unavailable Days of Week -->
+          <div class="form-group">
+            <label class="form-label">対応不可曜日</label>
+            <div class="days-grid" id="daysGrid">
+              <button type="button" class="day-btn" data-day="monday" onclick="toggleDay(this)">月曜日</button>
+              <button type="button" class="day-btn" data-day="tuesday" onclick="toggleDay(this)">火曜日</button>
+              <button type="button" class="day-btn" data-day="wednesday" onclick="toggleDay(this)">水曜日</button>
+              <button type="button" class="day-btn" data-day="thursday" onclick="toggleDay(this)">木曜日</button>
+              <button type="button" class="day-btn" data-day="friday" onclick="toggleDay(this)">金曜日</button>
+              <button type="button" class="day-btn" data-day="saturday" onclick="toggleDay(this)">土曜日</button>
+              <button type="button" class="day-btn" data-day="sunday" onclick="toggleDay(this)">日曜日</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column -->
+        <div class="form-right">
+          <!-- Fixed Issue (read-only display) -->
+          <div class="form-group">
+            <label class="form-label">依頼内容</label>
+            <input type="text" class="form-input" value="マシンのシート交換" readonly style="background-color:#f1f5f9;color:#475569;cursor:not-allowed;">
+          </div>
+
+          <!-- Photo Upload -->
+          <div class="form-group">
+            <label class="form-label">マシンの写真（最大3枚）</label>
+            <div class="photo-upload-area" id="uploadArea" onclick="triggerFileInput()">
+              <div class="upload-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+              </div>
+              <div class="upload-text" id="uploadText">クリックまたはドラッグ＆ドロップで写真を追加</div>
+              <div class="upload-subtext" id="uploadSubtext">最大3枚まで（JPEG / PNG / GIF / WebP）</div>
+            </div>
+            <input type="file" id="fileInput" accept="image/jpeg,image/png,image/gif,image/webp" multiple style="display:none;" onchange="handlePhotoUpload(event)">
+            <div class="photo-previews" id="photoPreviews"></div>
+            <p class="upload-hint">※ iPadのカメラロールから写真を選択してアップロードしてください</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Submit -->
+      <div class="submit-section">
+        <button type="submit" class="btn-submit" id="submitBtn" disabled onclick="submitForm()">交換を依頼する</button>
+      </div>
+    </form>
+  </main>
+
+  <script src="js/notify-modal.js?v=20260521"></script>
+  <script src="js/seat-replacement.js?v=20260528"></script>
+</body>
+</html>

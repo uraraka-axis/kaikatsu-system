@@ -71,12 +71,12 @@ switch ($action) {
         $updateCols[] = 'estimate_amount = :estimate_amount';
         $updateVals[':estimate_amount'] = $estimateAmount;
 
-        // delivery_date (equipment/parts) or repair_schedule_date (repair)
-        if ($orderType === 'repair') {
+        // delivery_date (equipment/parts) or repair_schedule_date (repair/seat-replacement)
+        if (isRepairLikeType($orderType)) {
             $repairScheduleDate = $input['repair_schedule_date'] ?? null;
             if ($repairScheduleDate !== null && $repairScheduleDate !== '') {
-                $updateCols[] = 'delivery_date = delivery_date'; // no-op placeholder; update repair_details
-                // repair_schedule_date はorder_repair_detailsに保存
+                $updateCols[] = 'delivery_date = delivery_date'; // no-op placeholder; update detail table
+                // repair_schedule_date は詳細テーブル (order_repair_details / order_seat_replacement_details) に保存
             }
         } else {
             $deliveryDate = $input['delivery_date'] ?? null;
@@ -99,22 +99,22 @@ switch ($action) {
         break;
 
     case 'repair-done':
-        // 2→3: store only, repair type, own shop
+        // 2→3: store only, repair-like type (repair / seat-replacement), own shop
         if ($user['role'] !== 'shop') {
             jsonError('店舗ユーザーのみ実行できます', 403);
         }
         if ($order['shop_code'] !== $user['shop_code']) {
             jsonError('自店の発注のみ変更できます', 403);
         }
-        if ($orderType !== 'repair') {
-            jsonError('修理発注のみ変更できます');
+        if (!isRepairLikeType($orderType)) {
+            jsonError('修理・シート交換発注のみ変更できます');
         }
         if ($currentStatus !== 2) {
             jsonError('修理待ちの発注のみ変更できます');
         }
         $repairCompletedDate = $input['repair_completed_date'] ?? null;
         if ($repairCompletedDate === null || $repairCompletedDate === '') {
-            jsonError('修理完了日は必須です');
+            jsonError(($orderType === 'seat-replacement' ? '作業' : '修理') . '完了日は必須です');
         }
         $newStatus = 3;
         break;
@@ -153,10 +153,10 @@ switch ($action) {
         }
         $newStatus = 4;
 
-        if ($orderType === 'repair') {
+        if (isRepairLikeType($orderType)) {
             $finalAmount = $input['final_amount'] ?? null;
             if ($finalAmount === null || $finalAmount === '') {
-                jsonError('修理発注の最終金額は必須です');
+                jsonError(($orderType === 'seat-replacement' ? 'シート交換' : '修理') . '発注の最終金額は必須です');
             }
             $finalAmount = filter_var($finalAmount, FILTER_VALIDATE_INT);
             if ($finalAmount === false || $finalAmount <= 0) {
@@ -202,19 +202,20 @@ try {
     $updateSql = 'UPDATE orders SET ' . implode(', ', $updateCols) . ' WHERE id = :order_id';
     execute($updateSql, $updateVals);
 
-    // 2. repair_details 更新（修理固有フィールド）
-    if ($orderType === 'repair') {
+    // 2. 詳細テーブル更新（修理ライク固有フィールド: 修理 / シート交換）
+    if (isRepairLikeType($orderType)) {
+        $detailTable = getRepairLikeDetailTable($orderType);
         if ($action === 'order') {
             $repairScheduleDate = $input['repair_schedule_date'] ?? null;
             if ($repairScheduleDate !== null && $repairScheduleDate !== '') {
                 execute(
-                    'UPDATE order_repair_details SET repair_schedule_date = :rsd WHERE order_id = :oid',
+                    "UPDATE {$detailTable} SET repair_schedule_date = :rsd WHERE order_id = :oid",
                     [':rsd' => $repairScheduleDate, ':oid' => $orderId]
                 );
             }
         } elseif ($action === 'repair-done') {
             execute(
-                'UPDATE order_repair_details SET repair_completed_date = :rcd WHERE order_id = :oid',
+                "UPDATE {$detailTable} SET repair_completed_date = :rcd WHERE order_id = :oid",
                 [':rcd' => $input['repair_completed_date'], ':oid' => $orderId]
             );
         }

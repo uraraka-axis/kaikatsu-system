@@ -46,7 +46,7 @@ if ($user['role'] === 'shop') {
 }
 
 // --- バリデーション ---
-if ($type !== '' && !in_array($type, ['repair', 'equipment', 'parts'], true)) {
+if ($type !== '' && !in_array($type, ['repair', 'equipment', 'parts', 'seat-replacement'], true)) {
     jsonError('不正な種別パラメータです');
 }
 if ($status !== '' && !in_array($status, ['0', '1', '2', '3', '4'], true)) {
@@ -147,6 +147,16 @@ $repairSql = "SELECT order_id, equipment_name, issue, repair_schedule_date, repa
 $repairRows = query($repairSql, $idParams);
 foreach ($repairRows as $row) {
     $repairDetails[$row['order_id']] = $row;
+}
+
+// --- シート交換詳細 ---
+$seatReplacementDetails = [];
+$seatSql = "SELECT order_id, equipment_name, issue, repair_schedule_date, repair_completed_date
+            FROM order_seat_replacement_details
+            WHERE order_id IN ({$placeholders})";
+$seatRows = query($seatSql, $idParams);
+foreach ($seatRows as $row) {
+    $seatReplacementDetails[$row['order_id']] = $row;
 }
 
 // --- 修理不可日 ---
@@ -263,6 +273,16 @@ foreach ($orders as $order) {
         $item['unavail_days']          = $unavailDays[$id] ?? [];
         $item['photos']                = $photoData[$id] ?? [];
         $item['content_label']         = $rd['equipment_name'] ?? '';
+    } elseif ($orderType === 'seat-replacement') {
+        $sd = $seatReplacementDetails[$id] ?? null;
+        $item['equipment_name']        = $sd['equipment_name'] ?? '';
+        $item['issue']                 = $sd['issue'] ?? 'マシンのシート交換';
+        $item['repair_schedule_date']  = $sd['repair_schedule_date'] ?? null;
+        $item['repair_completed_date'] = $sd['repair_completed_date'] ?? null;
+        $item['unavail_dates']         = $unavailDates[$id] ?? [];
+        $item['unavail_days']          = $unavailDays[$id] ?? [];
+        $item['photos']                = $photoData[$id] ?? [];
+        $item['content_label']         = $sd['equipment_name'] ?? '';
     } elseif ($orderType === 'equipment') {
         $items = $equipItems[$id] ?? [];
         $item['equip_items'] = $items;

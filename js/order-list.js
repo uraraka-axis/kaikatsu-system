@@ -14,17 +14,24 @@ var STATUS = {
 
 // 種別ごとのステータスラベル
 var STATUS_LABELS_BY_TYPE = {
-  equipment: { 0: '依頼中', 1: '発注済', 2: '配達中', 3: '納品済', 4: '完了' },
-  parts:     { 0: '依頼中', 1: '発注済', 2: '配達中', 3: '納品済', 4: '完了' },
-  repair:    { 0: '依頼中', 1: '発注済', 2: '修理待ち', 3: '修理済', 4: '完了' }
+  equipment:          { 0: '依頼中', 1: '発注済', 2: '配達中', 3: '納品済', 4: '完了' },
+  parts:              { 0: '依頼中', 1: '発注済', 2: '配達中', 3: '納品済', 4: '完了' },
+  repair:             { 0: '依頼中', 1: '発注済', 2: '修理待ち', 3: '修理済', 4: '完了' },
+  'seat-replacement': { 0: '依頼中', 1: '発注済', 2: '修理待ち', 3: '修理済', 4: '完了' }
 };
 
 // 種別ごとのCSSクラス
 var STATUS_CLASSES_BY_TYPE = {
-  equipment: { 0: 'status-requesting', 1: 'status-ordered', 2: 'status-delivering', 3: 'status-delivered', 4: 'status-completed' },
-  parts:     { 0: 'status-requesting', 1: 'status-ordered', 2: 'status-delivering', 3: 'status-delivered', 4: 'status-completed' },
-  repair:    { 0: 'status-requesting', 1: 'status-ordered', 2: 'status-waiting-repair', 3: 'status-repaired', 4: 'status-completed' }
+  equipment:          { 0: 'status-requesting', 1: 'status-ordered', 2: 'status-delivering', 3: 'status-delivered', 4: 'status-completed' },
+  parts:              { 0: 'status-requesting', 1: 'status-ordered', 2: 'status-delivering', 3: 'status-delivered', 4: 'status-completed' },
+  repair:             { 0: 'status-requesting', 1: 'status-ordered', 2: 'status-waiting-repair', 3: 'status-repaired', 4: 'status-completed' },
+  'seat-replacement': { 0: 'status-requesting', 1: 'status-ordered', 2: 'status-waiting-repair', 3: 'status-repaired', 4: 'status-completed' }
 };
+
+// 修理ライク種別（修理と同じステータスフロー / UI を持つ）の判定
+function isRepairLikeType(type) {
+  return type === 'repair' || type === 'seat-replacement';
+}
 
 // フィルタ用の共通ラベル（種別横断）
 var FILTER_STATUS_OPTIONS = [
@@ -484,7 +491,11 @@ function renderOrders() {
 
   sliced.forEach(function(o) {
     var typeClass = 'type-' + o.type;
-    var typeLabel = o.type === 'repair' ? '修理' : o.type === 'equipment' ? '備品' : '部品';
+    var typeLabel = o.type === 'repair' ? '修理'
+                  : o.type === 'equipment' ? '備品'
+                  : o.type === 'parts' ? '部品'
+                  : o.type === 'seat-replacement' ? 'シート交換'
+                  : o.type;
     var statusClass = getStatusClass(o.status, o.type);
     var statusLabel = getStatusLabel(o.status, o.type);
     var catLabel = (categoriesMap[o.category_code] && categoriesMap[o.category_code].name) || o.category_code;
@@ -580,7 +591,7 @@ function onPageSizeChange() {
 function getDisplayAmount(o) {
   if (o.final_amount) return '¥' + Number(o.final_amount).toLocaleString();
   if (o.estimate_amount) return '¥' + Number(o.estimate_amount).toLocaleString();
-  if (o.type === 'repair' || o.type === 'parts') return '—';
+  if (isRepairLikeType(o.type) || o.type === 'parts') return '—';
   return '—';
 }
 
@@ -594,10 +605,13 @@ function renderDetailContent(o) {
   html += '<div>';
   html += '<div class="detail-section-title store-info">依頼内容</div>';
 
-  if (o.type === 'repair') {
+  if (isRepairLikeType(o.type)) {
+    var equipLabel = o.type === 'seat-replacement' ? 'マシン名・品番' : '故障機材';
+    var issueLabel = o.type === 'seat-replacement' ? '依頼内容' : '不具合内容';
+    var photoLabel = o.type === 'seat-replacement' ? 'マシン写真' : '故障写真';
     html += '<div class="detail-grid">' +
-      '<div><div class="detail-label">故障機材</div><div class="detail-value">' + (o.equipment_name || '') + '</div></div>' +
-      '<div><div class="detail-label">不具合内容</div><div class="detail-value">' + (o.issue || '') + '</div></div>' +
+      '<div><div class="detail-label">' + equipLabel + '</div><div class="detail-value">' + (o.equipment_name || '') + '</div></div>' +
+      '<div><div class="detail-label">' + issueLabel + '</div><div class="detail-value">' + (o.issue || '') + '</div></div>' +
     '</div>';
     var unavailDates = formatUnavailDates(o.unavail_dates);
     var unavailDays = formatUnavailDays(o.unavail_days);
@@ -612,7 +626,7 @@ function renderDetailContent(o) {
       html += '</div>';
     }
     if (o.photos && o.photos.length > 0) {
-      html += renderPhotos(o.photos, '故障写真');
+      html += renderPhotos(o.photos, photoLabel);
     }
   } else if (o.type === 'equipment') {
     if (o.equip_items && o.equip_items.length) {
@@ -644,11 +658,13 @@ function renderDetailContent(o) {
     '</div>';
 
   html += '<div class="response-info-card"><div class="detail-grid">';
-  if (o.type === 'repair') {
+  if (isRepairLikeType(o.type)) {
+    var scheduleLabel = o.type === 'seat-replacement' ? '作業予定日' : '修理予定日';
+    var completedLabel = o.type === 'seat-replacement' ? '作業完了日' : '修理完了日';
     html += '<div><div class="detail-label">見積金額</div><div class="detail-value">' + (o.estimate_amount ? '¥' + Number(o.estimate_amount).toLocaleString() : '—') + '</div></div>';
-    html += '<div><div class="detail-label">修理予定日</div><div class="detail-value">' + (o.repair_schedule_date || '—') + '</div></div>';
+    html += '<div><div class="detail-label">' + scheduleLabel + '</div><div class="detail-value">' + (o.repair_schedule_date || '—') + '</div></div>';
     html += '<div><div class="detail-label">最終金額</div><div class="detail-value"' + (o.final_amount ? ' style="font-weight:600;color:#065f46;"' : '') + '>' + (o.final_amount ? '¥' + Number(o.final_amount).toLocaleString() : '—') + '</div></div>';
-    html += '<div><div class="detail-label">修理完了日</div><div class="detail-value">' + (o.repair_completed_date || '—') + '</div></div>';
+    html += '<div><div class="detail-label">' + completedLabel + '</div><div class="detail-value">' + (o.repair_completed_date || '—') + '</div></div>';
   } else if (o.type === 'equipment') {
     var equipEstimate = o.estimate_amount ? '¥' + Number(o.estimate_amount).toLocaleString() : '—';
     html += '<div><div class="detail-label">見積金額</div><div class="detail-value">' + equipEstimate + '</div></div>';
@@ -791,17 +807,18 @@ function getAvailableAction(o) {
 
   // ②発注済 → ③配達中/修理待ち: 全種別とも商品部が手動
   if (o.status === STATUS.ORDERED && viewMode === 'admin') {
-    var label = o.type === 'repair' ? '修理待ちにする' : '配達中にする';
+    var label = isRepairLikeType(o.type) ? '修理待ちにする' : '配達中にする';
     return { key: 'to-delivering', label: label, btnClass: 'btn-sm-primary' };
   }
 
-  // ③修理待ち → ④修理済: 店舗が手動
-  if (o.status === STATUS.DELIVERING && o.type === 'repair' && viewMode === 'store') {
-    return { key: 'repair-done', label: '修理完了報告', btnClass: 'btn-sm-pink' };
+  // ③修理待ち → ④修理済: 店舗が手動 (修理 / シート交換)
+  if (o.status === STATUS.DELIVERING && isRepairLikeType(o.type) && viewMode === 'store') {
+    var btnLabel = o.type === 'seat-replacement' ? '作業完了報告' : '修理完了報告';
+    return { key: 'repair-done', label: btnLabel, btnClass: 'btn-sm-pink' };
   }
 
-  // ③配達中 → ④納品済: 店舗が手動
-  if (o.status === STATUS.DELIVERING && o.type !== 'repair' && viewMode === 'store') {
+  // ③配達中 → ④納品済: 店舗が手動 (備品 / 部品)
+  if (o.status === STATUS.DELIVERING && !isRepairLikeType(o.type) && viewMode === 'store') {
     return { key: 'delivery-done', label: '納品済にする', btnClass: 'btn-sm-pink' };
   }
 
@@ -815,6 +832,7 @@ function getAvailableAction(o) {
 
 function getWaitingMessage(o) {
   if (o.status === STATUS.COMPLETED) {
+    if (o.type === 'seat-replacement') return '作業完了';
     return o.type === 'repair' ? '修理完了' : '納品完了';
   }
   if (o.status === STATUS.REQUESTING && viewMode === 'store') {
@@ -822,13 +840,14 @@ function getWaitingMessage(o) {
   }
   if (o.status === STATUS.ORDERED) {
     if (o.type === 'equipment') {
-      return viewMode === 'store' ? '配達待ち（自動遷移）' : '自動遷移待ち（締め日翌日）';
+      return viewMode === 'store' ? '本部対応待ち' : '—';
     }
     return viewMode === 'store' ? '本部対応待ち' : '—';
   }
   if (o.status === STATUS.DELIVERING) {
-    if (o.type === 'repair') {
-      return viewMode === 'admin' ? '店舗の修理完了報告待ち' : '—';
+    if (isRepairLikeType(o.type)) {
+      var msg = o.type === 'seat-replacement' ? '店舗の作業完了報告待ち' : '店舗の修理完了報告待ち';
+      return viewMode === 'admin' ? msg : '—';
     }
     return viewMode === 'admin' ? '店舗の納品確認待ち' : '—';
   }
@@ -855,9 +874,11 @@ function openStatusModal(orderId, action) {
 
   if (action === 'order') {
     title.textContent = '発注済にする';
-    var isRepair = order.type === 'repair';
+    var isRepairLike = isRepairLikeType(order.type);
     var isEquipment = order.type === 'equipment';
-    var dateLabel = isRepair ? '修理予定日' : '納品予定日';
+    var dateLabel = order.type === 'seat-replacement' ? '作業予定日'
+                  : isRepairLike ? '修理予定日'
+                  : '納品予定日';
 
     body.innerHTML =
       '<div class="modal-row"><span class="modal-label">発注番号</span><input class="modal-input readonly" value="' + order.id + '" readonly></div>' +
@@ -879,7 +900,7 @@ function openStatusModal(orderId, action) {
     }
 
   } else if (action === 'to-delivering') {
-    var nextLabel = order.type === 'repair' ? '修理待ち' : '配達中';
+    var nextLabel = isRepairLikeType(order.type) ? '修理待ち' : '配達中';
     title.textContent = nextLabel + 'にする';
     body.innerHTML =
       '<div class="modal-row"><span class="modal-label">発注番号</span><input class="modal-input readonly" value="' + order.id + '" readonly></div>' +
@@ -891,13 +912,20 @@ function openStatusModal(orderId, action) {
       '<button class="btn-modal btn-modal-primary" onclick="doToDelivering(\'' + orderId + '\')">' + nextLabel + 'にする</button>';
 
   } else if (action === 'repair-done') {
-    title.textContent = '修理完了報告';
+    var isSeat = order.type === 'seat-replacement';
+    var modalTitle = isSeat ? '作業完了報告' : '修理完了報告';
+    var equipFieldLabel = isSeat ? 'マシン名' : '機材名';
+    var infoText = isSeat
+      ? 'シート交換が完了し、マシンが正常に使用できることを確認してから報告してください。'
+      : '修理が完了し、機材が正常に稼働していることを確認してから報告してください。';
+    var dateFieldLabel = isSeat ? '作業完了日' : '修理完了日';
+    title.textContent = modalTitle;
     body.innerHTML =
       '<div class="modal-row"><span class="modal-label">発注番号</span><input class="modal-input readonly" value="' + order.id + '" readonly></div>' +
-      '<div class="modal-row"><span class="modal-label">機材名</span><input class="modal-input readonly" value="' + (order.equipment_name || '') + '" readonly></div>' +
+      '<div class="modal-row"><span class="modal-label">' + equipFieldLabel + '</span><input class="modal-input readonly" value="' + (order.equipment_name || '') + '" readonly></div>' +
       '<hr class="modal-divider">' +
-      '<div class="modal-info">修理が完了し、機材が正常に稼働していることを確認してから報告してください。</div>' +
-      '<div class="modal-row"><span class="modal-label">修理完了日 <span class="required">*</span></span><input class="modal-input" id="modalRepairDate" type="date"></div>' +
+      '<div class="modal-info">' + infoText + '</div>' +
+      '<div class="modal-row"><span class="modal-label">' + dateFieldLabel + ' <span class="required">*</span></span><input class="modal-input" id="modalRepairDate" type="date"></div>' +
       '<div class="modal-row"><span class="modal-label">メモ</span><textarea class="modal-textarea" id="modalMemo" placeholder="稼働状況や備考"></textarea></div>';
     footer.innerHTML =
       '<button class="btn-modal btn-modal-cancel" onclick="closeModal()">キャンセル</button>' +
@@ -919,7 +947,7 @@ function openStatusModal(orderId, action) {
   } else if (action === 'complete') {
     title.textContent = '完了にする';
     var estAmt = Number(order.estimate_amount) || 0;
-    var isRepairComplete = order.type === 'repair';
+    var isRepairComplete = isRepairLikeType(order.type);
     var amountRequired = isRepairComplete;
     body.innerHTML =
       '<div class="modal-row"><span class="modal-label">見積額</span><input class="modal-input readonly" value="¥' + estAmt.toLocaleString() + '" readonly></div>' +
@@ -983,7 +1011,7 @@ function doOrder(orderId) {
     estimate_amount: amount,
     memo: memo
   };
-  if (order.type === 'repair') {
+  if (isRepairLikeType(order.type)) {
     body.repair_schedule_date = dateInput.value || '';
   } else {
     body.delivery_date = dateInput.value || '';
@@ -1027,13 +1055,15 @@ function doToDelivering(orderId) {
     });
 }
 
-// ③修理待ち → ④修理済
+// ③修理待ち → ④修理済 (修理 / シート交換)
 function doRepairDone(orderId) {
+  var order = findOrder(orderId);
   var dateInput = document.getElementById('modalRepairDate');
   var memo = (document.getElementById('modalMemo') || {}).value || '';
 
   if (!dateInput.value) {
-    alert('修理完了日を入力してください');
+    var dateLabel = order && order.type === 'seat-replacement' ? '作業完了日' : '修理完了日';
+    alert(dateLabel + 'を入力してください');
     return;
   }
 
@@ -1096,7 +1126,7 @@ function doComplete(orderId) {
   // カンマ区切り入力（例: "10,000"）にも対応
   var finalAmount = parseInt(String(finalInput.value).replace(/,/g, ''), 10);
 
-  if (order.type === 'repair') {
+  if (isRepairLikeType(order.type)) {
     if (isNaN(finalAmount) || finalAmount <= 0) {
       alert('最終金額を入力してください');
       return;
@@ -1141,16 +1171,17 @@ function canEditResponseInfo(o) {
   if (viewMode === 'admin') {
     return o.status >= STATUS.ORDERED;
   }
-  return o.type === 'repair' && o.status === STATUS.DELIVERED;
+  return isRepairLikeType(o.type) && o.status === STATUS.DELIVERED;
 }
 
 function getEditableFields(o) {
   var fields = [];
   if (viewMode === 'admin') {
     if (o.status >= STATUS.ORDERED && o.status < STATUS.COMPLETED) {
-      if (o.type === 'repair') {
+      if (isRepairLikeType(o.type)) {
+        var schedLabel = o.type === 'seat-replacement' ? '作業予定日' : '修理予定日';
         fields.push({ key: 'estimate_amount', label: '見積金額', type: 'number', value: o.estimate_amount });
-        fields.push({ key: 'repair_schedule_date', label: '修理予定日', type: 'date', value: o.repair_schedule_date });
+        fields.push({ key: 'repair_schedule_date', label: schedLabel, type: 'date', value: o.repair_schedule_date });
       } else if (o.type === 'equipment') {
         // 備品は明細ごとに単価編集。estimate_amount は自動再計算なので入力欄なし
         fields.push({ key: 'equip_items', label: '明細単価', type: 'items', value: o.equip_items || [] });
@@ -1169,8 +1200,9 @@ function getEditableFields(o) {
       fields.push({ key: 'memo', label: 'メモ', type: 'textarea', statusIndex: findHistoryIndex(o, STATUS.COMPLETED) });
     }
   } else {
-    if (o.type === 'repair' && o.status === STATUS.DELIVERED) {
-      fields.push({ key: 'repair_completed_date', label: '修理完了日', type: 'date', value: o.repair_completed_date });
+    if (isRepairLikeType(o.type) && o.status === STATUS.DELIVERED) {
+      var compLabel = o.type === 'seat-replacement' ? '作業完了日' : '修理完了日';
+      fields.push({ key: 'repair_completed_date', label: compLabel, type: 'date', value: o.repair_completed_date });
       fields.push({ key: 'memo', label: 'メモ', type: 'textarea', statusIndex: findHistoryIndex(o, STATUS.DELIVERED) });
     }
   }

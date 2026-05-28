@@ -52,12 +52,12 @@ if (in_array($user['role'], ['admin', 'system'], true)) {
         jsonError('発注済以降の発注のみ編集できます');
     }
 } elseif ($user['role'] === 'shop') {
-    // 店舗: 自店の修理発注、修理済(3)ステータスのみ、repair_completed_dateとmemoのみ
+    // 店舗: 自店の修理ライク発注、修理済(3)ステータスのみ、repair_completed_dateとmemoのみ
     if ($order['shop_code'] !== $user['shop_code']) {
         jsonError('自店の発注のみ編集できます', 403);
     }
-    if ($orderType !== 'repair') {
-        jsonError('修理発注のみ編集できます', 403);
+    if (!isRepairLikeType($orderType)) {
+        jsonError('修理・シート交換発注のみ編集できます', 403);
     }
     if ($currentStatus !== 3) {
         jsonError('修理済ステータスの発注のみ編集できます');
@@ -171,8 +171,9 @@ try {
             execute($updateSql, $updateVals);
         }
 
-        // repair固有フィールド
-        if ($orderType === 'repair') {
+        // 修理ライク固有フィールド（修理 / シート交換）
+        if (isRepairLikeType($orderType)) {
+            $detailTable = getRepairLikeDetailTable($orderType);
             $repairUpdate = [];
             $repairVals   = [':oid' => $orderId];
 
@@ -187,7 +188,7 @@ try {
 
             if (!empty($repairUpdate)) {
                 execute(
-                    'UPDATE order_repair_details SET ' . implode(', ', $repairUpdate) . ' WHERE order_id = :oid',
+                    "UPDATE {$detailTable} SET " . implode(', ', $repairUpdate) . ' WHERE order_id = :oid',
                     $repairVals
                 );
             }
@@ -207,10 +208,11 @@ try {
             }
         }
     } else {
-        // 店舗ユーザー: repair_completed_date と memo のみ
+        // 店舗ユーザー: repair_completed_date と memo のみ（type に応じた詳細テーブルへ）
         if (isset($input['repair_completed_date'])) {
+            $detailTable = getRepairLikeDetailTable($orderType);
             execute(
-                'UPDATE order_repair_details SET repair_completed_date = :rcd WHERE order_id = :oid',
+                "UPDATE {$detailTable} SET repair_completed_date = :rcd WHERE order_id = :oid",
                 [
                     ':rcd' => $input['repair_completed_date'] !== '' ? $input['repair_completed_date'] : null,
                     ':oid' => $orderId,

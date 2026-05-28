@@ -60,10 +60,11 @@ function generateOrderNumber(string $type, string $shopCode, ?string $date = nul
 
     // 種別→プレフィクス変換
     $prefixMap = [
-        'repair'      => ORDER_PREFIX_REPAIR,
-        'equipment'   => ORDER_PREFIX_EQUIPMENT,
-        'parts'       => ORDER_PREFIX_PARTS,
-        'procurement' => ORDER_PREFIX_PROCUREMENT,
+        'repair'           => ORDER_PREFIX_REPAIR,
+        'equipment'        => ORDER_PREFIX_EQUIPMENT,
+        'parts'            => ORDER_PREFIX_PARTS,
+        'procurement'      => ORDER_PREFIX_PROCUREMENT,
+        'seat-replacement' => ORDER_PREFIX_SEAT_REPLACEMENT,
     ];
     $prefix = $prefixMap[$type] ?? throw new InvalidArgumentException("不正な発注種別: {$type}");
 
@@ -98,6 +99,27 @@ function generateOrderNumber(string $type, string $shopCode, ?string $date = nul
     $seqNum = (int)$seq['current_seq'];
 
     return sprintf('%s-%s-%s-%04d', $prefix, $shortCode, $dateStr, $seqNum);
+}
+
+/**
+ * 修理ライク発注（同じステータスフロー: 0→1→2→3→4 + 同UI）の判定。
+ * 'repair' (修理) と 'seat-replacement' (シート交換) が該当。
+ */
+function isRepairLikeType(string $type): bool
+{
+    return $type === 'repair' || $type === 'seat-replacement';
+}
+
+/**
+ * 修理ライク発注の詳細テーブル名を返す。それ以外は null。
+ */
+function getRepairLikeDetailTable(string $type): ?string
+{
+    return match ($type) {
+        'repair'           => 'order_repair_details',
+        'seat-replacement' => 'order_seat_replacement_details',
+        default            => null,
+    };
 }
 
 /**

@@ -211,7 +211,7 @@ CREATE TABLE system_settings (
 -- ------------------------------------------------------------
 CREATE TABLE orders (
   id                    VARCHAR(30)  NOT NULL COMMENT '発注番号（REP-S01-20260301-0001 等）',
-  type                  ENUM('repair','equipment','parts') NOT NULL COMMENT '発注種別',
+  type                  ENUM('repair','equipment','parts','seat-replacement') NOT NULL COMMENT '発注種別',
   category_code         VARCHAR(20)  NOT NULL COMMENT 'カテゴリコード',
   status                TINYINT      NOT NULL DEFAULT 0 COMMENT 'ステータス（0:依頼中〜4:完了）',
   shop_code             VARCHAR(5)   NOT NULL COMMENT '発注元店舗コード',
@@ -261,6 +261,26 @@ CREATE TABLE order_repair_details (
     ON UPDATE CASCADE ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
   COMMENT='修理発注詳細';
+
+-- ------------------------------------------------------------
+-- order_seat_replacement_details: シート交換発注の詳細（1:1）
+-- 修理発注と同じステータスフローを持つマシンシート交換専用。
+-- 対応不可日時/曜日は order_repair_unavail_* を流用（order_id 参照のため type 非依存）。
+-- FK: orders
+-- ------------------------------------------------------------
+CREATE TABLE order_seat_replacement_details (
+  order_id              VARCHAR(30)  NOT NULL COMMENT '発注番号',
+  equipment_name        VARCHAR(100) NOT NULL COMMENT 'マシン名・品番',
+  issue                 TEXT         NOT NULL COMMENT '依頼内容（"マシンのシート交換"固定）',
+  repair_schedule_date  DATE         NULL     COMMENT '作業予定日',
+  repair_completed_date DATE         NULL     COMMENT '作業完了日',
+  created_at            DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at            DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (order_id),
+  CONSTRAINT fk_seat_replacement_details_order FOREIGN KEY (order_id) REFERENCES orders(id)
+    ON UPDATE CASCADE ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+  COMMENT='シート交換発注詳細';
 
 -- ------------------------------------------------------------
 -- order_repair_unavail_dates: 修理の対応不可日時

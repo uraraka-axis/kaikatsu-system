@@ -106,8 +106,8 @@ try {
         } elseif ($action === 'complete') {
             // 最終金額未設定の場合、見積金額を適用
             if ($order['final_amount'] === null) {
-                if ($orderType === 'repair') {
-                    // 修理は個別でfinal_amount必須なのでスキップ
+                if (isRepairLikeType($orderType)) {
+                    // 修理・シート交換は個別でfinal_amount必須なのでスキップ
                     $skipped[] = $orderId;
                     continue;
                 }

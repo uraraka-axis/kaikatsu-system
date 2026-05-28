@@ -99,6 +99,7 @@ window.hideLoading = function() {
         { href: 'repair-order.html', label: '修理発注' },
         { href: 'equipment-order.html', label: '備品発注' },
         { href: 'parts-order.html', label: '部品発注' },
+        { href: 'seat-replacement.html', label: 'シート交換' },
         { href: 'order-list.html', label: '発注一覧' },
         { href: 'budget-management.html', label: '予算管理' },
         { href: 'procurement-history.html', label: '自店調達' }

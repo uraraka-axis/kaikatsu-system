@@ -7,11 +7,15 @@
  * Content-Type: multipart/form-data
  *
  * 共通パラメータ:
- *   type: repair | equipment | parts
+ *   type: repair | equipment | parts | seat-replacement
  *   category: fitness | golf
  *
  * 修理(repair)追加パラメータ:
  *   equipment_name, issue, unavail_dates(JSON), unavail_days(JSON), photos[]
+ *
+ * シート交換(seat-replacement)追加パラメータ:
+ *   equipment_name(マシン名), unavail_dates(JSON), unavail_days(JSON), photos[]
+ *   ※ issue は "マシンのシート交換" 固定、category は "fitness" 固定
  *
  * 備品(equipment)追加パラメータ:
  *   items(JSON): [{product_id, qty}, ...]
@@ -40,8 +44,13 @@ $type = $_POST['type'] ?? '';
 $category = $_POST['category'] ?? '';
 
 // --- バリデーション ---
-if (!in_array($type, ['repair', 'equipment', 'parts'], true)) {
+if (!in_array($type, ['repair', 'equipment', 'parts', 'seat-replacement'], true)) {
     jsonError('不正な発注種別です');
+}
+
+// シート交換はカテゴリを fitness に強制（フロントからの値を信用しない）
+if ($type === 'seat-replacement') {
+    $category = 'fitness';
 }
 
 // カテゴリ存在チェック
@@ -88,6 +97,9 @@ try {
         case 'repair':
             createRepairDetail($orderId);
             break;
+        case 'seat-replacement':
+            createSeatReplacementDetail($orderId);
+            break;
         case 'equipment':
             createEquipmentItems($orderId);
             break;
@@ -96,8 +108,8 @@ try {
             break;
     }
 
-    // --- 写真アップロード（修理・部品のみ） ---
-    if (in_array($type, ['repair', 'parts'], true) && !empty($_FILES['photos'])) {
+    // --- 写真アップロード（修理・部品・シート交換） ---
+    if (in_array($type, ['repair', 'parts', 'seat-replacement'], true) && !empty($_FILES['photos'])) {
         uploadPhotos($orderId);
     }
 
@@ -136,6 +148,63 @@ function createRepairDetail(string $orderId): void
             ':order_id'       => $orderId,
             ':equipment_name' => $equipmentName,
             ':issue'          => $issue,
+        ]
+    );
+
+    // 対応不可日時
+    $unavailDates = json_decode($_POST['unavail_dates'] ?? '[]', true);
+    if (is_array($unavailDates)) {
+        foreach ($unavailDates as $ud) {
+            if (empty($ud['date'])) continue;
+            $isAllDay = !empty($ud['isAllDay']) ? 1 : 0;
+            execute(
+                'INSERT INTO order_repair_unavail_dates (order_id, date, is_all_day, time_start, time_end)
+                 VALUES (:order_id, :date, :is_all_day, :time_start, :time_end)',
+                [
+                    ':order_id'   => $orderId,
+                    ':date'       => $ud['date'],
+                    ':is_all_day' => $isAllDay,
+                    ':time_start' => $isAllDay ? null : ($ud['timeStart'] ?? null),
+                    ':time_end'   => $isAllDay ? null : ($ud['timeEnd'] ?? null),
+                ]
+            );
+        }
+    }
+
+    // 対応不可曜日
+    $unavailDays = json_decode($_POST['unavail_days'] ?? '[]', true);
+    if (is_array($unavailDays)) {
+        foreach ($unavailDays as $day) {
+            if (empty($day)) continue;
+            execute(
+                'INSERT INTO order_repair_unavail_days (order_id, day_of_week)
+                 VALUES (:order_id, :day)',
+                [':order_id' => $orderId, ':day' => $day]
+            );
+        }
+    }
+}
+
+// ========================================
+// シート交換発注の詳細登録
+// ========================================
+// 修理発注と同じステータスフロー/UI を持つが、issue は固定文言。
+// 対応不可日時/曜日は order_repair_unavail_* テーブルを流用（order_id 参照のため type 非依存）。
+function createSeatReplacementDetail(string $orderId): void
+{
+    $equipmentName = trim($_POST['equipment_name'] ?? '');
+
+    if ($equipmentName === '') {
+        throw new InvalidArgumentException('マシン名・品番は必須です');
+    }
+
+    execute(
+        'INSERT INTO order_seat_replacement_details (order_id, equipment_name, issue)
+         VALUES (:order_id, :equipment_name, :issue)',
+        [
+            ':order_id'       => $orderId,
+            ':equipment_name' => $equipmentName,
+            ':issue'          => 'マシンのシート交換',
         ]
     );
 
@@ -281,10 +350,11 @@ function notifyProductDeptNewOrder(string $orderId, string $type, string $shopCo
     $catName  = $cat['name']  ?? $category;
 
     $typeLabel = match ($type) {
-        'repair'    => '修理発注',
-        'equipment' => '備品発注',
-        'parts'     => '部品発注',
-        default     => $type,
+        'repair'           => '修理発注',
+        'equipment'        => '備品発注',
+        'parts'            => '部品発注',
+        'seat-replacement' => 'シート交換',
+        default            => $type,
     };
 
     // 種別固有の概要
@@ -294,6 +364,12 @@ function notifyProductDeptNewOrder(string $orderId, string $type, string $shopCo
             $r = getOne('SELECT equipment_name, issue FROM order_repair_details WHERE order_id = :id', [':id' => $orderId]);
             if ($r) {
                 $detail = "故障機材: {$r['equipment_name']}\n不具合内容: {$r['issue']}";
+            }
+            break;
+        case 'seat-replacement':
+            $r = getOne('SELECT equipment_name FROM order_seat_replacement_details WHERE order_id = :id', [':id' => $orderId]);
+            if ($r) {
+                $detail = "マシン名・品番: {$r['equipment_name']}\n依頼内容: マシンのシート交換";
             }
             break;
         case 'equipment':

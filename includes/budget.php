@@ -128,9 +128,16 @@ function resolveBudgetKeyByDelivery(array $order): ?array
 {
     $type = $order['type'] ?? '';
 
-    if ($type === 'repair') {
+    // 修理ライク (repair / seat-replacement) は完了日を詳細テーブルから取得
+    $detailTable = match ($type) {
+        'repair'           => 'order_repair_details',
+        'seat-replacement' => 'order_seat_replacement_details',
+        default            => null,
+    };
+
+    if ($detailTable !== null) {
         $row = getOne(
-            'SELECT repair_completed_date FROM order_repair_details WHERE order_id = :oid',
+            "SELECT repair_completed_date FROM {$detailTable} WHERE order_id = :oid",
             [':oid' => $order['id']]
         );
         $dateStr = $row['repair_completed_date'] ?? null;

@@ -63,7 +63,7 @@ if ($user['role'] === 'shop') {
 }
 
 // --- バリデーション ---
-if ($type !== '' && !in_array($type, ['repair', 'equipment', 'parts'], true)) {
+if ($type !== '' && !in_array($type, ['repair', 'equipment', 'parts', 'seat-replacement'], true)) {
     jsonError('不正な種別パラメータです');
 }
 if ($status !== '' && !in_array($status, ['0', '1', '2', '3', '4'], true)) {
@@ -72,9 +72,10 @@ if ($status !== '' && !in_array($status, ['0', '1', '2', '3', '4'], true)) {
 
 // --- ラベルマッピング ---
 $typeLabels = [
-    'repair'    => '修理',
-    'equipment' => '備品',
-    'parts'     => '部品',
+    'repair'           => '修理',
+    'equipment'        => '備品',
+    'parts'            => '部品',
+    'seat-replacement' => 'シート交換',
 ];
 
 $statusLabels = [
@@ -160,9 +161,10 @@ $sql .= ' ORDER BY o.date DESC, o.id DESC';
 $orders = query($sql, $params);
 
 // --- 関連データ取得 ---
-$repairDetails = [];
-$partsDetails  = [];
-$equipItems    = [];
+$repairDetails          = [];
+$seatReplacementDetails = [];
+$partsDetails           = [];
+$equipItems             = [];
 
 if (!empty($orders)) {
     $orderIds = array_column($orders, 'id');
@@ -177,6 +179,13 @@ if (!empty($orders)) {
                   WHERE order_id IN ({$placeholders})";
     foreach (query($repairSql, $idParams) as $row) {
         $repairDetails[$row['order_id']] = $row;
+    }
+
+    $seatSql = "SELECT order_id, equipment_name, issue
+                FROM order_seat_replacement_details
+                WHERE order_id IN ({$placeholders})";
+    foreach (query($seatSql, $idParams) as $row) {
+        $seatReplacementDetails[$row['order_id']] = $row;
     }
 
     $partsSql = "SELECT order_id, parts_name, target_equipment, reason, quantity
@@ -298,6 +307,16 @@ foreach ($orders as $order) {
             'product_name' => $rd['equipment_name'] ?? '',
             'qty'          => 1,
             'detail'       => $rd['issue'] ?? '',
+        ]);
+        writeRow($sheet, $rowNum, $rowData);
+        $rowNum++;
+
+    } elseif ($oType === 'seat-replacement') {
+        $sd = $seatReplacementDetails[$id] ?? null;
+        $rowData = buildRow($order, $typeLabels, $categoryLabels, $statusLabels, [
+            'product_name' => $sd['equipment_name'] ?? '',
+            'qty'          => 1,
+            'detail'       => $sd['issue'] ?? 'マシンのシート交換',
         ]);
         writeRow($sheet, $rowNum, $rowData);
         $rowNum++;
