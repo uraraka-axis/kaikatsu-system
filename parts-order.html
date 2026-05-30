@@ -46,12 +46,12 @@
             <textarea id="orderReason" class="form-textarea" placeholder="摩耗により交換が必要" oninput="updateSubmitState()"></textarea>
           </div>
           <div class="form-group">
-            <label class="form-label">写真（最大3枚）</label>
+            <label class="form-label">部品・マシンの写真（最大3枚）</label>
             <div class="photo-upload-area" id="uploadArea" onclick="triggerFileInput()">
               <div class="upload-icon">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
               </div>
-              <div class="upload-text" id="uploadText">クリックまたはドラッグ＆ドロップで写真を追加</div>
+              <div class="upload-text" id="uploadText">タップして写真を選択</div>
               <div class="upload-subtext" id="uploadSubtext">最大3枚まで（JPEG / PNG / GIF / WebP）</div>
             </div>
             <input type="file" id="fileInput" accept="image/jpeg,image/png,image/gif,image/webp" multiple style="display:none;" onchange="handlePhotoUpload(event)">
@@ -66,6 +66,6 @@
     </form>
   </main>
   <script src="js/notify-modal.js?v=20260521"></script>
-  <script src="js/parts-order.js?v=20260523"></script>
+  <script src="js/parts-order.js?v=20260530a"></script>
 </body>
 </html>

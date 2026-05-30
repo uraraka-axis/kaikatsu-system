@@ -254,7 +254,7 @@
         if (uploadSubtext) uploadSubtext.textContent = '×ボタンで削除すると追加できます';
       } else {
         uploadArea.classList.remove('disabled');
-        if (uploadText) uploadText.textContent = 'クリックまたはドラッグ＆ドロップで写真を追加';
+        if (uploadText) uploadText.textContent = 'タップして写真を選択';
         if (uploadSubtext) uploadSubtext.textContent = '残り' + (3 - photos.length) + '枚 追加可能（JPEG / PNG / GIF / WebP）';
       }
 
