@@ -1733,9 +1733,11 @@ function buildMailBody(sup) {
   Object.keys(byShop).forEach(function(key) {
     var label = key.split(':').slice(1).join(':');
     lines.push('');
-    lines.push('【' + label + '店】');
+    lines.push('【' + label + '】');
     byShop[key].forEach(function(it) {
-      var codePart = it.product_code ? ' (' + it.product_code + ')' : '';
+      // 仕入先へ送るメールなので、仕入先の商品コードを優先（無ければ社内コード）
+      var dispCode = it.supplier_product_code || it.product_code;
+      var codePart = dispCode ? ' (' + dispCode + ')' : '';
       var priceLine = it.price > 0
         ? '  ・' + it.product_name + codePart + ' ×' + it.qty + ' @' + it.price.toLocaleString() + '円'
         : '  ・' + it.product_name + codePart + ' ×' + it.qty;

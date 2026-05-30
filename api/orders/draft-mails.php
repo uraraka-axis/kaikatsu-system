@@ -58,12 +58,14 @@ $sql = "SELECT
             i.id              AS item_id,
             i.product_name,
             i.product_code,
+            p.supplier_product_code,
             i.price,
             i.qty,
             i.supplier        AS supplier_name
         FROM orders o
         JOIN shops s ON o.shop_code = s.code
         JOIN order_equipment_items i ON i.order_id = o.id
+        LEFT JOIN products p ON i.product_id = p.id
         WHERE o.status = 0
           AND o.type = 'equipment'
           AND o.cancelled_at IS NULL";
@@ -166,6 +168,7 @@ foreach ($rows as $r) {
         'order_date'   => $r['order_date'],
         'product_name' => $r['product_name'],
         'product_code' => $r['product_code'],
+        'supplier_product_code' => $r['supplier_product_code'],
         'price'        => $price,
         'qty'          => $qty,
         'subtotal'     => $subtotal,
