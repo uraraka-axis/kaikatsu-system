@@ -616,10 +616,29 @@
         });
     }
 
+    // ===== 商品名検索のIME対応バインド =====
+    // input イベントは IME 変換中（未確定）でも発火するため、変換中は検索せず
+    // 確定（compositionend）時にだけ filterProducts() を実行する。
+    // これにより「え」など未確定文字で「該当する商品が見つかりません」がチラつくのを防ぐ。
+    function bindSearchInput() {
+      var el = document.getElementById('searchInput');
+      if (!el || el.dataset.bound) return;
+      el.dataset.bound = '1';
+      var composing = false;
+      el.addEventListener('compositionstart', function() { composing = true; });
+      el.addEventListener('compositionend', function() { composing = false; filterProducts(); });
+      el.addEventListener('input', function(e) {
+        if (composing || e.isComposing) return; // 変換中はスキップ
+        filterProducts();
+      });
+    }
+
     // ===== Boot =====
     function bootEquipmentOrder(user) {
       if (currentUser) return;
       currentUser = user;
+
+      bindSearchInput();
 
       // 取扱カテゴリでドロップダウンを絞り込み（自動選択ロックは行わない – 発注一覧と統一）
       if (Array.isArray(user.categories) && user.categories.length > 0) {
