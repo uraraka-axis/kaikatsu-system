@@ -17,6 +17,7 @@
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../includes/budget.php';
 
 requireLogin();
 requireMethod('GET');
@@ -31,6 +32,42 @@ if ($action === 'years') {
     jsonResponse([
         'success' => true,
         'data'    => $years,
+    ]);
+}
+
+// --- 未納品の発注見込み額（仮計上）取得 ---
+// 備品発注画面の予算アラートで「確定実績＋未納品見込み」の残高判定に使う。
+// GET /api/budgets.php?action=inflight&dept=fitness&year=2026&month=5
+if ($action === 'inflight') {
+    $u    = getCurrentUser();
+    $dept = $_GET['dept'] ?? '';
+    $yr   = isset($_GET['year'])  ? (int)$_GET['year']  : getCurrentFiscalYear();
+    $mo   = isset($_GET['month']) ? (int)$_GET['month'] : (int)date('n');
+
+    // 店舗は自店に強制。admin/system は shop パラメータ指定可（zone/area も自身のスコープ内）。
+    if ($u['role'] === 'shop') {
+        $sc = (string)$u['shop_code'];
+    } else {
+        $sc = (string)($_GET['shop'] ?? '');
+    }
+
+    if ($sc === '' || $dept === '' || $mo < 1 || $mo > 12) {
+        jsonError('パラメータが不正です');
+    }
+    // カテゴリ存在チェック
+    $validCats = array_column(query('SELECT code FROM categories WHERE is_active = 1'), 'code');
+    if (!in_array($dept, $validCats, true)) {
+        jsonError('不正な部門パラメータです');
+    }
+
+    $total = getInflightPipelineTotal($sc, $dept, $yr, $mo);
+    jsonResponse([
+        'success'     => true,
+        'inflight'    => $total,
+        'shop_code'   => $sc,
+        'department'  => $dept,
+        'fiscal_year' => $yr,
+        'month'       => $mo,
     ]);
 }
 

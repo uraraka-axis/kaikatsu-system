@@ -4,8 +4,9 @@
     var categoriesMap = {}; // code → { closing_type, closing_day }
     var budgetInfo = {
       budget: 0,
-      actual: 0,
-      remaining: 0,
+      actual: 0,       // 確定実績（納品済以上）
+      inflight: 0,     // 未納品の発注見込み（status 0/1/2・全種別）
+      remaining: 0,    // 予算 − 確定実績 − 未納品見込み（＝仮計上残高）
       loaded: false,
       category: null,
       quarterLabel: '',  // 例: 'Q1'
@@ -247,6 +248,7 @@
           alertText.innerHTML = '<strong>四半期予算超過の可能性があります。</strong>' +
             ' ' + qLabel + qRange + '予算: ¥' + budgetInfo.budget.toLocaleString() +
             ' / 実績: ¥' + budgetInfo.actual.toLocaleString() +
+            ' / 発注見込み: ¥' + budgetInfo.inflight.toLocaleString() +
             ' / 残高: ¥' + budgetInfo.remaining.toLocaleString() +
             ' / 今回発注予定額 ¥' + totalPrice.toLocaleString() +
             '（¥' + over.toLocaleString() + ' 超過）';
@@ -459,6 +461,7 @@
                 '<strong>⚠ 四半期予算超過の可能性があります</strong><br>' +
                 qLabel + qRange + '予算: ¥' + budgetInfo.budget.toLocaleString() +
                 ' / 実績: ¥' + budgetInfo.actual.toLocaleString() +
+                ' / 発注見込み: ¥' + budgetInfo.inflight.toLocaleString() +
                 ' / 残高: ¥' + budgetInfo.remaining.toLocaleString() +
                 '<br>今回発注予定額 ¥' + totalPrice.toLocaleString() +
                 '（¥' + over.toLocaleString() + ' 超過）</span>';
@@ -578,12 +581,32 @@
           }
           budgetInfo.budget       = qBudget;
           budgetInfo.actual       = qActual;
+          budgetInfo.inflight     = 0;
           budgetInfo.remaining    = qBudget - qActual;
           budgetInfo.loaded       = true;
           budgetInfo.category     = category;
           budgetInfo.quarterLabel = quarter.label;
           budgetInfo.quarterRange = quarter.range;
           updateCart();
+
+          // 未納品の発注見込み（status 0/1/2・全種別）を取得して残高に反映。
+          // 取得失敗時は確定実績ベースの残高のまま（見込み 0 扱い）にフォールバック。
+          fetch('api/budgets.php?action=inflight&dept=' + encodeURIComponent(dept) +
+                '&year=' + fiscalYear + '&month=' + settlementMonth, { credentials: 'same-origin' })
+            .then(function(r) {
+              if (r.status === 401) { window.location.href = 'login.html'; return null; }
+              return r.json();
+            })
+            .then(function(inf) {
+              if (!inf || !inf.success) return;
+              if (budgetInfo.category !== category) return; // カテゴリが切り替わっていたら破棄
+              budgetInfo.inflight  = inf.inflight || 0;
+              budgetInfo.remaining = budgetInfo.budget - budgetInfo.actual - budgetInfo.inflight;
+              updateCart();
+            })
+            .catch(function(e) {
+              console.error('Inflight fetch error:', e);
+            });
         })
         .catch(function(e) {
           console.error('Budget fetch error:', e);

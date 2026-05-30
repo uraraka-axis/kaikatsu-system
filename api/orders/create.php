@@ -28,6 +28,8 @@ require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/functions.php';
 require_once __DIR__ . '/../../includes/mailer.php';
+require_once __DIR__ . '/../../includes/budget.php';
+require_once __DIR__ . '/../../includes/budget_notify.php';
 
 requireLogin();
 requireMethod('POST');
@@ -124,6 +126,26 @@ try {
         'message'  => '発注を登録しました',
     ]);
     notifyProductDeptNewOrder($orderId, $type, $shopCode, $category, $user);
+
+    // 備品発注のみ: 仮計上（確定実績＋未納品見込み）が四半期予算を新たに跨いだ場合、
+    // ゾーン/エリアマネージャーへ【予算超過見込み】メールを送る。
+    // 計上四半期は発注日（＝当日）基準。今回の発注は status=0 で既に DB に存在するため
+    // getInflightPipelineTotal の集計に含まれる。
+    if ($type === 'equipment') {
+        $amtRow = getOne('SELECT estimate_amount FROM orders WHERE id = :id', [':id' => $orderId]);
+        $orderAmount = (int)($amtRow['estimate_amount'] ?? 0);
+        if ($orderAmount > 0) {
+            $today = date('Y-m-d');
+            $budgetKey = resolveBudgetKeyByDate($shopCode, $category, $today);
+            $orderForMail = [
+                'id'            => $orderId,
+                'shop_code'     => $shopCode,
+                'category_code' => $category,
+                'date'          => $today,
+            ];
+            notifyIfProvisionalQuarterBudgetCrossed($orderForMail, $orderAmount, $budgetKey);
+        }
+    }
     exit;
 } catch (Exception $e) {
     rollback();

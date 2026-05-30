@@ -2,7 +2,7 @@
 
 快活フロンティア フィットネス／ゴルフ 発注管理・予算管理システム
 
-最終更新: 2026-05-28
+最終更新: 2026-05-30
 
 ---
 
@@ -397,7 +397,44 @@ zone / area の管轄スコープは、画面フィルタ UI で「ゾーン」�
 - 管理者画面: ゾーン→エリア→店舗のカスケードフィルタ、部門・年度フィルタ
 - 店舗画面: 自店のデータのみ表示、部門・年度フィルタ
 - デフォルト年度: 最新年度を初期選択
-- 備品発注時、月次予算（50,000円）を超える場合にアラート表示
+
+### 5.4.1 予算超過アラート（仮計上ベース / 2026-05-30 改訂）
+
+予算実績 `budgets.actual_amount` は納品済（status=3）以降しか計上されない（§7 参照）。
+そのままだと「依頼中〜配達中の未納品発注」が予算判定から漏れるため、**アラートは
+「確定実績 ＋ 未納品の発注見込み」の仮計上ベースで判定する**。発火点は **備品発注フローのみ**。
+
+**仮計上の定義**
+
+```
+仮計上合計 = budgets.actual_amount（納品済以上・全種別の確定実績）
+           ＋ 未納品の発注見込み（status 0/1/2・全種別・同店舗・同カテゴリ・同四半期）
+仮計上残高 = 四半期予算 − 仮計上合計
+```
+
+- 未納品の見込み額: `estimate_amount` を優先。NULL の場合、備品は `order_equipment_items` の明細合計、
+  それ以外（修理/部品/シート交換の status=0 等、金額未確定）は 0 扱い。
+- 計上四半期の振り分け: `COALESCE(actual_delivery_date, delivery_date, date)` の月が属する四半期。
+- 取消（`cancelled_at IS NOT NULL`）は集計対象外。
+- ヘルパー: `includes/budget.php` の `getInflightPipelineTotal()`。
+
+**① 画面アラート（店舗の備品発注時）** — [equipment-order.js](equipment-order.js)
+- `GET /api/budgets.php?action=inflight&dept=&year=&month=` で未納品見込みを取得し、
+  `残高 = 予算 − 確定実績 − 見込み` で判定。
+- 非ブロックの警告（発注は続行可）。同日に複数発注しても、既存の未納品（status=0 含む）が
+  見込みに入るため累積で正しく超過表示される（自己修正型：取消されれば次回計算で消える）。
+
+**② マネージャーメール（`【予算超過見込み】`）** — [includes/budget_notify.php](includes/budget_notify.php)
+- 店舗が備品発注（status=0 作成）した時点で、仮計上合計が四半期予算を**新たに跨いだ
+  （≤予算 → >予算）瞬間のみ**、ゾーン/エリアマネージャーへ送信。
+- 判定は純関数 `quarterBudgetCrossedUpward(before, after, budget)`。状態フラグは持たず、
+  発注のたびに before/after を都度計算（`notifyIfProvisionalQuarterBudgetCrossed()`）。
+  - 既に超過済みなら再送しない／取消で予算内に戻り再度跨いだら再送する。
+  - 取消されても送信済みメールは撤回しない（見込み時点のスナップショット通知）。
+- 送信は [api/orders/create.php](api/orders/create.php) のメール非同期パターン（§5.8）に乗せる。
+- **旧仕様の廃止**: 納品/完了時（status.php / bulk-status.php）の確定メール
+  `notifyIfQuarterBudgetCrossed()` は撤去。仮計上の世界観では超過は発注時に一度だけ起きるため、
+  納品時に新たなクロスは発生しない（マネージャー通知は status=0 一本化）。
 
 ### 5.5 一括ステータス変更（管理者）
 
@@ -534,7 +571,8 @@ DB で `is_active=0` または削除されていた場合は自動ログアウ�
 |---------|--------------|------|------|
 | GET | /api/budgets.php | 予算一覧取得 | shop:自店 / admin・system:全店 / zone:管轄ゾーン配下 / area:管轄エリア配下 |
 | GET | /api/budgets.php?action=years | データが存在する年度のみを降順で返す | 同上（スコープ内のみ集計） |
-| GET | /api/export/budgets.php | 予算データを Excel(.xlsx) 出力 | 同上 |
+| GET | /api/budgets.php?action=inflight&dept=&year=&month= | 未納品の発注見込み額（仮計上、§5.4.1）を返す | shop:自店 / admin・system は shop 指定可 |
+| GET | /api/export/budgets.php | 予算データを Excel(.xlsx) 出力 | 同上（スコープ内のみ集計） |
 
 **クエリパラメータ:**
 

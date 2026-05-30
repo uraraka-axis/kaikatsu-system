@@ -1,7 +1,7 @@
 # 引継ぎドキュメント — 快活フロンティア 発注管理システム
 
-最終更新: 2026-05-28
-最新コミット: `b7a5735 発注API: メール送信を非同期化してレスポンス即時返却`（develop ブランチ push 済み）
+最終更新: 2026-05-30
+最新コミット: `534cdae 仕様書更新: 2026-05-28 の機能追加分を反映`（develop ブランチ push 済み）以降、予算超過アラート仮計上化の作業あり
 
 ---
 
@@ -401,6 +401,22 @@ IT 管理者向けの新ロール `system`。admin の全権限に加え、以�
 - `.menu-container` の最大幅を **840px → 1200px** に拡張（大型モニタで中央に小さく見える問題を解消）
 - スケジュール枠の見出し: 「5月のスケジュール」（動的）→ **「直近の締めスケジュール」**（固定）
 - シート交換用に新規 SVG アイコン（トレーニングマシン）を追加
+
+### 7-23. 予算超過アラートを仮計上ベースに変更（2026-05-30）
+予算実績は納品済（status=3）以降しか計上されないため、未納品の発注が予算判定から漏れる問題に対応。
+アラートを **「確定実績 ＋ 未納品の発注見込み（仮計上）」** ベースに変更。発火点は**備品発注フローのみ**。
+
+- **仮計上**: `actual_amount`（納品済以上・全種別）＋ 未納品見込み（status 0/1/2・全種別・同店舗/カテゴリ/四半期）
+  - 見込み額: estimate 優先、備品 NULL 時は明細合計、それ以外 status=0 は 0。計上四半期は `COALESCE(actual_delivery_date, delivery_date, date)`
+  - ヘルパー: `includes/budget.php` `getInflightPipelineTotal()`
+- **画面アラート**（[equipment-order.js](equipment-order.js)）: `GET /api/budgets.php?action=inflight` で見込みを取得し `残高 = 予算 − 実績 − 見込み`。非ブロック警告。同日複数発注も累積で正しく超過表示（自己修正型）
+- **マネージャーメール**（`【予算超過見込み】`、[includes/budget_notify.php](includes/budget_notify.php)）:
+  - 店舗の備品発注（status=0）時、仮計上が予算を**新たに跨いだ瞬間のみ**送信
+  - 純関数 `quarterBudgetCrossedUpward()` ＋ `notifyIfProvisionalQuarterBudgetCrossed()`。状態フラグなし（取消→再発注で再クロスしたら再送、送信済みは撤回しない）
+  - 送信は create.php のメール非同期パターンに乗せる
+- **旧仕様の廃止**: 納品/完了時（status.php / bulk-status.php）の確定メール `notifyIfQuarterBudgetCrossed()` を撤去。通知は status=0 一本化
+- **検証**: `tools/test_budget_notify.php` を改訂（クロス判定の純関数テスト＋見込み集計のトランザクション内テスト、全 PASS）。Mailpit で送信確認済み
+- 詳細は [backend-spec.md §5.4.1](backend-spec.md)
 
 ---
 

@@ -251,6 +251,58 @@ function applyBudgetActualDeltaByDate(string $shopCode, string $categoryCode, st
 }
 
 /**
+ * 未納品（status 0/1/2・未取消）の発注見込み額を、指定四半期・店舗・カテゴリで合算する。
+ *
+ * 予算アラートの「仮計上」に使う。actual_amount（納品済以上の確定実績）に対して、
+ * まだ計上されていない発注見込みを上乗せして四半期予算の超過判定を行うための値。
+ *
+ *  - 対象: 全種別（repair / equipment / parts / seat-replacement）
+ *  - 金額: estimate_amount を優先。NULL の場合、備品は明細(order_equipment_items)合計、
+ *          それ以外（修理/部品/シート交換の status=0 等、金額未確定）は 0 として扱う。
+ *  - 計上四半期: COALESCE(actual_delivery_date, delivery_date, date) の月が属する四半期で振り分け。
+ *          （未納品なので通常 actual_delivery_date は NULL。納品予定日 → 発注日 の順でフォールバック）
+ *  - 年度の判定は他の計上ロジックと同じ「4月始まり（month>=4 なら当年、1-3月は前年）」。
+ *
+ * @param string $shopCode
+ * @param string $categoryCode 予算の department と一致するカテゴリコード
+ * @param int    $fiscalYear   対象年度
+ * @param int    $month        対象四半期に属する任意の月（1-12）
+ * @return int 見込み額合計（円）
+ */
+function getInflightPipelineTotal(string $shopCode, string $categoryCode, int $fiscalYear, int $month): int
+{
+    $rows = query(
+        "SELECT COALESCE(o.estimate_amount,
+                         CASE WHEN o.type = 'equipment'
+                              THEN (SELECT COALESCE(SUM(price * qty), 0)
+                                      FROM order_equipment_items i WHERE i.order_id = o.id)
+                              ELSE 0 END,
+                         0) AS amount,
+                COALESCE(o.actual_delivery_date, o.delivery_date, o.date) AS bucket_date
+           FROM orders o
+          WHERE o.shop_code     = :s
+            AND o.category_code  = :cat
+            AND o.status IN (0, 1, 2)
+            AND o.cancelled_at IS NULL",
+        [':s' => $shopCode, ':cat' => $categoryCode]
+    );
+
+    $targetMonths = getQuarterMonths($month);
+    $sum = 0;
+    foreach ($rows as $r) {
+        if (empty($r['bucket_date'])) continue;
+        $d  = new DateTimeImmutable($r['bucket_date']);
+        $mo = (int)$d->format('n');
+        $yr = (int)$d->format('Y');
+        $fy = $mo >= 4 ? $yr : $yr - 1;
+        if ($fy === $fiscalYear && in_array($mo, $targetMonths, true)) {
+            $sum += (int)$r['amount'];
+        }
+    }
+    return $sum;
+}
+
+/**
  * 計上月が属する四半期 (Q1=4-6 / Q2=7-9 / Q3=10-12 / Q4=1-3) の月配列を返す。
  */
 function getQuarterMonths(int $month): array

@@ -12,7 +12,6 @@ require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/functions.php';
 require_once __DIR__ . '/../../includes/budget.php';
-require_once __DIR__ . '/../../includes/budget_notify.php';
 
 requireLogin();
 requireMethod('POST');
@@ -65,7 +64,6 @@ $orders = query(
 
 $processed = [];
 $skipped   = [];
-$pendingNotifications = [];
 
 try {
     beginTransaction();
@@ -159,11 +157,6 @@ try {
                 }
             }
         }
-        // 一括処理ではトランザクション内だが、ON DUPLICATE KEY での更新は反映されているので
-        // commit 前でも getQuarterlyBudgetTotal は最新値を返す（同一トランザクション内のため）
-        if ($budgetDelta > 0 && $budgetKey !== null) {
-            $pendingNotifications[] = ['order' => $order, 'delta' => $budgetDelta, 'key' => $budgetKey];
-        }
 
         $processed[] = $orderId;
     }
@@ -175,22 +168,10 @@ try {
     jsonError('一括ステータス変更に失敗しました', 500);
 }
 
-// レスポンスを先に返してから予算超過通知メールを送る
-// (一括処理では複数件の通知メールが連続発生し得るため、UX への影響大)
-if (empty($pendingNotifications)) {
-    jsonResponse([
-        'success'   => true,
-        'processed' => $processed,
-        'skipped'   => $skipped,
-    ]);
-}
-
-jsonResponseAndContinue([
+// 予算超過のマネージャー通知は「店舗の備品発注時（status=0）の仮計上クロス」に一本化したため、
+// 納品/完了時の確定メールは送らない（api/orders/create.php 参照）。
+jsonResponse([
     'success'   => true,
     'processed' => $processed,
     'skipped'   => $skipped,
 ]);
-foreach ($pendingNotifications as $n) {
-    notifyIfQuarterBudgetCrossed($n['order'], $n['delta'], $n['key']);
-}
-exit;

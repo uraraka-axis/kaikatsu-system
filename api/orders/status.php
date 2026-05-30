@@ -12,7 +12,6 @@ require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/functions.php';
 require_once __DIR__ . '/../../includes/budget.php';
-require_once __DIR__ . '/../../includes/budget_notify.php';
 
 requireLogin();
 requireMethod('POST');
@@ -294,21 +293,10 @@ try {
 // --- 更新後のデータ返却 ---
 $updated = getOne('SELECT * FROM orders WHERE id = :id', [':id' => $orderId]);
 
-// 5. レスポンスを先に返してから四半期予算超過通知メールを送る
-//    (commit 後、加算で初めて超えた場合のみ通知)
-$needNotify = ($budgetDelta > 0 && $budgetKey !== null);
-if (!$needNotify) {
-    jsonResponse([
-        'success'  => true,
-        'order_id' => $orderId,
-        'status'   => (int)$updated['status'],
-    ]);
-}
-
-jsonResponseAndContinue([
+// 予算超過のマネージャー通知は「店舗の備品発注時（status=0）の仮計上クロス」に一本化したため、
+// 納品/完了時の確定メールは送らない（api/orders/create.php 参照）。
+jsonResponse([
     'success'  => true,
     'order_id' => $orderId,
     'status'   => (int)$updated['status'],
 ]);
-notifyIfQuarterBudgetCrossed($order, $budgetDelta, $budgetKey);
-exit;
