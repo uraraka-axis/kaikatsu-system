@@ -1,24 +1,40 @@
 // ===== Loading オーバーレイ（全画面共通） =====
-window.showLoading = function(text) {
-  var overlay = document.getElementById('__loadingOverlay');
-  if (!overlay) {
-    overlay = document.createElement('div');
-    overlay.id = '__loadingOverlay';
-    overlay.className = 'loading-overlay';
-    overlay.innerHTML = '<div class="loading-box">' +
-                          '<div class="loading-spinner"></div>' +
-                          '<div class="loading-text">読み込み中…</div>' +
-                        '</div>';
-    document.body.appendChild(overlay);
+// 遅延表示: showLoading 後 250ms 以内に hideLoading された高速処理では
+// オーバーレイを出さない（白い幕が一瞬光るチラつきを防止）。
+(function() {
+  var SHOW_DELAY_MS = 250;
+  var delayTimer = null;
+
+  function ensureOverlay(text) {
+    var overlay = document.getElementById('__loadingOverlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = '__loadingOverlay';
+      overlay.className = 'loading-overlay';
+      overlay.innerHTML = '<div class="loading-box">' +
+                            '<div class="loading-spinner"></div>' +
+                            '<div class="loading-text">読み込み中…</div>' +
+                          '</div>';
+      document.body.appendChild(overlay);
+    }
+    var txtEl = overlay.querySelector('.loading-text');
+    if (txtEl) txtEl.textContent = text || '読み込み中…';
+    return overlay;
   }
-  var txtEl = overlay.querySelector('.loading-text');
-  if (txtEl) txtEl.textContent = text || '読み込み中…';
-  overlay.classList.add('visible');
-};
-window.hideLoading = function() {
-  var overlay = document.getElementById('__loadingOverlay');
-  if (overlay) overlay.classList.remove('visible');
-};
+
+  window.showLoading = function(text) {
+    if (delayTimer) clearTimeout(delayTimer);
+    delayTimer = setTimeout(function() {
+      ensureOverlay(text).classList.add('visible');
+      delayTimer = null;
+    }, SHOW_DELAY_MS);
+  };
+  window.hideLoading = function() {
+    if (delayTimer) { clearTimeout(delayTimer); delayTimer = null; }
+    var overlay = document.getElementById('__loadingOverlay');
+    if (overlay) overlay.classList.remove('visible');
+  };
+})();
 
 (function() {
   // ログインページではナビを構築しない
