@@ -15,7 +15,7 @@
 <body>
   <header class="header" data-title="予算管理"></header>
   <nav class="nav" data-active="budget-management.html"></nav>
-  <script src="js/common-nav.js?v=20260521"></script>
+  <script src="js/common-nav.js?v=20260530a"></script>
   <main class="main">
     <!-- Admin Filters -->
     <div class="admin-filter-bar" id="adminToolbar">
@@ -42,7 +42,7 @@
         </div>
         <div class="filter-group">
           <span class="filter-label">カテゴリ</span>
-          <select class="form-select" id="filterDept" onchange="filterBudget()">
+          <select class="form-select" id="filterDept" onchange="onDeptChange()">
             <option value="">すべてのカテゴリ</option>
             <!-- カテゴリは JS で動的に追加 -->
           </select>
@@ -134,6 +134,6 @@
     </div>
   </main>
 
-  <script src="js/budget-management.js?v=20260527b"></script>
+  <script src="js/budget-management.js?v=20260530b"></script>
 </body>
 </html>

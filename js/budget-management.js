@@ -61,6 +61,8 @@
     // ===== Zone / Area / Shop master (populated from API) =====
     var areasByZone = {};
     var shopsByArea = {};
+    var shopCatMap = {}; // shop_code → 取扱カテゴリ配列（店舗ドロップダウンのカテゴリ絞り込み用）
+    var currentRows = []; // 現在テーブルに描画中の行データ（折りたたみ詳細の遅延生成用）
 
     // ===== Helpers =====
     function fmt(n) { return n.toLocaleString(); }
@@ -183,9 +185,11 @@
         });
         // Build shopsByArea
         shopsByArea = {};
+        shopCatMap = {};
         shops.forEach(function(s) {
           if (!shopsByArea[s.area_code]) shopsByArea[s.area_code] = [];
           shopsByArea[s.area_code].push(s.shop_code + ':' + s.shop_name);
+          shopCatMap[s.shop_code] = s.categories ? String(s.categories).split(',') : [];
         });
         // Populate zone select
         var isManagerScope = currentUser && (currentUser.role === 'zone' || currentUser.role === 'area');
@@ -443,9 +447,11 @@
     }
 
     function updateShopOptions() {
+      var shopSelect = document.getElementById('filterShop');
+      if (!shopSelect) return; // 店舗ユーザー(store)ビューには店舗ドロップダウンが無い
       var area = document.getElementById('filterArea').value;
       var zone = document.getElementById('filterZone').value;
-      var shopSelect = document.getElementById('filterShop');
+      var prev = shopSelect.value; // 選択中の店舗（絞り込み後も残っていれば復元）
       shopSelect.innerHTML = '<option value="">すべて</option>';
       // area選択時=その area の店舗 / zoneのみ=その zone 配下全店舗 / 両方未選択=全店舗
       var list = [];
@@ -461,13 +467,30 @@
           shopsByArea[k].forEach(function(s) { list.push(s); });
         });
       }
+      // 選択中カテゴリでの絞り込み（例: フィットネス選択時はゴルフ専用店を除外）
+      var dept = getSelectedDept();
       list.forEach(function(s) {
         var code = s.split(':')[0];
+        if (dept && dept !== 'all') {
+          var cats = shopCatMap[code] || [];
+          if (cats.indexOf(dept) === -1) return; // 当該カテゴリを扱わない店舗は出さない
+        }
         shopSelect.innerHTML += '<option value="' + code + '">' + s + '</option>';
       });
+      // 絞り込み後も同じ店舗が残っていれば選択を維持、無ければ「すべて」
+      if (prev) {
+        var stillThere = Array.prototype.some.call(shopSelect.options, function(o) { return o.value === prev; });
+        if (stillThere) shopSelect.value = prev;
+      }
     }
 
     function onAreaChange() {
+      updateShopOptions();
+      filterBudget();
+    }
+
+    // カテゴリ変更時は店舗ドロップダウンを当該カテゴリで絞り直す
+    function onDeptChange() {
       updateShopOptions();
       filterBudget();
     }
@@ -574,12 +597,12 @@
         sliced = data.slice(0, budgetDisplayLimit);
       }
 
-      var year = getSelectedYear();
-      var dept = getSelectedDept();
       var tbody = document.getElementById('budgetTableBody');
       var html = '';
 
       var detailColspan = viewMode === 'admin' ? 14 : 13;
+
+      currentRows = sliced; // 折りたたみ詳細の遅延生成で参照する
 
       sliced.forEach(function(d, idx) {
         html += '<tr class="budget-row" onclick="toggleDetail(' + idx + ')" id="row-' + idx + '">';
@@ -595,31 +618,8 @@
         html += numCells(d.month);
         html += '</tr>';
 
-        // Detail row
-        // 店舗の取扱カテゴリだけタブ表示。'all'（全体）は常に表示。
-        var shopCats = d.categories || [];
-        var shopDepartments = departments.filter(function(dp) {
-          return dp.key === 'all' || shopCats.indexOf(dp.key) !== -1;
-        });
-        // 現在選択中の dept がその店舗のタブにない場合は 'all' にフォールバック
-        var effectiveDept = shopDepartments.some(function(dp) { return dp.key === dept; }) ? dept : 'all';
-
-        html += '<tr class="detail-row" id="detail-' + idx + '"><td colspan="' + detailColspan + '"><div class="detail-content">';
-        html += '<div class="detail-header"><div class="detail-title">' + year + '年度 月別明細 — ' + d.shop + '</div>';
-        html += '<div class="dept-toggles">';
-        shopDepartments.forEach(function(dp) {
-          var activeClass = dp.key === effectiveDept ? ' active' : '';
-          html += '<button class="dept-toggle' + activeClass + '" onclick="event.stopPropagation(); toggleDept(' + idx + ',\'' + dp.key + '\', this)">' + dp.label + '</button>';
-        });
-        html += '</div></div>';
-        shopDepartments.forEach(function(dp) {
-          var hideStyle = dp.key === effectiveDept ? '' : ' style="display:none"';
-          html += '<div class="dept-section" id="dept-' + idx + '-' + dp.key + '"' + hideStyle + '>';
-          html += '<div class="dept-section-title">' + dp.label + '</div>';
-          html += renderMonthlyTable(d.details[dp.key]);
-          html += '</div>';
-        });
-        html += '</div></td></tr>';
+        // Detail row（遅延描画: 中身は初回展開時に toggleDetail で構築する）
+        html += '<tr class="detail-row" id="detail-' + idx + '"><td colspan="' + detailColspan + '"><div class="detail-content" id="detailContent-' + idx + '"></div></td></tr>';
       });
 
       // Total row（フィルタ後の全件で合計を算出）
@@ -749,6 +749,37 @@
       }
     }
 
+    // 折りたたみ詳細（月別明細）の HTML を生成する。
+    // 初期描画では作らず、初回展開時にのみ構築することで大量店舗時の描画コストを抑える。
+    function buildDetailContent(d, idx) {
+      var year = getSelectedYear();
+      var dept = getSelectedDept();
+      // 店舗の取扱カテゴリだけタブ表示。'all'（全体）は常に表示。
+      var shopCats = d.categories || [];
+      var shopDepartments = departments.filter(function(dp) {
+        return dp.key === 'all' || shopCats.indexOf(dp.key) !== -1;
+      });
+      // 現在選択中の dept がその店舗のタブにない場合は 'all' にフォールバック
+      var effectiveDept = shopDepartments.some(function(dp) { return dp.key === dept; }) ? dept : 'all';
+
+      var html = '';
+      html += '<div class="detail-header"><div class="detail-title">' + year + '年度 月別明細 — ' + d.shop + '</div>';
+      html += '<div class="dept-toggles">';
+      shopDepartments.forEach(function(dp) {
+        var activeClass = dp.key === effectiveDept ? ' active' : '';
+        html += '<button class="dept-toggle' + activeClass + '" onclick="event.stopPropagation(); toggleDept(' + idx + ',\'' + dp.key + '\', this)">' + dp.label + '</button>';
+      });
+      html += '</div></div>';
+      shopDepartments.forEach(function(dp) {
+        var hideStyle = dp.key === effectiveDept ? '' : ' style="display:none"';
+        html += '<div class="dept-section" id="dept-' + idx + '-' + dp.key + '"' + hideStyle + '>';
+        html += '<div class="dept-section-title">' + dp.label + '</div>';
+        html += renderMonthlyTable(d.details[dp.key]);
+        html += '</div>';
+      });
+      return html;
+    }
+
     function toggleDetail(idx) {
       var row = document.getElementById('row-' + idx);
       var detail = document.getElementById('detail-' + idx);
@@ -756,6 +787,12 @@
         row.classList.remove('expanded');
         detail.classList.remove('visible');
       } else {
+        // 遅延生成: 初回展開時に詳細（月別明細）を構築
+        var content = document.getElementById('detailContent-' + idx);
+        if (content && !content.dataset.built && currentRows[idx]) {
+          content.innerHTML = buildDetailContent(currentRows[idx], idx);
+          content.dataset.built = '1';
+        }
         row.classList.add('expanded');
         detail.classList.add('visible');
       }
@@ -802,6 +839,7 @@
       loadBudgetPageSize();
       budgetDisplayLimit = (budgetPageSize === 'all') ? Number.MAX_SAFE_INTEGER : budgetPageSize;
       restoreBudgetFilters();
+      updateShopOptions(); // 復元したカテゴリで店舗ドロップダウンを絞り込む（admin のみ実効）
       restoreSummaryCollapse();
       isBudgetInitializing = false; // 初期化完了
       filterBudget();

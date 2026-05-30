@@ -17,7 +17,9 @@ requireMethod('GET');
 
 $areaCode = $_GET['area_code'] ?? '';
 
-$sql    = 'SELECT s.code AS shop_code, s.name AS shop_name, s.area_code, a.zone_code
+$sql    = 'SELECT s.code AS shop_code, s.name AS shop_name, s.area_code, a.zone_code,
+                  (SELECT GROUP_CONCAT(sc.category_code)
+                     FROM shop_categories sc WHERE sc.shop_code = s.code) AS categories
            FROM shops s
            JOIN areas a ON s.area_code = a.code
            WHERE s.is_active = 1';
