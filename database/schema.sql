@@ -55,7 +55,7 @@ CREATE TABLE areas (
 CREATE TABLE shops (
   code        VARCHAR(5)   NOT NULL COMMENT '店舗コード（10301 等）',
   name        VARCHAR(50)  NOT NULL COMMENT '店舗名',
-  short_code  VARCHAR(3)   NOT NULL COMMENT '短縮コード（S01 等）※採番用',
+  short_code  VARCHAR(5)   NOT NULL COMMENT '短縮コード（= 店舗コード5桁。発注番号の採番に使用）',
   area_code   VARCHAR(3)   NOT NULL COMMENT '所属エリアコード',
   is_active   BOOLEAN      NOT NULL DEFAULT TRUE  COMMENT '有効フラグ',
   sort_order  INT          NOT NULL DEFAULT 0     COMMENT '表示順',
