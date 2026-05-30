@@ -26,22 +26,21 @@ $baseColor = [
 $slotShade = [0 => 1.0, 1 => 0.82, 2 => 0.66];
 
 function makeImage(string $path, string $code, int $slot, string $cat, array $base): void {
-    $W = 480; $H = 360;
+    $W = 640; $H = 360; // カードの枠に合わせ 16:9
     $im = imagecreatetruecolor($W, $H);
     $shade = [1.0, 0.82, 0.66][$slot] ?? 1.0;
     $bg = imagecolorallocate($im, (int)($base[0]*$shade), (int)($base[1]*$shade), (int)($base[2]*$shade));
     $white = imagecolorallocate($im, 255, 255, 255);
-    $panel = imagecolorallocate($im, 255, 255, 255);
     imagefilledrectangle($im, 0, 0, $W, $H, $bg);
-    // 中央パネル
-    imagefilledrectangle($im, 30, 30, $W-30, $H-30, imagecolorallocatealpha($im, 255,255,255,90));
+    // 中央パネル（半透明白の枠）
+    imagefilledrectangle($im, 30, 30, $W-30, $H-30, imagecolorallocatealpha($im, 255,255,255,100));
     // テキスト（GD組み込みフォント=ASCII）
     $f = 5;
-    imagestring($im, $f, 50, 60,  'SAMPLE IMAGE', $white);
-    imagestring($im, $f, 50, 130, 'CODE: ' . $code, $white);
-    imagestring($im, $f, 50, 170, 'SLOT: ' . ($slot + 1) . ' / 3', $white);
-    imagestring($im, $f, 50, 210, 'CATEGORY: ' . strtoupper($cat), $white);
-    imagestring($im, 3, 50, 300, '(placeholder for development)', $white);
+    imagestring($im, $f, 70, 70,  'SAMPLE IMAGE', $white);
+    imagestring($im, $f, 70, 140, 'CODE: ' . $code, $white);
+    imagestring($im, $f, 70, 180, 'SLOT: ' . ($slot + 1) . ' / 3', $white);
+    imagestring($im, $f, 70, 220, 'CATEGORY: ' . strtoupper($cat), $white);
+    imagestring($im, 3, 70, 300, '(placeholder for development)', $white);
     imagepng($im, $path);
     imagedestroy($im);
 }
