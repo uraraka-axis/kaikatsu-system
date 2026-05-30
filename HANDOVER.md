@@ -118,17 +118,25 @@ Alias /kaikatsu-system "C:/Users/<ユーザー名>/kaikatsu-system"
 - 併せて `uploads/products/` の仮画像一式（528ファイル）も渡す（uploads は gitignore 対象）。
 
 **■ スクリプトから再構築する場合**
-1. `database/seed_master_real.sql` を投入（ゾーン/エリア/店舗143/カテゴリ/仕入先/商品176/ユーザー165/予算、short_code を VARCHAR(5) に拡張する ALTER も含む）。
+
+> **一括実行（推奨）**: `setup\rebuild_dev_env.bat` をダブルクリック／コマンドプロンプトで実行すると、下記 1〜4（schema.sql → seed_master_real.sql → 仮画像 → テスト発注）を順に流します。XAMPP既定パス前提（mysql/php のパスは冒頭で変更可）。⚠ 既存の `kaikatsu` DB を作り直す破壊的処理のため**開発/検証用ローカルDB専用**。`seed_master_real.sql` は別途配置が必要。
+
+手動で行う場合は以下の順に実行:
+1. `database/schema.sql` を適用（DB再作成＋全テーブル。`DROP DATABASE kaikatsu` を含む）
+   ```bash
+   mysql -u root --default-character-set=utf8mb4 < database/schema.sql
+   ```
+2. `database/seed_master_real.sql` を投入（ゾーン/エリア/店舗143/カテゴリ/仕入先/商品176/ユーザー165/予算、short_code を VARCHAR(5) に拡張する ALTER も含む）。
    - ⚠ このファイルは**実従業員名・メールアドレス等の個人情報を含むため gitignore 対象（リポジトリ非公開）**。別途安全な手段で共有する。
    - 生成元: `docs/build_master_seed.py`（マスタ収集シート xlsx → SQL 変換。dev専用）
    ```bash
    mysql -u root --default-character-set=utf8mb4 kaikatsu < database/seed_master_real.sql
    ```
-2. 商品の仮画像を生成（GDで 16:9 のプレースホルダ3枚/商品 = 528枚を uploads/products に生成し image_path/2/3 を登録）:
+3. 商品の仮画像を生成（GDで 16:9 のプレースホルダ3枚/商品 = 528枚を uploads/products に生成し image_path/2/3 を登録）:
    ```bash
    php tools/gen_product_placeholders.php
    ```
-3. 発注一覧の検証用に約3,000件のテスト発注を投入（2店舗×全種別×全ステータス×2の構造化160件＋充填。詳細/履歴/予算反映つき）:
+4. 発注一覧の検証用に約3,000件のテスト発注を投入（2店舗×全種別×全ステータス×2の構造化160件＋充填。詳細/履歴/予算反映つき）:
    ```bash
    php tools/seed_orders_volume.php          # 既定3000件。引数で件数指定可
    ```
@@ -169,8 +177,8 @@ kaikatsu-system/uploads/
 | 30101 | password | shop | 札幌西岡店（フィットネス。構造化テストデータ投入店） |
 | 30134 | password | shop | BiVi仙台駅東口店（フィットネス。構造化テストデータ投入店） |
 | (各店舗) | password | shop | login_id = 5桁店舗コード（30101〜50146 等） |
-| 015136 / 100004 / 024041 / 017362 | password | zone | ゾーンマネージャー（北日本/東日本/中日本/西日本。仮割当） |
-| 024019 等 | password | area | エリアマネージャー（担当エリアに紐づく17名） |
+| （各ZMの従業員番号） | password | zone | ゾーンマネージャー4名（北日本/東日本/中日本/西日本。実IDはマスタ／DB参照） |
+| （各AMの従業員番号） | password | area | エリアマネージャー17名（担当エリアに紐づく。実IDはマスタ／DB参照） |
 
 > 旧 `seed.sql`（10301 新宿東口店 等のサンプル30店舗）は本番相当マスタ洗い替え後は使用しません。`system` ロールの専用ユーザーは実マスタには含まれないため、監査ログ画面を検証する場合は別途 system ユーザーを用意（または admin で代替確認）。
 
