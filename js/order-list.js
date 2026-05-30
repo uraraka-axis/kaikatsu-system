@@ -356,6 +356,18 @@ function restoreFilters() {
     var el = document.getElementById(id);
     if (el && !el.disabled) el.value = state[id];
   });
+
+  // 初回表示（保存フィルタが無いとき）は発注日Fromを直近3ヶ月前に既定設定し、
+  // 取得件数を抑える（admin の発注一覧のみ。過去分を見たいときはFromを空にする）。
+  if (viewMode === 'admin' && !('filterDateFrom' in state)) {
+    var dfEl = document.getElementById('filterDateFrom');
+    if (dfEl && !dfEl.value) {
+      var d = new Date();
+      d.setMonth(d.getMonth() - 3);
+      var pad2 = function(n) { return (n < 10 ? '0' : '') + n; };
+      dfEl.value = d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+    }
+  }
 }
 
 // ===== Init =====
