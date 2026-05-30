@@ -9,7 +9,7 @@
 ## 1. システム概要
 
 店舗スタッフと本部（商品部）が使う発注管理システム。
-店舗から修理・備品・部品の発注を行い、本部が承認・管理する。
+店舗から修理・備品・部品・シート交換の発注を行い、本部が承認・管理する。
 
 ### ロール
 
@@ -55,18 +55,21 @@ zone / area ロールは、各 API で「閲覧可能な shop_code 集合」を 
 | 3 | 修理発注 | repair-order.html | o | - | - | - | - | 修理依頼フォーム |
 | 4 | 備品発注 | equipment-order.html | o | - | - | - | - | 商品カタログからカート形式で発注 |
 | 5 | 部品発注 | parts-order.html | o | - | - | - | - | 部品の個別発注フォーム |
-| 6 | 発注一覧 | order-list.html | o | o | o | ro | ro | 一覧/詳細。ステータス管理・Excel出力・メール下書きは admin/system のみ |
-| 7 | 予算管理 | budget-management.html | o | o | o | ro | ro | 予算消化状況・Excel出力（zone/area も管轄分は Excel 可） |
-| 8 | 自店調達 | procurement-history.html | o | o | o | ro | ro | 一覧。申請作成は shop のみ |
-| 9 | 管理メニュー | admin-menu.html | - | o | o | - | - | 7 種マスタ Excel UL/DL・予約更新・データ出力 |
-| 10 | システム設定 | system-settings.html | - | o | o | - | - | カテゴリ管理・期間設定 |
-| 11 | 監査ログ | master-change-log.html | - | - | o | - | - | マスタ変更/予約更新/ログイン履歴の 3 タブ |
+| 6 | シート交換 | seat-replacement.html | o | - | - | - | - | マシンシート交換依頼フォーム（フィットネス固定・修理発注と同等フロー） |
+| 7 | 発注一覧 | order-list.html | o | o | o | ro | ro | 一覧/詳細。ステータス管理・Excel出力・メール下書きは admin/system のみ |
+| 8 | 予算管理 | budget-management.html | o | o | o | ro | ro | 予算消化状況・Excel出力（zone/area も管轄分は Excel 可） |
+| 9 | 自店調達 | procurement-history.html | o | o | o | ro | ro | 一覧。申請作成は shop のみ |
+| 10 | 管理メニュー | admin-menu.html | - | o | o | - | - | 7 種マスタ Excel UL/DL・予約更新・データ出力 |
+| 11 | システム設定 | system-settings.html | - | o | o | - | - | カテゴリ管理・期間設定・商品部メールアドレス |
+| 12 | 監査ログ | master-change-log.html | - | - | o | - | - | マスタ変更/予約更新/ログイン履歴の 3 タブ |
 
 zone / area の管轄スコープは、画面フィルタ UI で「ゾーン」「エリア」のドロップダウンを管轄値で固定 (disabled) 表示し、ユーザーが管轄外を選択できないようにする。Backend では `getRoleScopeSql()` で SQL レベルでも強制絞り込みを行う 2 層防御。
 
 ---
 
 ## 2. データモデル（テーブル設計案）
+
+> **テーブル定義の正（最新・確定）は [database/db-spec.md](database/db-spec.md) および `docs/快活システム_DB定義書.xlsx`**。本節は設計時の概要であり、列の網羅性は db-spec.md を参照のこと（差異がある場合は db-spec.md を優先）。
 
 ### 2.1 マスタテーブル
 
@@ -101,17 +104,36 @@ zone / area の管轄スコープは、画面フィルタ UI で「ゾーン」�
 | code | VARCHAR(20) PK | カテゴリコード（fitness, golf） |
 | name | VARCHAR(50) | カテゴリ名（フィットネス, インドアゴルフ） |
 
+#### suppliers（仕入先マスタ）
+
+| カラム | 型 | 説明 |
+|--------|------|------|
+| id | INT PK AUTO | 仕入先ID |
+| name | VARCHAR(100) | 仕入先名 |
+| code | VARCHAR(20) NULL | 仕入先コード |
+| contact | VARCHAR(100) NULL | 担当者名 |
+| phone | VARCHAR(20) NULL | 電話番号 |
+| email | VARCHAR(100) NULL | メールアドレス（発注メール下書きの To 補完に使用） |
+| is_active | BOOLEAN | 有効フラグ |
+| sort_order | INT | 表示順 |
+
 #### products（商品マスタ）※備品発注用
 
 | カラム | 型 | 説明 |
 |--------|------|------|
-| id | INT PK | 商品ID |
+| id | INT PK AUTO | 商品ID |
 | name | VARCHAR(100) | 商品名 |
-| code | VARCHAR(20) | 商品コード（FIT-00001 等。{カテゴリ3文字}-{5桁連番}） |
+| code | VARCHAR(20) UNIQUE | 商品コード（FIT-00001 / GLF-00001 等。{カテゴリ3文字}-{5桁連番}） |
 | price | INT | 単価（税込・円） |
-| supplier | VARCHAR(100) | 仕入先名 |
+| supplier_id | INT FK NULL | 仕入先ID（suppliers.id） |
 | category_code | VARCHAR(20) FK | カテゴリ |
+| jan_code | VARCHAR(13) NULL | JANコード（8/13桁・NULL可・重複可） |
+| supplier_product_code | VARCHAR(50) NULL | 仕入先商品コード（発注メール下書きで表示） |
 | recommended | BOOLEAN | おすすめフラグ |
+| image_path / image_path2 / image_path3 | VARCHAR(255) NULL | 商品画像ファイル名（uploads/products 配下・最大3枚） |
+| description | TEXT NULL | 商品説明 |
+| is_active | BOOLEAN | 有効フラグ |
+| sort_order | INT | 表示順 |
 
 #### system_settings（システム設定）
 
@@ -159,6 +181,18 @@ zone / area の管轄スコープは、画面フィルタ UI で「ゾーン」�
 | issue | TEXT | 不具合内容 |
 | repair_schedule_date | DATE NULL | 修理予定日 |
 | repair_completed_date | DATE NULL | 修理完了日 |
+
+#### order_seat_replacement_details（シート交換発注の詳細）※2026-05-28 追加
+
+| カラム | 型 | 説明 |
+|--------|------|------|
+| order_id | VARCHAR(30) FK PK | 発注番号 |
+| equipment_name | VARCHAR(100) | マシン名・品番 |
+| issue | TEXT | 依頼内容（固定:「マシンのシート交換」） |
+| repair_schedule_date | DATE NULL | 作業予定日 |
+| repair_completed_date | DATE NULL | 作業完了日（予算計上月の決定キー） |
+
+> カテゴリはフィットネス固定。対応不可日時/曜日は `order_repair_unavail_*` を流用（order_id 参照のため種別非依存）。修理発注と同等のステータスフロー。
 
 #### order_repair_unavail_dates（修理の対応不可日時）
 
@@ -526,7 +560,7 @@ DB で `is_active=0` または削除されていた場合は自動ログアウ�
 | メソッド | エンドポイント | 説明 | 権限 |
 |---------|--------------|------|------|
 | GET | /api/orders.php | 発注一覧取得 | shop:自店 / admin・system:全店 / zone:管轄ゾーン配下 / area:管轄エリア配下 |
-| POST | /api/orders/create.php | 発注作成（3種別統一） | shop のみ |
+| POST | /api/orders/create.php | 発注作成（4種別統一: 修理/備品/部品/シート交換） | shop のみ |
 | POST | /api/orders/status.php | ステータス変更 | admin / system のみ（zone/area は閲覧専用） |
 | POST | /api/orders/update-info.php | 対応情報の編集 | admin / system のみ |
 | POST | /api/orders/bulk-status.php | 一括ステータス変更 | admin / system のみ |

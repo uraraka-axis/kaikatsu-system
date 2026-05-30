@@ -109,8 +109,10 @@
 | 列 | A | B | C | D | E | F |
 |---|---|---|---|---|---|---|
 | ヘッダ | 店舗コード | 店舗名 | 短縮コード | エリアコード | 有効 | 表示順 |
-| 型 | VARCHAR(5) | VARCHAR(50) | VARCHAR(3) UNIQUE | VARCHAR(3) | BOOL | INT |
+| 型 | VARCHAR(5) | VARCHAR(50) | VARCHAR(5) UNIQUE | VARCHAR(3) | BOOL | INT |
 | 必須 | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+
+> 短縮コードは 2026-05-30 に VARCHAR(3)→(5) へ拡張。実運用では **店舗コード5桁と同値**を入力する（発注番号は `REP-30101-...` 形式になる）。
 
 ### 2-4. 仕入先マスタ (suppliers.xlsx)
 

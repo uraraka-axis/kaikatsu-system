@@ -19,5 +19,8 @@ backup_*.sql
 # 実マスタ seed（実従業員名・メールアドレス等の個人情報を含むため非公開）
 database/seed_master_real.sql
 
+# 検証者向け手渡し資料（URL・アカウント情報を含むため非公開）
+検証用*.txt
+
 # cron 多重起動防止ロックファイル
 setup/.apply_scheduled_changes.lock
