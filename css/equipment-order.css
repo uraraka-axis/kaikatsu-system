@@ -25,7 +25,14 @@
   padding: 16px;
   transition: all 0.2s;
   cursor: pointer;
+  /* タッチ端末でのタップ時の青いハイライト・連打時の誤テキスト選択(青)を抑制。
+     （選択中の青枠＋淡い青背景 .selected は別物なので残る） */
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
 }
+/* 数量入力は編集できるよう選択を戻す */
+.qty-input { -webkit-user-select: text; user-select: text; }
 .product-card:hover { border-color: #3b82f6; box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1); }
 .product-card.selected { border-color: #3b82f6; border-width: 2px; background-color: #f0f7ff; }
 .product-img {
@@ -328,6 +335,21 @@
   color: #1e293b;
   margin-left: auto;
 }
+/* 予算超過時: カートバー(常時表示)で気づけるように警告バッジ＋合計を赤に */
+.cart-bar-warning {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #fef3c7;
+  color: #b45309;
+  border: 1px solid #fcd34d;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 5px 12px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.cart-bar.over-budget .cart-bar-total { color: #dc2626; }
 .cart-bar-submit {
   padding: 10px 28px;
   background: #3b82f6;

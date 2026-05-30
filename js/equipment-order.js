@@ -167,24 +167,34 @@
       }).join('');
     }
 
+    // 数量変更時はグリッド全体を再描画せず、該当カードだけ更新する。
+    // （全体再描画すると <img> が作り直され画像がちらつくため）
+    function updateCardState(id) {
+      var qty = cart[id] || 0;
+      var card = document.getElementById('card-' + id);
+      if (card) card.classList.toggle('selected', qty > 0);
+      var input = document.getElementById('qty-' + id);
+      if (input && String(input.value) !== String(qty)) input.value = qty;
+    }
+
     function changeQty(id, delta) {
       var current = cart[id] || 0;
       var newQty = Math.max(0, current + delta);
       if (newQty === 0) { delete cart[id]; } else { cart[id] = newQty; }
-      filterProducts();
+      updateCardState(id);
       updateCart();
     }
 
     function setQty(id, val) {
       var qty = Math.max(0, parseInt(val) || 0);
       if (qty === 0) { delete cart[id]; } else { cart[id] = qty; }
-      filterProducts();
+      updateCardState(id);
       updateCart();
     }
 
     function removeFromCart(id) {
       delete cart[id];
-      filterProducts();
+      updateCardState(id);
       updateCart();
     }
 
@@ -239,7 +249,8 @@
 
       // 予算アラート表示（四半期予算ベース）
       var budgetAlert = document.getElementById('budgetAlert');
-      if (budgetInfo.loaded && totalPrice > budgetInfo.remaining) {
+      var overBudget = budgetInfo.loaded && totalPrice > budgetInfo.remaining;
+      if (overBudget) {
         var alertText = document.getElementById('budgetAlertText');
         if (alertText) {
           var over = totalPrice - budgetInfo.remaining;
@@ -257,6 +268,11 @@
       } else {
         budgetAlert.classList.remove('visible');
       }
+
+      // 常時表示のカートバーにも超過状態を反映（スクロールしても気づけるように）
+      bar.classList.toggle('over-budget', overBudget);
+      var cartWarn = document.getElementById('cartBudgetWarning');
+      if (cartWarn) cartWarn.style.display = overBudget ? '' : 'none';
     }
 
     function toggleCart() {
