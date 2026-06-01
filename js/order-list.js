@@ -687,6 +687,7 @@ function renderDetailContent(o) {
     html += '<div><div class="detail-label">見積金額</div><div class="detail-value">' + (o.estimate_amount ? '¥' + Number(o.estimate_amount).toLocaleString() : '—') + '</div></div>';
     html += '<div><div class="detail-label">納品予定日</div><div class="detail-value">' + (o.delivery_date || '—') + '</div></div>';
     html += '<div><div class="detail-label">最終金額</div><div class="detail-value"' + (o.final_amount ? ' style="font-weight:600;color:#065f46;"' : '') + '>' + (o.final_amount ? '¥' + Number(o.final_amount).toLocaleString() : '—') + '</div></div>';
+    html += '<div><div class="detail-label">納品日</div><div class="detail-value">' + (o.actual_delivery_date || '—') + '</div></div>';
   }
   html += '</div></div>';
 
