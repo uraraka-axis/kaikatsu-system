@@ -89,7 +89,7 @@ try {
         [
             ':order_id'   => $orderId,
             ':status'     => STATUS_REQUESTED,
-            ':changed_by' => $user['id'],
+            ':changed_by' => $user['name'], // 他の更新系と統一（ID でなく名前を記録）
             ':memo'       => '',
         ]
     );
