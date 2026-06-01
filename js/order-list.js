@@ -775,7 +775,7 @@ window.openCancelOrderModal = function(orderId) {
       '<input class="modal-input readonly" value="' + escapeHtml(order.id) + '" readonly></div>' +
     '<hr class="modal-divider">' +
     '<div class="modal-info" style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;padding:10px;border-radius:6px;font-size:13px;margin-bottom:8px">' +
-      '⚠ この発注を取消します。取消すると一覧から非表示になります（履歴は残ります）。' +
+      '⚠ この発注を取消します。取消すると一覧から非表示になります。' +
     '</div>' +
     '<div class="modal-row"><span class="modal-label">取消理由 <span class="required">*</span></span>' +
       '<textarea class="modal-textarea" id="cancelReasonInput" placeholder="例: 誤発注のため / 店舗側で在庫確認したら不要だった 等"></textarea></div>';
@@ -849,13 +849,13 @@ function getWaitingMessage(o) {
     return o.type === 'repair' ? '修理完了' : '納品完了';
   }
   if (o.status === STATUS.REQUESTING && viewMode === 'store') {
-    return '本部対応待ち';
+    return '商品部対応待ち';
   }
   if (o.status === STATUS.ORDERED) {
     if (o.type === 'equipment') {
-      return viewMode === 'store' ? '本部対応待ち' : '—';
+      return viewMode === 'store' ? '商品部対応待ち' : '—';
     }
-    return viewMode === 'store' ? '本部対応待ち' : '—';
+    return viewMode === 'store' ? '商品部対応待ち' : '—';
   }
   if (o.status === STATUS.DELIVERING) {
     if (isRepairLikeType(o.type)) {
@@ -865,7 +865,7 @@ function getWaitingMessage(o) {
     return viewMode === 'admin' ? '店舗の納品確認待ち' : '—';
   }
   if (o.status === STATUS.DELIVERED) {
-    return viewMode === 'store' ? '本部の最終確認待ち' : '—';
+    return viewMode === 'store' ? '商品部の最終確認待ち' : '—';
   }
   return '—';
 }
