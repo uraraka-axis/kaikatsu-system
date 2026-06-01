@@ -119,11 +119,14 @@ $config = [
         ['field' => 'area_code', 'ref_table' => 'areas', 'ref_column' => 'code'],
     ],
     'unique_fields' => ['short_code'],
+    // 削除可否チェック対象: 実データの参照のみ（予算/発注/自店調達/ユーザー）。
+    // shop_categories は店舗マスタ自身が管理する所有子テーブルで、DB側も
+    // ON DELETE CASCADE のため、店舗削除に伴い自動削除される。ここでブロックすると
+    // カテゴリを持つ店舗が一切削除できなくなるため対象から除外する。
     'fk_checks_on_delete' => [
         ['table' => 'budgets',              'column' => 'shop_code', 'label' => '予算'],
         ['table' => 'orders',               'column' => 'shop_code', 'label' => '発注'],
         ['table' => 'procurement_requests', 'column' => 'shop_code', 'label' => '自店調達'],
-        ['table' => 'shop_categories',      'column' => 'shop_code', 'label' => '店舗カテゴリ'],
         ['table' => 'users',                'column' => 'shop_code', 'label' => 'ユーザー'],
     ],
     // dry_run 時の差分計算（プレビューの「変更0件」誤表示を回避）

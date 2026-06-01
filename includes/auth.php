@@ -70,7 +70,8 @@ function login(string $loginId, string $password): ?array
          LEFT JOIN shops s ON u.shop_code = s.code
          LEFT JOIN zones z ON u.zone_code = z.code
          LEFT JOIN areas a ON u.area_code = a.code
-         WHERE u.login_id = :login_id AND u.is_active = 1',
+         WHERE u.login_id = :login_id AND u.is_active = 1
+           AND (u.shop_code IS NULL OR s.is_active = 1)',
         [':login_id' => $loginId]
     );
 
