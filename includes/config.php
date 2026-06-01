@@ -63,7 +63,10 @@ ini_set('session.cookie_httponly', '1');
 ini_set('session.use_strict_mode', '1');
 ini_set('session.use_only_cookies', '1');
 ini_set('session.cookie_samesite', 'Lax');
-ini_set('session.gc_maxlifetime', '3600'); // 1時間
+ini_set('session.gc_maxlifetime', '3600'); // 1時間（GCの目安。実際の強制ログアウトは下記アイドルタイムアウトで担保）
+
+// アイドルタイムアウト: 最後の操作からこの秒数を超えて無操作だと自動ログアウト（startSession で判定）
+define('SESSION_IDLE_TIMEOUT', 1800); // 30分
 
 // ============================================================
 // 発注番号プレフィクス

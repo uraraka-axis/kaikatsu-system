@@ -15,6 +15,20 @@ function startSession(): void
     if (session_status() === PHP_SESSION_NONE) {
         session_start();
     }
+    // アイドルタイムアウト判定（スライド式）:
+    // ログイン中、最後の操作から SESSION_IDLE_TIMEOUT 秒を超えて無操作なら
+    // セッションを破棄してログアウト扱いにする。操作のたびに最終操作時刻を更新。
+    if (isset($_SESSION['user'])) {
+        $now  = time();
+        $last = $_SESSION['last_activity'] ?? $now;
+        if (($now - $last) > SESSION_IDLE_TIMEOUT) {
+            $_SESSION = [];
+            session_unset();
+            session_destroy();
+            return; // 同一リクエスト内はログアウト扱い（$_SESSION 空）
+        }
+        $_SESSION['last_activity'] = $now;
+    }
 }
 
 /**
@@ -118,6 +132,7 @@ function login(string $loginId, string $password): ?array
         'area_name'  => $user['area_name'],
         'categories' => $categories, // 店舗ユーザーの取り扱いカテゴリ。admin/system/zone/area は空配列
     ];
+    $_SESSION['last_activity'] = time(); // アイドルタイムアウトの起点
 
     recordLoginAttempt($loginId, (int)$user['id'], true);
 
