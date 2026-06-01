@@ -33,15 +33,18 @@ define('BASE_PATH', dirname(__DIR__));
 define('BASE_URL', '/kaikatsu-system');
 
 // ============================================================
-// エラーログ出力先（アプリ内 logs/ に固定）
-// デフォルトのシステムログ（Apache の error.log 等）に紛れず、
-// 障害調査時に追跡しやすいようアプリ配下へ集約する。
+// エラーログ出力先（アプリ内 logs/ に月単位ファイルで集約）
+// - デフォルトのシステムログ（Apache の error.log 等）に紛れず追跡しやすい
+// - 月単位ファイル(php_error_YYYYMM.log)に分割し、肥大化やシステム側ローテで
+//   消える問題を回避
+// - ini_set で出力先を固定するため、既存の全 error_log() 呼び出しと PHP 自身の
+//   エラーを呼び出し側無改修で自動集約できる
 // ============================================================
 ini_set('log_errors', '1');
 if (!is_dir(BASE_PATH . '/logs')) {
     @mkdir(BASE_PATH . '/logs', 0755, true);
 }
-ini_set('error_log', BASE_PATH . '/logs/php_error.log');
+ini_set('error_log', BASE_PATH . '/logs/php_error_' . date('Ym') . '.log');
 
 // ============================================================
 // アップロード設定
