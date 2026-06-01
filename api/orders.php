@@ -181,7 +181,9 @@ foreach ($unavailDayRows as $row) {
 }
 
 // --- 写真 ---
-// セキュリティ: file_path を直接返さず、api/photo.php?id={photo_id} 経由のURLに変換
+// セキュリティ: file_path を直接返さず、api/photo.php?id={photo_id} 経由のURLに変換。
+// URL は相対パスで返す（テストサイト等ベースパスが変わる環境でもそのまま表示可能。
+// 備品画像 api/product-image.php と同じ相対指定に統一）。
 $photoData = [];
 $photoSql = "SELECT id, order_id, original_filename
              FROM order_photos
@@ -190,7 +192,7 @@ $photoSql = "SELECT id, order_id, original_filename
 $photoRows = query($photoSql, $idParams);
 foreach ($photoRows as $row) {
     $photoData[$row['order_id']][] = [
-        'url'      => BASE_URL . '/api/photo.php?id=' . (int)$row['id'],
+        'url'      => 'api/photo.php?id=' . (int)$row['id'],
         'filename' => $row['original_filename'],
     ];
 }

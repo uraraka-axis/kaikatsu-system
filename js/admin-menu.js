@@ -587,7 +587,10 @@
     }
     window.confirmMasterApply = confirmMasterApply;
 
-    function closeMasterModal() {
+    function closeMasterModal(ev) {
+      // 背景（オーバーレイ）クリックでは閉じない。解析中／解析結果ダイアログを
+      // 誤って閉じて処理が中断するのを防ぐ。× / キャンセル ボタン（引数なし）でのみ閉じる。
+      if (ev && ev.target && ev.target.id === 'masterModal') return;
       var overlay = document.getElementById('masterModal');
       if (overlay) overlay.classList.remove('visible');
       if (pendingUploadType) clearMasterInput(pendingUploadType);

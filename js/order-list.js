@@ -1438,6 +1438,10 @@ function exportExcel() {
   if (checkedIds.length > 0) {
     params.push('ids=' + encodeURIComponent(checkedIds.join(',')));
   } else {
+    // チェックなし → フィルタ条件で全件出力。誤操作防止に件数を確認。
+    var exportTotal = (typeof currentOrders !== 'undefined' && currentOrders) ? currentOrders.length : 0;
+    if (!window.confirm('出力対象がチェックされていません。\n表示中の全 ' + exportTotal + ' 件を出力します。よろしいですか？')) return;
+
     var dateFrom = document.getElementById('filterDateFrom');
     var dateTo = document.getElementById('filterDateTo');
     if (dateFrom && dateFrom.value) params.push('date_from=' + encodeURIComponent(dateFrom.value));

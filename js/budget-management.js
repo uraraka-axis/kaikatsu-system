@@ -811,6 +811,10 @@
             params += '&shops[]=' + encodeURIComponent(code);
           });
         } else {
+          // チェックなし → フィルタ条件で全件出力。誤操作防止に件数を確認。
+          var exportTotal = getFilteredRows().length;
+          if (!window.confirm('出力対象がチェックされていません。\n表示中の全 ' + exportTotal + ' 件を出力します。よろしいですか？')) return;
+
           // 未選択時はフィルタ条件で出力
           var zone = document.getElementById('filterZone').value;
           var area = document.getElementById('filterArea').value;

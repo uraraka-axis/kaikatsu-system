@@ -317,9 +317,15 @@ function computeDiff(array $newRows, array $existing, string $keyField, array $c
         $seenKeys[$key] = true;
 
         if (!isset($existing[$key])) {
-            // 新規
-            $clean = $row;
-            unset($clean['__row_num']);
+            // 新規: 実テーブルのカラム(compareFields)のみに射影する。
+            //   apply_date(date_optional) や cat_*、__apply_date / __row_num 等の
+            //   テーブル外フィールドを INSERT 文に含めない（中間テーブルは after_apply で処理）。
+            $clean = [];
+            foreach ($compareFields as $f) {
+                if (array_key_exists($f, $row)) {
+                    $clean[$f] = $row[$f];
+                }
+            }
             $insert[] = $clean;
         } else {
             // 既存: 差分検出
