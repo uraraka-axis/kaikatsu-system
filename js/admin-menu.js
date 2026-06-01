@@ -580,6 +580,7 @@
             alert(msg);
             closeMasterModal();
             clearMasterInput(type);
+            loadMasterLastUpdated(); // 反映後に最終更新日時を更新
           } else {
             renderMasterErrors(type, r.json);
           }
@@ -646,9 +647,40 @@
     }
 
     // ===== D&D 対応（upload-area へのドロップ） =====
+    // 各マスタカードの「最終更新日時」を監査ログ(master_change_log)から取得して表示する。
+    // UIの type(zone/area/...) と監査ログの target_table(zones/areas/...) を対応付ける。
+    var MASTER_TYPE_TO_TABLE = {
+      zone: 'zones', area: 'areas', shop: 'shops', user: 'users',
+      supplier: 'suppliers', product: 'products', budget: 'budgets'
+    };
+    function loadMasterLastUpdated() {
+      fetch('api/admin/master/last-updated.php', { credentials: 'same-origin' })
+        .then(function(r) {
+          if (r.status === 401) { window.location.href = 'login.html'; return null; }
+          return r.json();
+        })
+        .then(function(json) {
+          if (!json || !json.success || !json.data) return;
+          var data = json.data;
+          document.querySelectorAll('[data-master-updated]').forEach(function(el) {
+            var type = el.getAttribute('data-master-updated');
+            var table = MASTER_TYPE_TO_TABLE[type] || type;
+            var at = data[table];
+            if (at) {
+              // 'YYYY-MM-DD HH:MM:SS' → '最終更新: YYYY-MM-DD HH:MM'
+              el.textContent = '最終更新: ' + String(at).replace(/^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2}).*/, '$1 $2');
+            } else {
+              el.textContent = '—';
+            }
+          });
+        })
+        .catch(function(e) { console.error('last-updated fetch error:', e); });
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
       populateBudgetYearDropdown();
       loadExportFilterMasters();
+      loadMasterLastUpdated();
 
       document.querySelectorAll('.master-card .upload-area').forEach(function(area) {
         var type = area.parentElement.getAttribute('data-master-type');
