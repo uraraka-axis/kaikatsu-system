@@ -24,7 +24,8 @@
   border-radius: 12px;
   padding: 16px;
   transition: all 0.2s;
-  cursor: pointer;
+  /* カード自体はクリックしても何もしないため通常カーソル（数量±ボタン・画像にのみ操作カーソルを付与） */
+  cursor: default;
   /* タッチ端末でのタップ時の青いハイライト・連打時の誤テキスト選択(青)を抑制。
      （選択中の青枠＋淡い青背景 .selected は別物なので残る） */
   -webkit-tap-highlight-color: transparent;

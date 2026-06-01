@@ -486,10 +486,17 @@
 
       // フッター: 確定可否
       //   即時反映 or 予約反映（中間テーブル含む）どちらかが1件でもあって警告なしなら確定可能
-      var canApply = (summary.total > 0 || scheduledCount > 0 || scheduledExtrasCount > 0) && warnings.length === 0;
-      footerEl.innerHTML =
-        '<button type="button" class="btn-secondary" onclick="closeMasterModal()">キャンセル</button>' +
-        '<button type="button" class="btn-primary" id="btnApplyMaster"' + (canApply ? '' : ' disabled') + ' onclick="confirmMasterApply()">この内容で確定</button>';
+      var hasChanges = (summary.total > 0 || scheduledCount > 0 || scheduledExtrasCount > 0);
+      if (!hasChanges && warnings.length === 0) {
+        // 変更が一切ない場合は「閉じる」1ボタンのみ（無効な「確定」を出さない）
+        footerEl.innerHTML =
+          '<button type="button" class="btn-secondary" onclick="closeMasterModal()">閉じる</button>';
+      } else {
+        var canApply = hasChanges && warnings.length === 0;
+        footerEl.innerHTML =
+          '<button type="button" class="btn-secondary" onclick="closeMasterModal()">キャンセル</button>' +
+          '<button type="button" class="btn-primary" id="btnApplyMaster"' + (canApply ? '' : ' disabled') + ' onclick="confirmMasterApply()">この内容で確定</button>';
+      }
     }
 
     function makeRowLabel(type, row) {

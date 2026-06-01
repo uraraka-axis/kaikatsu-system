@@ -119,6 +119,16 @@ body {
   padding: 32px;
 }
 
+/* ワイド画面ではヘッダ・グロナビの中身を最大1500px幅に収めて中央寄せにする
+   （背景の帯は全幅のまま）。本文(.main)の最大幅と揃え、両端に広がりすぎるのを防ぐ。 */
+@media (min-width: 1500px) {
+  .header,
+  .nav {
+    padding-left: calc((100% - 1500px) / 2 + 32px);
+    padding-right: calc((100% - 1500px) / 2 + 32px);
+  }
+}
+
 /* ===== Page Title ===== */
 .page-title { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
 .page-desc { font-size: 14px; color: #64748b; margin-bottom: 24px; }
@@ -402,7 +412,8 @@ body {
   .header-right { gap: 12px; }
   .header-user { font-size: 13px; }
   .btn-logout { padding: 4px 12px; font-size: 13px; }
-  .nav { padding: 0 8px; gap: 2px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  /* ヘッダ高さが 64px→56px に下がるのに合わせ、sticky な nav の top も追従させる（隙間防止） */
+  .nav { padding: 0 8px; gap: 2px; overflow-x: auto; -webkit-overflow-scrolling: touch; top: 56px; }
   .nav-btn { padding: 6px 12px; font-size: 12px; white-space: nowrap; }
   .main { padding: 16px 12px; }
   .page-title { font-size: 18px; }
