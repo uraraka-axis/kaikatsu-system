@@ -16,6 +16,9 @@ html.auth-pending body { visibility: hidden; }
   justify-content: center;
 }
 .loading-overlay.visible { display: flex; }
+/* 送信処理中の多重操作防止オーバーレイ: モーダル(z-index:2000)より前面で全クリックを遮断。
+   ほぼ透明（白フラッシュを出さない）＋待機カーソルのみ。 */
+.loading-overlay.busy { z-index: 3000; cursor: wait; background: rgba(255, 255, 255, 0.01); }
 .loading-overlay .loading-box {
   background: #fff;
   border: 1px solid #cbd5e1;

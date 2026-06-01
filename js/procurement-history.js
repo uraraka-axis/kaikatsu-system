@@ -307,8 +307,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     var submitBtn = document.querySelector('.btn-submit');
-    submitBtn.disabled = true;
-    submitBtn.textContent = '送信中...';
+    // 送信中は画面全体のクリックを遮断（多重操作・処理中の画面遷移を防止）
+    var endBusy = beginBusy(submitBtn, '送信中...');
 
     fetch('api/procurement.php', {
       method: 'POST',
@@ -325,8 +325,7 @@ document.addEventListener('DOMContentLoaded', function() {
         return r.json();
       })
       .then(function(data) {
-        submitBtn.disabled = false;
-        submitBtn.textContent = '申請する';
+        endBusy(); // 元のラベルに復元＋クリック遮断解除
         if (!data) return;
         if (!data.success) {
           showNotify('error', '申請エラー', data.error || '申請に失敗しました');
@@ -339,8 +338,7 @@ document.addEventListener('DOMContentLoaded', function() {
         loadData();
       })
       .catch(function(err) {
-        submitBtn.disabled = false;
-        submitBtn.textContent = '申請する';
+        endBusy(); // 元のラベルに復元＋クリック遮断解除
         console.error('申請エラー:', err);
         showNotify('error', '通信エラー', 'サーバーとの通信に失敗しました。<br>ネットワーク接続を確認してください。');
       });

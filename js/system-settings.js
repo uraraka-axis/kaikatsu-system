@@ -247,7 +247,8 @@ async function saveSettings() {
   }
 
   const btn = document.querySelector('.btn-submit');
-  if (btn) { btn.disabled = true; btn.textContent = '保存中...'; }
+  // 保存中は画面全体のクリックを遮断（多重操作・処理中の画面遷移を防止）
+  const endBusy = beginBusy(btn, '保存中...');
 
   try {
     const res = await fetch('api/admin/system-settings.php', {
@@ -277,6 +278,6 @@ async function saveSettings() {
     console.error(err);
     alert('保存に失敗しました: ' + err.message);
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = '設定を保存'; }
+    endBusy(); // 元のラベルに復元＋クリック遮断解除
   }
 }

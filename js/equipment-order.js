@@ -442,8 +442,8 @@
       var category = determineCartCategory() || 'fitness';
 
       var submitBtn = document.getElementById('submitBtn');
-      submitBtn.disabled = true;
-      submitBtn.textContent = '送信中...';
+      // 送信中は画面全体のクリックを遮断（多重操作・処理中の画面遷移を防止）
+      var endBusy = beginBusy(submitBtn, '送信中...');
 
       var items = keys.map(function(id) {
         return { product_id: parseInt(id, 10), qty: cart[id] };
@@ -505,8 +505,7 @@
         showNotify('error', '通信エラー', 'サーバーとの通信に失敗しました。<br>ネットワーク接続を確認してください。');
       })
       .finally(function() {
-        submitBtn.disabled = false;
-        submitBtn.textContent = '発注する';
+        endBusy(); // 元のラベルに復元＋クリック遮断解除
       });
     }
 

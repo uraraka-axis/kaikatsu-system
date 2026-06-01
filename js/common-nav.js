@@ -36,6 +36,88 @@
   };
 })();
 
+// ===== 画像ダウンスケール（送信前の縮小） =====
+// iPad 等の大きい写真（5MB超）はサーバ側上限で無言スキップされていたため、
+// 送信前に長辺を maxEdge px まで縮小し JPEG 再エンコードして確実に上限内へ収める。
+// jpeg/png/webp のみ対象（gif はアニメ保持のためそのまま）。失敗時は元ファイルを返す。
+window.downscaleImage = function(file, maxEdge, quality) {
+  maxEdge = maxEdge || 2000;
+  quality = quality || 0.85;
+  return new Promise(function(resolve) {
+    if (!/^image\/(jpeg|png|webp)$/.test(file.type)) { resolve(file); return; }
+    var url = URL.createObjectURL(file);
+    var img = new Image();
+    img.onload = function() {
+      var w = img.naturalWidth, h = img.naturalHeight;
+      var longEdge = Math.max(w, h);
+      if (!longEdge || longEdge <= maxEdge) { URL.revokeObjectURL(url); resolve(file); return; }
+      var scale = maxEdge / longEdge;
+      var cw = Math.max(1, Math.round(w * scale));
+      var ch = Math.max(1, Math.round(h * scale));
+      var canvas = document.createElement('canvas');
+      canvas.width = cw; canvas.height = ch;
+      try {
+        canvas.getContext('2d').drawImage(img, 0, 0, cw, ch);
+      } catch (e) { URL.revokeObjectURL(url); resolve(file); return; }
+      URL.revokeObjectURL(url);
+      canvas.toBlob(function(blob) {
+        if (!blob) { resolve(file); return; }
+        var newName = (file.name || 'photo').replace(/\.[^.]+$/, '') + '.jpg';
+        try {
+          resolve(new File([blob], newName, { type: 'image/jpeg', lastModified: file.lastModified }));
+        } catch (e2) {
+          // 一部環境で File コンストラクタ不可 → Blob にプロパティを付与して代替
+          blob.name = newName;
+          resolve(blob);
+        }
+      }, 'image/jpeg', quality);
+    };
+    img.onerror = function() { URL.revokeObjectURL(url); resolve(file); };
+    img.src = url;
+  });
+};
+
+// ===== Busy オーバーレイ（送信処理中の多重操作防止） =====
+// 送信系処理（発注・申請・保存・アップロード反映等）の実行中、画面全体の
+// クリックを即時に遮断し、グロナビ等で別画面へ遷移して処理が中断されるのを防ぐ。
+// 併せて起点ボタンを disabled + ラベル変更し、終了時に「元のラベル」へ復元する。
+(function() {
+  // 検証者案: ほぼ透明のオーバーレイを最前面に出して全クリックを遮断し、
+  // 待機カーソル(cursor:wait)のみ表示する（白いフラッシュを出さない）。
+  function ensureBusy() {
+    var o = document.getElementById('__busyOverlay');
+    if (!o) {
+      o = document.createElement('div');
+      o.id = '__busyOverlay';
+      o.className = 'loading-overlay busy'; // 中身なし＝視覚的にはほぼ透明な遮断レイヤー
+      document.body.appendChild(o);
+    }
+    return o;
+  }
+
+  // 使い方:
+  //   var end = beginBusy(submitBtn, '送信中…');
+  //   fetch(...).then(...).catch(...).finally(end);   // 必ず end() を呼ぶ
+  // btn は省略可（null）。busyText はボタンの処理中ラベル（オーバーレイには表示しない）。
+  window.beginBusy = function(btn, busyText) {
+    var prev = null;
+    if (btn) {
+      prev = { disabled: btn.disabled, text: btn.textContent };
+      btn.disabled = true;
+      if (busyText) btn.textContent = busyText;
+    }
+    ensureBusy().classList.add('visible');
+    var ended = false;
+    return function endBusy() {
+      if (ended) return;
+      ended = true;
+      var o = document.getElementById('__busyOverlay');
+      if (o) o.classList.remove('visible');
+      if (btn && prev) { btn.disabled = prev.disabled; btn.textContent = prev.text; }
+    };
+  };
+})();
+
 (function() {
   // ログインページではナビを構築しない
   if (window.location.pathname.indexOf('login.html') !== -1) return;

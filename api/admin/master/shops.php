@@ -48,9 +48,9 @@ $columns = [
         'header'      => '短縮コード',
         'type'        => 'string',
         'required'    => true,
-        'max_length'  => 3,
-        'pattern'     => '/^[A-Za-z0-9]{1,3}$/',
-        'pattern_msg' => '3桁以内の半角英数字で指定してください',
+        'max_length'  => 5,
+        'pattern'     => '/^[A-Za-z0-9]{1,5}$/',
+        'pattern_msg' => '5桁以内の半角英数字で指定してください',
     ],
     [
         'field'       => 'area_code',

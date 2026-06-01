@@ -21,14 +21,20 @@
     }
 
     function addPhotoFiles(files) {
-      var remaining = 3 - photos.length;
       var allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-      for (var i = 0; i < Math.min(files.length, remaining); i++) {
-        var file = files[i];
-        if (allowed.indexOf(file.type) < 0) continue;
-        photos.push({ id: Date.now() + '-' + i, url: URL.createObjectURL(file), file: file });
+      var remaining = 3 - photos.length;
+      var picked = [];
+      for (var i = 0; i < files.length && picked.length < remaining; i++) {
+        if (allowed.indexOf(files[i].type) >= 0) picked.push(files[i]);
       }
-      renderPhotos();
+      // 送信前に縮小（大きい写真がサーバ上限で無言スキップされるのを防ぐ）
+      picked.forEach(function(file) {
+        downscaleImage(file, 2000, 0.85).then(function(out) {
+          if (photos.length >= 3) return; // 並行処理中に上限到達した場合の保険
+          photos.push({ id: 'p' + Date.now() + '-' + Math.round(Math.random() * 1e6), url: URL.createObjectURL(out), file: out });
+          renderPhotos();
+        });
+      });
     }
 
     function removePhoto(id) {
@@ -107,8 +113,8 @@
     // ===== Submit (API) =====
     function submitForm() {
       var submitBtn = document.getElementById('submitBtn');
-      submitBtn.disabled = true;
-      submitBtn.textContent = '送信中...';
+      // 送信中は画面全体のクリックを遮断（多重操作・処理中の画面遷移を防止）
+      var endBusy = beginBusy(submitBtn, '送信中...');
 
       var formData = new FormData();
       formData.append('type', 'parts');
@@ -142,8 +148,8 @@
         showNotify('error', '通信エラー', 'サーバーとの通信に失敗しました。<br>ネットワーク接続を確認してください。');
       })
       .finally(function() {
-        submitBtn.textContent = '部品発注を送信';
-        updateSubmitState();
+        endBusy();          // 元のラベルに復元＋クリック遮断解除
+        updateSubmitState(); // 入力状態に応じて活性/非活性を再評価
       });
     }
 

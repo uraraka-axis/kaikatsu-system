@@ -552,7 +552,8 @@
       fd.append('file', file);
 
       var btn = document.getElementById('btnApplyMaster');
-      if (btn) { btn.disabled = true; btn.textContent = '反映中…'; }
+      // 反映中は画面全体のクリックを遮断（多重操作・処理中の画面遷移を防止）
+      var endBusy = beginBusy(btn, '反映中…');
 
       fetch(url, { method: 'POST', credentials: 'same-origin', body: fd })
         .then(function(res) { return res.json().then(function(json) { return { ok: res.ok, json: json }; }); })
@@ -579,6 +580,9 @@
         .catch(function(e) {
           console.error('master apply error:', e);
           alert('通信エラーが発生しました');
+        })
+        .finally(function() {
+          endBusy(); // 元のラベルに復元＋クリック遮断解除
         });
     }
     window.confirmMasterApply = confirmMasterApply;
