@@ -32,18 +32,30 @@ var FAILURE_REASON_LABELS = {
   user_not_found_or_inactive: 'ユーザー未存在/無効',
   invalid_password: 'パスワード不一致'
 };
+var ORDER_TYPE_LABELS = {
+  repair: '修理',
+  equipment: '備品',
+  parts: '部品',
+  'seat-replacement': 'シート交換'
+};
+function fmtYen(v) {
+  if (v === null || v === undefined || v === '') return '—';
+  return '¥' + Number(v).toLocaleString('ja-JP');
+}
 
 // ===== ステート =====
 window.__auditState = {
-  'change-log': { page: 1, limit: 50, total: 0, totalPages: 1 },
-  'scheduled':  { page: 1, limit: 50, total: 0, totalPages: 1 },
-  'login':      { page: 1, limit: 50, total: 0, totalPages: 1 }
+  'change-log':   { page: 1, limit: 50, total: 0, totalPages: 1 },
+  'scheduled':    { page: 1, limit: 50, total: 0, totalPages: 1 },
+  'login':        { page: 1, limit: 50, total: 0, totalPages: 1 },
+  'order-cancel': { page: 1, limit: 50, total: 0, totalPages: 1 }
 };
 var currentTab = 'change-log';
 var lastResults = {
-  'change-log': [],
-  'scheduled':  [],
-  'login':      []
+  'change-log':   [],
+  'scheduled':    [],
+  'login':        [],
+  'order-cancel': []
 };
 
 // ===== Utility =====
@@ -103,6 +115,7 @@ function switchTab(tab) {
     if (tab === 'change-log') loadChangeLog(1);
     else if (tab === 'scheduled') loadScheduled(1);
     else if (tab === 'login') loadLoginHistory(1);
+    else if (tab === 'order-cancel') loadOrderCancelLog(1);
   }
 }
 
@@ -127,6 +140,12 @@ function resetFilters(tab) {
     document.getElementById('lh_date_from').value = '';
     document.getElementById('lh_date_to').value = '';
     loadLoginHistory(1);
+  } else if (tab === 'order-cancel') {
+    document.getElementById('oc_type').value = '';
+    document.getElementById('oc_shop_code').value = '';
+    document.getElementById('oc_date_from').value = '';
+    document.getElementById('oc_date_to').value = '';
+    loadOrderCancelLog(1);
   }
 }
 
@@ -416,6 +435,99 @@ function showLoginDetail(idx) {
     + '</div>';
 
   openAuditModal('ログイン履歴 #' + r.id, html);
+}
+
+// ===== Tab 4: 発注取消履歴 =====
+function loadOrderCancelLog(page) {
+  if (page < 1) page = 1;
+  var st = window.__auditState['order-cancel'];
+  if (page > st.totalPages && st.totalPages >= 1) page = st.totalPages;
+
+  var qs = new URLSearchParams();
+  var v;
+  if ((v = document.getElementById('oc_type').value))       qs.append('type', v);
+  if ((v = document.getElementById('oc_shop_code').value))  qs.append('shop_code', v.trim());
+  if ((v = document.getElementById('oc_date_from').value))  qs.append('date_from', v);
+  if ((v = document.getElementById('oc_date_to').value))    qs.append('date_to', v);
+  qs.append('page', String(page));
+  qs.append('limit', '50');
+
+  var tbody = document.getElementById('oc_tbody');
+  tbody.innerHTML = '<tr><td colspan="8" class="empty-row">読み込み中…</td></tr>';
+
+  fetch('api/system/order-cancel-log.php?' + qs.toString(), { credentials: 'same-origin' })
+    .then(function(res) {
+      if (res.status === 401) { window.location.href = 'login.html'; throw new Error('unauthorized'); }
+      if (res.status === 403) { throw new Error('権限がありません'); }
+      return res.json();
+    })
+    .then(function(data) {
+      if (!data.success) throw new Error(data.error || '取得失敗');
+      st.page = data.pagination.page;
+      st.limit = data.pagination.limit;
+      st.total = data.pagination.total;
+      st.totalPages = data.pagination.total_pages;
+      lastResults['order-cancel'] = data.data;
+      renderOrderCancelTable(data.data);
+      renderPagination('order-cancel', 'oc_info', 'oc_prev', 'oc_next', 'oc_pageInd');
+    })
+    .catch(function(err) {
+      tbody.innerHTML = '<tr><td colspan="8" class="empty-row">読み込みエラー: ' + escapeHtml(err.message) + '</td></tr>';
+    });
+}
+
+function renderOrderCancelTable(rows) {
+  var tbody = document.getElementById('oc_tbody');
+  if (!rows || rows.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8" class="empty-row">該当データがありません</td></tr>';
+    return;
+  }
+  var html = '';
+  rows.forEach(function(r, idx) {
+    var shop = r.shop_name
+      ? escapeHtml(r.shop_name) + '<br><span style="color:#94a3b8;font-size:11px">' + escapeHtml(r.shop_code || '') + '</span>'
+      : escapeHtml(r.shop_code || '—');
+    var who = r.cancelled_by
+      ? escapeHtml(r.cancelled_by)
+      : '<span style="color:#94a3b8">—</span>';
+    html += '<tr>'
+      + '<td class="col-datetime">' + escapeHtml(fmtDateTime(r.cancelled_at)) + '</td>'
+      + '<td><span class="badge badge-table">' + escapeHtml(ORDER_TYPE_LABELS[r.type] || r.type) + '</span></td>'
+      + '<td class="col-key">' + escapeHtml(r.id) + '</td>'
+      + '<td>' + shop + '</td>'
+      + '<td style="text-align:right">' + escapeHtml(fmtYen(r.estimate_amount)) + '</td>'
+      + '<td class="col-summary">' + escapeHtml(r.cancel_reason || '') + '</td>'
+      + '<td>' + who + '</td>'
+      + '<td><button type="button" class="btn-detail" onclick="showOrderCancelDetail(' + idx + ')">詳細</button></td>'
+      + '</tr>';
+  });
+  tbody.innerHTML = html;
+}
+
+function showOrderCancelDetail(idx) {
+  var r = lastResults['order-cancel'][idx];
+  if (!r) return;
+  var html = '';
+  html += '<div class="detail-section">'
+    + '<div class="detail-section-title">基本情報</div>'
+    + '<div class="detail-grid">'
+    + '<div class="key">取消日時</div><div class="val">' + escapeHtml(r.cancelled_at || '') + '</div>'
+    + '<div class="key">取消者</div><div class="val">' + (r.cancelled_by ? escapeHtml(r.cancelled_by) : '<span style="color:#94a3b8">—</span>') + '</div>'
+    + '<div class="key">発注番号</div><div class="val">' + escapeHtml(r.id) + '</div>'
+    + '<div class="key">種別</div><div class="val">' + escapeHtml(ORDER_TYPE_LABELS[r.type] || r.type) + '</div>'
+    + '<div class="key">カテゴリ</div><div class="val">' + escapeHtml(r.category_code || '—') + '</div>'
+    + '<div class="key">店舗</div><div class="val">' + escapeHtml(r.shop_name || '') + ' (' + escapeHtml(r.shop_code || '') + ')</div>'
+    + '<div class="key">見積金額</div><div class="val">' + escapeHtml(fmtYen(r.estimate_amount)) + '</div>'
+    + '<div class="key">発注登録者</div><div class="val">' + (r.created_by_name ? escapeHtml(r.created_by_name) + ' (' + escapeHtml(r.created_by_login_id || '') + ')' : '<span style="color:#94a3b8">—</span>') + '</div>'
+    + '<div class="key">発注登録日時</div><div class="val">' + escapeHtml(r.created_at || '') + '</div>'
+    + '</div></div>';
+
+  html += '<div class="detail-section">'
+    + '<div class="detail-section-title">取消理由</div>'
+    + '<div class="raw-json" style="white-space:pre-wrap">' + escapeHtml(r.cancel_reason || '（理由なし）') + '</div>'
+    + '</div>';
+
+  openAuditModal('発注取消 ' + escapeHtml(r.id), html);
 }
 
 // ===== change_data → 差分テーブル =====

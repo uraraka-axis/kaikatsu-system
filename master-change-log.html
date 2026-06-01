@@ -19,13 +19,14 @@
 
   <main class="main">
     <h2 class="page-title">監査ログ閲覧</h2>
-    <p class="page-desc">マスタの変更履歴・予約一覧・ログイン履歴を閲覧できます。閲覧専用（編集/取消は phpMyAdmin から実施）。</p>
+    <p class="page-desc">マスタの変更履歴・予約一覧・ログイン履歴・発注取消履歴を閲覧できます。閲覧専用（編集/取消は phpMyAdmin から実施）。</p>
 
     <!-- Tabs -->
     <div class="audit-tabs">
       <button type="button" class="audit-tab active" data-tab="change-log" onclick="switchTab('change-log')">マスタ変更履歴</button>
       <button type="button" class="audit-tab" data-tab="scheduled" onclick="switchTab('scheduled')">マスタ予約一覧</button>
       <button type="button" class="audit-tab" data-tab="login" onclick="switchTab('login')">ログイン履歴</button>
+      <button type="button" class="audit-tab" data-tab="order-cancel" onclick="switchTab('order-cancel')">発注取消履歴</button>
     </div>
 
     <!-- ===== Tab 1: マスタ変更履歴 ===== -->
@@ -244,6 +245,70 @@
         </div>
       </div>
     </section>
+
+    <!-- ===== Tab 4: 発注取消履歴 ===== -->
+    <section class="audit-panel" id="panel-order-cancel">
+      <div class="audit-filter-bar">
+        <div class="filter-group">
+          <label class="filter-label">種別</label>
+          <select class="form-select" id="oc_type">
+            <option value="">すべて</option>
+            <option value="repair">修理</option>
+            <option value="equipment">備品</option>
+            <option value="parts">部品</option>
+            <option value="seat-replacement">シート交換</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label class="filter-label">店舗コード</label>
+          <input type="text" class="form-input" id="oc_shop_code" placeholder="例: 30134" style="width:140px">
+        </div>
+        <div class="filter-group">
+          <label class="filter-label">取消日</label>
+          <div class="date-range">
+            <input type="date" class="form-input" id="oc_date_from">
+            <span class="date-sep">〜</span>
+            <input type="date" class="form-input" id="oc_date_to">
+          </div>
+        </div>
+        <div class="filter-group">
+          <button type="button" class="btn-action btn-primary" onclick="loadOrderCancelLog(1)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            検索
+          </button>
+          <button type="button" class="btn-action btn-secondary" onclick="resetFilters('order-cancel')">クリア</button>
+        </div>
+      </div>
+
+      <div class="table-container">
+        <table class="audit-table">
+          <thead>
+            <tr>
+              <th style="width:160px">取消日時</th>
+              <th style="width:80px">種別</th>
+              <th style="width:200px">発注番号</th>
+              <th style="width:180px">店舗</th>
+              <th style="width:110px">見積金額</th>
+              <th>取消理由</th>
+              <th style="width:140px">取消者</th>
+              <th style="width:80px">詳細</th>
+            </tr>
+          </thead>
+          <tbody id="oc_tbody">
+            <tr><td colspan="8" class="empty-row">読み込み中…</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="pagination-bar">
+        <div class="pagination-info" id="oc_info"></div>
+        <div class="pagination-controls">
+          <button type="button" class="btn-page" id="oc_prev" onclick="loadOrderCancelLog(window.__auditState['order-cancel'].page - 1)">前へ</button>
+          <span class="page-indicator" id="oc_pageInd">-</span>
+          <button type="button" class="btn-page" id="oc_next" onclick="loadOrderCancelLog(window.__auditState['order-cancel'].page + 1)">次へ</button>
+        </div>
+      </div>
+    </section>
   </main>
 
   <!-- Detail Modal -->
@@ -260,6 +325,6 @@
     </div>
   </div>
 
-  <script src="js/master-change-log.js?v=20260525"></script>
+  <script src="js/master-change-log.js?v=20260601"></script>
 </body>
 </html>
