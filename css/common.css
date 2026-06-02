@@ -245,7 +245,11 @@ body {
   background: #fff;
   border: 1px solid #e2e8f0;
   border-radius: 12px;
-  overflow: hidden;
+  /* 列数の多い表（予算管理 admin 等）が main 幅を超える場合は横スクロール。
+     overflow:hidden だと右側が見切れるため overflow-x:auto にする。 */
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* ===== Empty State ===== */

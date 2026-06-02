@@ -106,7 +106,7 @@
   margin-top: 4px;
 }
 .progress-bar-inline {
-  width: 48px;
+  width: 34px;
   height: 6px;
   background: #e2e8f0;
   border-radius: 3px;
@@ -122,7 +122,7 @@
 /* ===== Budget Table ===== */
 .budget-table { width: 100%; border-collapse: collapse; white-space: nowrap; }
 .budget-table th {
-  padding: 8px 12px;
+  padding: 8px 7px;
   font-size: 12px;
   font-weight: 600;
   color: #64748b;
@@ -140,7 +140,7 @@
 .group-monthly { background: #fffbeb; color: #a16207; border-bottom: 2px solid #fcd34d; }
 
 .budget-table td {
-  padding: 10px 12px;
+  padding: 10px 7px;
   font-size: 13px;
   border-bottom: 1px solid #f1f5f9;
   text-align: right;
