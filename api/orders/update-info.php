@@ -8,8 +8,9 @@
  *   { "order_id": "REP-S01-20260301-0001", "estimate_amount": 35000, ... }
  *
  * 備品発注は items[{id, price}] で明細の単価を編集できる。
- * 単価編集時は orders.estimate_amount = Σ(price × qty) を自動再計算する。
- * 編集可能ステータスは発注済(1)〜納品済(3)。完了後の単価編集は不可。
+ * 単価編集時の再計算先はステータスで分岐:
+ *   - 発注済(1)〜納品済(3): orders.estimate_amount = Σ(price × qty)
+ *   - 完了(4):              orders.final_amount    = Σ(price × qty)（実績。0円許容）
  *
  * 予算実績の差分反映（納品月ベース）:
  *   - status=3 (納品済) 編集: estimate_amount の差分を加減算
@@ -93,8 +94,8 @@ if (isset($input['items']) && is_array($input['items'])) {
     if (!in_array($user['role'], ['admin', 'system'], true)) {
         jsonError('明細単価編集は管理者のみ操作できます', 403);
     }
-    if ($currentStatus < 1 || $currentStatus > 3) {
-        jsonError('発注済〜納品済の備品発注のみ単価を編集できます');
+    if ($currentStatus < 1 || $currentStatus > 4) {
+        jsonError('発注済〜完了の備品発注のみ単価を編集できます');
     }
     $itemsToUpdate = [];
     foreach ($input['items'] as $item) {
@@ -135,15 +136,21 @@ try {
                     [':p' => $it['price'], ':iid' => $it['id']]
                 );
             }
-            // orders.estimate_amount を Σ(price × qty) で再計算
+            // orders の金額を Σ(price × qty) で再計算。
+            // 完了(4)後は実績である final_amount を、それ以前は estimate_amount を更新する。
             $sumRow = getOne(
                 'SELECT COALESCE(SUM(price * qty), 0) AS total
                    FROM order_equipment_items WHERE order_id = :oid',
                 [':oid' => $orderId]
             );
-            $newEstimate = (int)$sumRow['total'];
-            // 単価編集による estimate_amount 上書き（input['estimate_amount'] より優先）
-            $input['estimate_amount'] = $newEstimate;
+            $newSum = (int)$sumRow['total'];
+            if ($currentStatus === 4) {
+                // 完了後の編集 = 最終金額（実績）を明細合計で再計算。0円許容。
+                $input['final_amount'] = $newSum;
+            } else {
+                // 発注済〜納品済 = 見積金額を明細合計で再計算（input['estimate_amount'] より優先）
+                $input['estimate_amount'] = $newSum;
+            }
         }
 
         // 管理者 / システム管理者: orders テーブルの各フィールドを更新

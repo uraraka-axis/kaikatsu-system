@@ -1323,9 +1323,12 @@ function getEditableFields(o) {
       fields.push({ key: 'final_amount', label: '最終金額', type: 'number', value: o.final_amount });
       fields.push({ key: 'memo', label: 'メモ', type: 'textarea', statusIndex: findHistoryIndex(o, o.status) });
     } else if (o.status === STATUS.COMPLETED) {
-      fields.push({ key: 'final_amount', label: '最終金額', type: 'number', value: o.final_amount });
       if (o.type === 'equipment') {
+        // 完了後も明細単価で編集（最終金額＝明細合計を自動再計算）
+        fields.push({ key: 'equip_items', label: '明細単価', type: 'items', value: o.equip_items || [] });
         fields.push({ key: 'actual_delivery_date', label: '納品日', type: 'date', value: o.actual_delivery_date });
+      } else {
+        fields.push({ key: 'final_amount', label: '最終金額', type: 'number', value: o.final_amount });
       }
       fields.push({ key: 'memo', label: 'メモ', type: 'textarea', statusIndex: findHistoryIndex(o, STATUS.COMPLETED) });
     }
@@ -1378,9 +1381,11 @@ function openEditInfoModal(orderId) {
       html += '<div class="modal-row"><span class="modal-label">' + f.label + '</span>' +
         '<textarea class="modal-textarea" id="editField_' + f.key + '">' + memoVal + '</textarea></div>';
     } else if (f.type === 'items') {
-      // 備品明細の単価編集: items テーブルを表示し、各行に単価入力欄
+      // 備品明細の単価編集: items テーブルを表示し、各行に単価入力欄。
+      // 完了(4)後は「最終金額」、それ以前は「見積金額」を再計算する。
+      var amtTerm = (order.status === STATUS.COMPLETED) ? '最終金額' : '見積金額';
       html += '<div class="modal-row" style="flex-direction:column;align-items:stretch;gap:8px">' +
-        '<span class="modal-label" style="margin-bottom:4px">' + f.label + '<span style="font-size:11px;color:#94a3b8;margin-left:8px">単価を変更すると見積金額が自動再計算されます</span></span>' +
+        '<span class="modal-label" style="margin-bottom:4px">' + f.label + '<span style="font-size:11px;color:#94a3b8;margin-left:8px">単価を変更すると' + amtTerm + 'が自動再計算されます</span></span>' +
         '<table class="edit-items-table" style="width:100%;border-collapse:collapse;font-size:13px">' +
         '<thead><tr style="background:#f1f5f9">' +
         '<th style="padding:6px 10px;text-align:left;border:1px solid #e2e8f0">商品名</th>' +
@@ -1402,7 +1407,7 @@ function openEditInfoModal(orderId) {
           '</tr>';
       });
       html += '</tbody><tfoot><tr style="background:#f8fafc;font-weight:600">' +
-        '<td colspan="3" style="padding:6px 10px;text-align:right;border:1px solid #e2e8f0">見積金額（再計算）</td>' +
+        '<td colspan="3" style="padding:6px 10px;text-align:right;border:1px solid #e2e8f0">' + amtTerm + '（再計算）</td>' +
         '<td id="editItemsTotal" style="padding:6px 10px;text-align:right;border:1px solid #e2e8f0;font-variant-numeric:tabular-nums">¥0</td>' +
         '</tr></tfoot></table></div>';
     }
