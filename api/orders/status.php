@@ -48,7 +48,8 @@ $orderType     = $order['type'];
 $newStatus   = null;
 $updateCols  = [];
 $updateVals  = [];
-$orderItems  = null; // 備品 0→1 で明細単価を編集する場合のみセット（[{id, price}]）
+$orderItems    = null; // 備品 0→1 で明細単価を編集する場合のみセット（[{id, price}]）
+$completeItems = null; // 備品 3→4(完了) で明細単価を編集する場合のみセット（[{id, price}]）
 
 switch ($action) {
     case 'order':
@@ -196,18 +197,38 @@ switch ($action) {
             $updateCols[] = 'final_amount = :final_amount';
             $updateVals[':final_amount'] = $finalAmount;
         } else {
-            // equipment: use final_amount if provided, else estimate_amount
-            $finalAmount = $input['final_amount'] ?? null;
-            if ($finalAmount !== null && $finalAmount !== '') {
-                $finalAmount = filter_var($finalAmount, FILTER_VALIDATE_INT);
-                // 0円は許容（業者都合などで結局納品されなかった場合の実績）。マイナスのみ不可。
-                if ($finalAmount === false || $finalAmount < 0) {
-                    jsonError('最終金額は0以上の数値を入力してください（マイナス不可）');
+            // equipment: 明細単位に最終単価を編集できる。items 指定時は final_amount を
+            // Σ(price × qty) でトランザクション内に再計算する（一部未納品は単価0、全未納品は0円）。
+            // items が無い場合は単一の最終金額（任意・0円許容）、未入力なら見積額を適用。
+            if (isset($input['items']) && is_array($input['items'])) {
+                $completeItems = [];
+                foreach ($input['items'] as $item) {
+                    $itemId = filter_var($item['id'] ?? null, FILTER_VALIDATE_INT);
+                    $price  = filter_var($item['price'] ?? null, FILTER_VALIDATE_INT);
+                    if ($itemId === false || $itemId === null || $itemId <= 0) {
+                        jsonError('明細IDが不正です');
+                    }
+                    if ($price === false || $price === null || $price < 0) {
+                        jsonError('単価は0以上の数値を入力してください');
+                    }
+                    $completeItems[] = ['id' => $itemId, 'price' => $price];
                 }
+                // 実際の値はトランザクション内の再計算で上書きする（プレースホルダ）
                 $updateCols[] = 'final_amount = :final_amount';
-                $updateVals[':final_amount'] = $finalAmount;
+                $updateVals[':final_amount'] = 0;
             } else {
-                $updateCols[] = 'final_amount = estimate_amount';
+                $finalAmount = $input['final_amount'] ?? null;
+                if ($finalAmount !== null && $finalAmount !== '') {
+                    $finalAmount = filter_var($finalAmount, FILTER_VALIDATE_INT);
+                    // 0円は許容（業者都合などで結局納品されなかった場合の実績）。マイナスのみ不可。
+                    if ($finalAmount === false || $finalAmount < 0) {
+                        jsonError('最終金額は0以上の数値を入力してください（マイナス不可）');
+                    }
+                    $updateCols[] = 'final_amount = :final_amount';
+                    $updateVals[':final_amount'] = $finalAmount;
+                } else {
+                    $updateCols[] = 'final_amount = estimate_amount';
+                }
             }
         }
 
@@ -251,6 +272,30 @@ try {
             throw new InvalidArgumentException('見積金額（明細合計）は1以上である必要があります');
         }
         $updateVals[':estimate_amount'] = $recalc;
+    }
+
+    // 0b. 備品 3→4(完了) の明細単価編集: 単価を更新し final_amount を Σ(price × qty) で再計算。
+    //     一部/全部の未納品は単価0で表現できるため、合計0円も許容する。
+    if ($action === 'complete' && $completeItems !== null) {
+        foreach ($completeItems as $it) {
+            $owns = getOne(
+                'SELECT id FROM order_equipment_items WHERE id = :iid AND order_id = :oid',
+                [':iid' => $it['id'], ':oid' => $orderId]
+            );
+            if ($owns === null) {
+                throw new InvalidArgumentException('明細ID ' . $it['id'] . ' はこの発注に属していません');
+            }
+            execute(
+                'UPDATE order_equipment_items SET price = :p WHERE id = :iid',
+                [':p' => $it['price'], ':iid' => $it['id']]
+            );
+        }
+        $sumRow = getOne(
+            'SELECT COALESCE(SUM(price * qty), 0) AS total
+               FROM order_equipment_items WHERE order_id = :oid',
+            [':oid' => $orderId]
+        );
+        $updateVals[':final_amount'] = (int)$sumRow['total']; // 0円許容
     }
 
     // 1. orders テーブル更新

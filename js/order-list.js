@@ -600,10 +600,13 @@ function onPageSizeChange() {
   renderOrders();
 }
 
+// 0 を「値なし」と誤判定しないための存在判定（null / undefined / 空文字のみ「なし」）
+function hasAmount(v) { return v !== null && v !== undefined && v !== ''; }
+function yenOrDash(v) { return hasAmount(v) ? '¥' + Number(v).toLocaleString() : '—'; }
+
 function getDisplayAmount(o) {
-  if (o.final_amount) return '¥' + Number(o.final_amount).toLocaleString();
-  if (o.estimate_amount) return '¥' + Number(o.estimate_amount).toLocaleString();
-  if (isRepairLikeType(o.type) || o.type === 'parts') return '—';
+  if (hasAmount(o.final_amount)) return '¥' + Number(o.final_amount).toLocaleString();
+  if (hasAmount(o.estimate_amount)) return '¥' + Number(o.estimate_amount).toLocaleString();
   return '—';
 }
 
@@ -675,18 +678,18 @@ function renderDetailContent(o) {
     var completedLabel = o.type === 'seat-replacement' ? '作業完了日' : '修理完了日';
     html += '<div><div class="detail-label">見積金額</div><div class="detail-value">' + (o.estimate_amount ? '¥' + Number(o.estimate_amount).toLocaleString() : '—') + '</div></div>';
     html += '<div><div class="detail-label">' + scheduleLabel + '</div><div class="detail-value">' + (o.repair_schedule_date || '—') + '</div></div>';
-    html += '<div><div class="detail-label">最終金額</div><div class="detail-value"' + (o.final_amount ? ' style="font-weight:600;color:#065f46;"' : '') + '>' + (o.final_amount ? '¥' + Number(o.final_amount).toLocaleString() : '—') + '</div></div>';
+    html += '<div><div class="detail-label">最終金額</div><div class="detail-value"' + (hasAmount(o.final_amount) ? ' style="font-weight:600;color:#065f46;"' : '') + '>' + yenOrDash(o.final_amount) + '</div></div>';
     html += '<div><div class="detail-label">' + completedLabel + '</div><div class="detail-value">' + (o.repair_completed_date || '—') + '</div></div>';
   } else if (o.type === 'equipment') {
     var equipEstimate = o.estimate_amount ? '¥' + Number(o.estimate_amount).toLocaleString() : '—';
     html += '<div><div class="detail-label">見積金額</div><div class="detail-value">' + equipEstimate + '</div></div>';
     html += '<div><div class="detail-label">納品予定日</div><div class="detail-value">' + (o.delivery_date || '—') + '</div></div>';
-    html += '<div><div class="detail-label">最終金額</div><div class="detail-value"' + (o.final_amount ? ' style="font-weight:600;color:#065f46;"' : '') + '>' + (o.final_amount ? '¥' + Number(o.final_amount).toLocaleString() : '—') + '</div></div>';
+    html += '<div><div class="detail-label">最終金額</div><div class="detail-value"' + (hasAmount(o.final_amount) ? ' style="font-weight:600;color:#065f46;"' : '') + '>' + yenOrDash(o.final_amount) + '</div></div>';
     html += '<div><div class="detail-label">納品日</div><div class="detail-value">' + (o.actual_delivery_date || '—') + '</div></div>';
   } else {
     html += '<div><div class="detail-label">見積金額</div><div class="detail-value">' + (o.estimate_amount ? '¥' + Number(o.estimate_amount).toLocaleString() : '—') + '</div></div>';
     html += '<div><div class="detail-label">納品予定日</div><div class="detail-value">' + (o.delivery_date || '—') + '</div></div>';
-    html += '<div><div class="detail-label">最終金額</div><div class="detail-value"' + (o.final_amount ? ' style="font-weight:600;color:#065f46;"' : '') + '>' + (o.final_amount ? '¥' + Number(o.final_amount).toLocaleString() : '—') + '</div></div>';
+    html += '<div><div class="detail-label">最終金額</div><div class="detail-value"' + (hasAmount(o.final_amount) ? ' style="font-weight:600;color:#065f46;"' : '') + '>' + yenOrDash(o.final_amount) + '</div></div>';
     html += '<div><div class="detail-label">納品日</div><div class="detail-value">' + (o.actual_delivery_date || '—') + '</div></div>';
   }
   html += '</div></div>';
@@ -998,21 +1001,61 @@ function openStatusModal(orderId, action) {
   } else if (action === 'complete') {
     title.textContent = '完了にする';
     var estAmt = Number(order.estimate_amount) || 0;
-    var isRepairComplete = isRepairLikeType(order.type);
-    var amountRequired = isRepairComplete;
-    body.innerHTML =
-      '<div class="modal-row"><span class="modal-label">見積額</span><input class="modal-input readonly" value="¥' + estAmt.toLocaleString() + '" readonly></div>' +
-      '<hr class="modal-divider">' +
-      '<div class="modal-row"><span class="modal-label">最終金額' + (amountRequired ? ' <span class="required">*</span>' : '') + '</span><input class="modal-input" id="modalFinalAmount" type="text" inputmode="numeric" placeholder="' + (amountRequired ? '最終金額を入力' : '未入力で見積金額を適用') + '" oninput="updateDiff(' + estAmt + ')"></div>' +
-      '<div class="modal-diff" id="modalDiffRow" style="display:none;"><span class="modal-diff-label">差額</span><span class="modal-diff-value" id="modalDiffValue"></span></div>' +
-      (order.type === 'equipment' ? '<div class="modal-row"><span class="modal-label">納品日</span><input class="modal-input" id="modalActualDeliveryDate" type="date"><div style="font-size:11px;color:#94a3b8;margin-top:2px;">未入力で納品予定日を適用</div></div>' : '') +
-      '<div class="modal-row"><span class="modal-label">メモ</span><textarea class="modal-textarea" id="modalMemo" placeholder="任意入力"></textarea></div>';
+    if (order.type === 'equipment') {
+      // 備品: 明細単価を編集して最終金額(=Σ)を確定。未納品の商品は単価を0にする。
+      var rowsHtml = '';
+      (order.equip_items || []).forEach(function(it) {
+        var sub = Number(it.price) * Number(it.qty);
+        rowsHtml +=
+          '<tr data-item-id="' + it.id + '" data-qty="' + it.qty + '">' +
+          '<td style="padding:6px 10px;border:1px solid #e2e8f0">' + escapeHtml(it.product_name) + '</td>' +
+          '<td style="padding:6px 10px;text-align:center;border:1px solid #e2e8f0">' + it.qty + '</td>' +
+          '<td style="padding:4px 6px;border:1px solid #e2e8f0">' +
+            '<input type="text" inputmode="numeric" class="complete-item-price" data-item-id="' + it.id + '" value="' + it.price + '" ' +
+            'style="width:100%;padding:4px 6px;border:1px solid #cbd5e1;border-radius:4px;text-align:right;font-size:13px;font-family:inherit" ' +
+            'oninput="recalcCompleteItemsTotal(' + estAmt + ')"></td>' +
+          '<td class="complete-item-subtotal" data-item-id="' + it.id + '" style="padding:6px 10px;text-align:right;border:1px solid #e2e8f0;font-variant-numeric:tabular-nums">¥' + sub.toLocaleString() + '</td>' +
+          '</tr>';
+      });
+      body.innerHTML =
+        '<div class="modal-row"><span class="modal-label">見積額</span><input class="modal-input readonly" value="¥' + estAmt.toLocaleString() + '" readonly></div>' +
+        '<hr class="modal-divider">' +
+        '<div class="modal-row" style="flex-direction:column;align-items:stretch;gap:8px">' +
+          '<span class="modal-label" style="margin-bottom:4px">最終金額（明細単価）<span style="font-size:11px;color:#94a3b8;margin-left:8px">納品されなかった商品は単価を0に。最終金額は自動再計算されます</span></span>' +
+          '<table class="edit-items-table" style="width:100%;border-collapse:collapse;font-size:13px">' +
+          '<thead><tr style="background:#f1f5f9">' +
+          '<th style="padding:6px 10px;text-align:left;border:1px solid #e2e8f0">商品名</th>' +
+          '<th style="padding:6px 10px;text-align:center;border:1px solid #e2e8f0;width:60px">数量</th>' +
+          '<th style="padding:6px 10px;text-align:right;border:1px solid #e2e8f0;width:120px">単価</th>' +
+          '<th style="padding:6px 10px;text-align:right;border:1px solid #e2e8f0;width:110px">小計</th>' +
+          '</tr></thead><tbody>' + rowsHtml + '</tbody>' +
+          '<tfoot><tr style="background:#f8fafc;font-weight:600">' +
+          '<td colspan="3" style="padding:6px 10px;text-align:right;border:1px solid #e2e8f0">最終金額（再計算）</td>' +
+          '<td id="completeItemsTotal" style="padding:6px 10px;text-align:right;border:1px solid #e2e8f0;font-variant-numeric:tabular-nums">¥0</td>' +
+          '</tr></tfoot></table></div>' +
+        '<div class="modal-diff" id="modalDiffRow" style="display:none;"><span class="modal-diff-label">差額</span><span class="modal-diff-value" id="modalDiffValue"></span></div>' +
+        '<div class="modal-row"><span class="modal-label">納品日</span><input class="modal-input" id="modalActualDeliveryDate" type="date"><div style="font-size:11px;color:#94a3b8;margin-top:2px;">未入力で納品予定日を適用</div></div>' +
+        '<div class="modal-row"><span class="modal-label">メモ</span><textarea class="modal-textarea" id="modalMemo" placeholder="任意入力"></textarea></div>';
+    } else {
+      // 修理 / 部品 / シート交換: 単一の最終金額（必須・0円許容）
+      body.innerHTML =
+        '<div class="modal-row"><span class="modal-label">見積額</span><input class="modal-input readonly" value="¥' + estAmt.toLocaleString() + '" readonly></div>' +
+        '<hr class="modal-divider">' +
+        '<div class="modal-row"><span class="modal-label">最終金額 <span class="required">*</span></span><input class="modal-input" id="modalFinalAmount" type="text" inputmode="numeric" placeholder="最終金額を入力（納品なしは0）" oninput="updateDiff(' + estAmt + ')"></div>' +
+        '<div class="modal-diff" id="modalDiffRow" style="display:none;"><span class="modal-diff-label">差額</span><span class="modal-diff-value" id="modalDiffValue"></span></div>' +
+        '<div class="modal-row"><span class="modal-label">メモ</span><textarea class="modal-textarea" id="modalMemo" placeholder="任意入力"></textarea></div>';
+    }
     footer.innerHTML =
       '<button class="btn-modal btn-modal-cancel" onclick="closeModal()">キャンセル</button>' +
       '<button class="btn-modal btn-modal-success" onclick="doComplete(\'' + orderId + '\')">完了にする</button>';
   }
 
   modal.classList.add('open');
+
+  // 備品の完了モーダルは明細合計を初期表示
+  if (document.getElementById('completeItemsTotal')) {
+    recalcCompleteItemsTotal(Number(order.estimate_amount) || 0);
+  }
 }
 
 function closeModal() {
@@ -1198,17 +1241,6 @@ function doComplete(orderId) {
   var order = findOrder(orderId);
   if (!order) return;
   var memo = (document.getElementById('modalMemo') || {}).value || '';
-  var finalInput = document.getElementById('modalFinalAmount');
-  // カンマ区切り入力（例: "10,000"）にも対応
-  var finalAmount = parseInt(String(finalInput.value).replace(/,/g, ''), 10);
-
-  if (isRepairLikeType(order.type)) {
-    // 0円は許容（業者都合などで結局納品されなかった場合）。空欄・マイナスのみ不可。
-    if (isNaN(finalAmount) || finalAmount < 0) {
-      alert('最終金額を入力してください（0以上）');
-      return;
-    }
-  }
 
   var body = {
     order_id: orderId,
@@ -1216,16 +1248,36 @@ function doComplete(orderId) {
     memo: memo
   };
 
-  // 0 を明示送信できるよう >= 0 で判定（備品で空欄なら未送信＝見積額を適用）
-  if (!isNaN(finalAmount) && finalAmount >= 0) {
-    body.final_amount = finalAmount;
-  }
-
   if (order.type === 'equipment') {
+    // 備品: 明細単価を編集して最終金額(=Σ)を確定。未納品の商品は単価0（合計0円も可）。
+    var items = [];
+    var bad = false;
+    document.querySelectorAll('.complete-item-price').forEach(function(inp) {
+      var id = parseInt(inp.getAttribute('data-item-id'), 10);
+      var p = parseInt(String(inp.value).replace(/,/g, ''), 10);
+      if (isNaN(p) || p < 0) { bad = true; return; }
+      items.push({ id: id, price: p });
+    });
+    if (bad) {
+      alert('単価は0以上の数値を入力してください');
+      return;
+    }
+    if (items.length > 0) {
+      body.items = items;
+    }
     var actualDateInput = document.getElementById('modalActualDeliveryDate');
     if (actualDateInput && actualDateInput.value) {
       body.actual_delivery_date = actualDateInput.value;
     }
+  } else {
+    // 修理 / 部品 / シート交換: 単一の最終金額（必須・0円許容、マイナス不可）
+    var finalInput = document.getElementById('modalFinalAmount');
+    var finalAmount = parseInt(String(finalInput.value).replace(/,/g, ''), 10);
+    if (isNaN(finalAmount) || finalAmount < 0) {
+      alert('最終金額を入力してください（0以上）');
+      return;
+    }
+    body.final_amount = finalAmount;
   }
 
   apiPost('api/orders/status.php', body)
@@ -1314,7 +1366,7 @@ function openEditInfoModal(orderId) {
   fields.forEach(function(f) {
     if (f.type === 'number') {
       html += '<div class="modal-row"><span class="modal-label">' + f.label + '</span>' +
-        '<input class="modal-input" id="editField_' + f.key + '" type="text" inputmode="numeric" value="' + (f.value || '') + '"></div>';
+        '<input class="modal-input" id="editField_' + f.key + '" type="text" inputmode="numeric" value="' + (hasAmount(f.value) ? f.value : '') + '"></div>';
     } else if (f.type === 'date') {
       html += '<div class="modal-row"><span class="modal-label">' + f.label + '</span>' +
         '<input class="modal-input" id="editField_' + f.key + '" type="date" value="' + (f.value || '') + '"></div>';
@@ -1384,6 +1436,37 @@ window.recalcEditItemsTotal = function() {
   });
   var totalCell = document.getElementById('editItemsTotal');
   if (totalCell) totalCell.textContent = '¥' + total.toLocaleString();
+};
+
+// 完了モーダル（備品）の明細単価変更時に、各行の小計・最終金額・差額を再計算
+window.recalcCompleteItemsTotal = function(estAmt) {
+  var total = 0;
+  document.querySelectorAll('.complete-item-price').forEach(function(input) {
+    var itemId = input.getAttribute('data-item-id');
+    var row    = input.closest('tr');
+    var qty    = Number(row.getAttribute('data-qty')) || 0;
+    var price  = parseInt(String(input.value).replace(/,/g, ''), 10);
+    if (isNaN(price) || price < 0) price = 0;
+    var subtotal = price * qty;
+    total += subtotal;
+    var subCell = document.querySelector('.complete-item-subtotal[data-item-id="' + itemId + '"]');
+    if (subCell) subCell.textContent = '¥' + subtotal.toLocaleString();
+  });
+  var totalCell = document.getElementById('completeItemsTotal');
+  if (totalCell) totalCell.textContent = '¥' + total.toLocaleString();
+  // 差額（最終金額 − 見積額）
+  var diffRow = document.getElementById('modalDiffRow');
+  var diffVal = document.getElementById('modalDiffValue');
+  if (diffRow && diffVal) {
+    var diff = total - (Number(estAmt) || 0);
+    if (diff === 0) {
+      diffRow.style.display = 'none';
+    } else {
+      diffRow.style.display = '';
+      diffVal.textContent = (diff > 0 ? '+¥' : '−¥') + Math.abs(diff).toLocaleString();
+      diffVal.style.color = diff > 0 ? '#dc2626' : '#059669';
+    }
+  }
 };
 
 function doSaveEditInfo(orderId) {
