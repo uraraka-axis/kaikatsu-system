@@ -104,11 +104,12 @@ try {
         } elseif ($action === 'complete') {
             // 最終金額未設定の場合、見積金額を適用
             if ($order['final_amount'] === null) {
-                if (isRepairLikeType($orderType)) {
-                    // 修理・シート交換は個別でfinal_amount必須なのでスキップ
+                if (isRepairLikeType($orderType) || $orderType === 'parts') {
+                    // 修理・シート交換・部品は個別で final_amount 必須なのでスキップ
                     $skipped[] = $orderId;
                     continue;
                 }
+                // 備品のみ見積額を最終額に適用
                 $updateCols[] = 'final_amount = estimate_amount';
             }
         }

@@ -175,10 +175,18 @@ switch ($action) {
         }
         $newStatus = 4;
 
-        if (isRepairLikeType($orderType)) {
+        // 最終金額が必須なのは「見積ベース」の種別（修理・シート交換・部品）。
+        // 備品はカタログ単価ベースのため任意（未入力なら見積額を最終額に適用）。
+        $finalRequired = isRepairLikeType($orderType) || $orderType === 'parts';
+        if ($finalRequired) {
             $finalAmount = $input['final_amount'] ?? null;
             if ($finalAmount === null || $finalAmount === '') {
-                jsonError(($orderType === 'seat-replacement' ? 'シート交換' : '修理') . '発注の最終金額は必須です');
+                $typeLabel = match ($orderType) {
+                    'seat-replacement' => 'シート交換',
+                    'parts'            => '部品',
+                    default            => '修理',
+                };
+                jsonError($typeLabel . '発注の最終金額は必須です');
             }
             $finalAmount = filter_var($finalAmount, FILTER_VALIDATE_INT);
             if ($finalAmount === false || $finalAmount <= 0) {
@@ -187,7 +195,7 @@ switch ($action) {
             $updateCols[] = 'final_amount = :final_amount';
             $updateVals[':final_amount'] = $finalAmount;
         } else {
-            // equipment/parts: use final_amount if provided, else estimate_amount
+            // equipment: use final_amount if provided, else estimate_amount
             $finalAmount = $input['final_amount'] ?? null;
             if ($finalAmount !== null && $finalAmount !== '') {
                 $finalAmount = filter_var($finalAmount, FILTER_VALIDATE_INT);
