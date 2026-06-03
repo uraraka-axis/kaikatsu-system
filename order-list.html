@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/common.css?v=20260602a">
+  <link rel="stylesheet" href="css/common.css?v=20260603a">
   <link rel="stylesheet" href="css/order-list.css?v=20260528c">
 </head>
 <body>
@@ -112,6 +112,14 @@
             <option value="4">完了</option>
           </select>
         </div>
+        <div class="filter-group">
+          <span class="filter-label">発注日</span>
+          <div class="date-range">
+            <input type="date" class="form-input date-input" id="storeFilterDateFrom" onchange="applyFilters()">
+            <span class="date-separator">〜</span>
+            <input type="date" class="form-input date-input" id="storeFilterDateTo" onchange="applyFilters()">
+          </div>
+        </div>
       </div>
     </div>
 
@@ -197,6 +205,6 @@
     </div>
   </div>
 
-  <script src="js/order-list.js?v=20260603e"></script>
+  <script src="js/order-list.js?v=20260603f"></script>
 </body>
 </html>

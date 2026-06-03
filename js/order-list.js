@@ -271,10 +271,14 @@ function fetchOrders(callback) {
     var catFilter = document.getElementById('filterCategory').value;
     var typeFilter2 = document.getElementById('filterType').value;
     var statusFilter2 = document.getElementById('filterStatus').value;
+    var dateFromS = document.getElementById('storeFilterDateFrom').value;
+    var dateToS = document.getElementById('storeFilterDateTo').value;
 
     if (catFilter) params.push('category=' + encodeURIComponent(catFilter));
     if (typeFilter2) params.push('type=' + encodeURIComponent(typeFilter2));
     if (statusFilter2 !== '') params.push('status=' + encodeURIComponent(statusFilter2));
+    if (dateFromS) params.push('date_from=' + encodeURIComponent(dateFromS));
+    if (dateToS) params.push('date_to=' + encodeURIComponent(dateToS));
   }
 
   var url = 'api/orders.php' + (params.length ? '?' + params.join('&') : '');
@@ -299,7 +303,7 @@ function fetchOrders(callback) {
 var FILTER_STORAGE_KEY = 'filters:order-list';
 var FILTER_FIELDS_ADMIN = ['adminFilterCategory', 'adminFilterType', 'adminFilterStatus',
                             'filterShop', 'filterZone', 'filterArea', 'filterDateFrom', 'filterDateTo'];
-var FILTER_FIELDS_STORE = ['filterCategory', 'filterType', 'filterStatus'];
+var FILTER_FIELDS_STORE = ['filterCategory', 'filterType', 'filterStatus', 'storeFilterDateFrom', 'storeFilterDateTo'];
 var isInitializing = true; // 初期化中は saveFilters を抑止（空値での上書きを防ぐ）
 
 function saveFilters() {
@@ -358,9 +362,11 @@ function restoreFilters() {
   });
 
   // 初回表示（保存フィルタが無いとき）は発注日Fromを直近3ヶ月前に既定設定し、
-  // 取得件数を抑える（admin の発注一覧のみ。過去分を見たいときはFromを空にする）。
-  if (viewMode === 'admin' && !('filterDateFrom' in state)) {
-    var dfEl = document.getElementById('filterDateFrom');
+  // 取得件数を抑える（admin・店舗とも。過去分を見たいときはFromを空にする）。
+  var dateFromId = viewMode === 'admin' ? 'filterDateFrom'
+                 : (viewMode === 'store' ? 'storeFilterDateFrom' : null);
+  if (dateFromId && !(dateFromId in state)) {
+    var dfEl = document.getElementById(dateFromId);
     if (dfEl && !dfEl.value) {
       var d = new Date();
       d.setMonth(d.getMonth() - 3);
@@ -1607,8 +1613,10 @@ function exportExcel() {
     var exportTotal = (typeof currentOrders !== 'undefined' && currentOrders) ? currentOrders.length : 0;
     if (!window.confirm('出力対象がチェックされていません。\n表示中の全 ' + exportTotal + ' 件を出力します。よろしいですか？')) return;
 
-    var dateFrom = document.getElementById('filterDateFrom');
-    var dateTo = document.getElementById('filterDateTo');
+    var dfId = viewMode === 'admin' ? 'filterDateFrom' : 'storeFilterDateFrom';
+    var dtId = viewMode === 'admin' ? 'filterDateTo' : 'storeFilterDateTo';
+    var dateFrom = document.getElementById(dfId);
+    var dateTo = document.getElementById(dtId);
     if (dateFrom && dateFrom.value) params.push('date_from=' + encodeURIComponent(dateFrom.value));
     if (dateTo && dateTo.value) params.push('date_to=' + encodeURIComponent(dateTo.value));
 

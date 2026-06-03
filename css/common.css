@@ -308,7 +308,7 @@ body {
   align-items: center;
   gap: 8px;
 }
-.date-input { width: 150px; }
+.date-input { width: 168px; }
 .date-separator { font-size: 14px; color: #94a3b8; }
 
 /* ===== Photo Upload (shared: repair-order, parts-order) ===== */
@@ -406,7 +406,7 @@ body {
   .admin-filter-bar { padding: 16px 20px; }
   .admin-filter-row { gap: 12px; }
   .admin-filter-bar .form-select { min-width: 120px; }
-  .date-input { width: 130px; }
+  .date-input { width: 150px; }
 }
 
 /* ===== Responsive: Phone (600px以下) ===== */
