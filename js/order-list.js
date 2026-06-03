@@ -1203,8 +1203,9 @@ function doComplete(orderId) {
   var finalAmount = parseInt(String(finalInput.value).replace(/,/g, ''), 10);
 
   if (isRepairLikeType(order.type)) {
-    if (isNaN(finalAmount) || finalAmount <= 0) {
-      alert('最終金額を入力してください');
+    // 0円は許容（業者都合などで結局納品されなかった場合）。空欄・マイナスのみ不可。
+    if (isNaN(finalAmount) || finalAmount < 0) {
+      alert('最終金額を入力してください（0以上）');
       return;
     }
   }
@@ -1215,7 +1216,8 @@ function doComplete(orderId) {
     memo: memo
   };
 
-  if (!isNaN(finalAmount) && finalAmount > 0) {
+  // 0 を明示送信できるよう >= 0 で判定（備品で空欄なら未送信＝見積額を適用）
+  if (!isNaN(finalAmount) && finalAmount >= 0) {
     body.final_amount = finalAmount;
   }
 
@@ -1425,7 +1427,13 @@ function doSaveEditInfo(orderId) {
         return;
       }
       var val = parseInt(rawVal, 10);
-      if (isNaN(val) || val <= 0) {
+      // 最終金額は0円を許容（業者都合などで結局納品されなかった場合）。見積金額は1以上。
+      if (f.key === 'final_amount') {
+        if (isNaN(val) || val < 0) {
+          validationError = f.label + 'は0以上の数値を入力してください（マイナス不可）';
+          return;
+        }
+      } else if (isNaN(val) || val <= 0) {
         validationError = f.label + 'は1以上の数値を入力してください';
         return;
       }

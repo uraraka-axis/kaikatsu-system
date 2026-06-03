@@ -189,8 +189,9 @@ switch ($action) {
                 jsonError($typeLabel . '発注の最終金額は必須です');
             }
             $finalAmount = filter_var($finalAmount, FILTER_VALIDATE_INT);
-            if ($finalAmount === false || $finalAmount <= 0) {
-                jsonError('最終金額は1以上の数値を入力してください');
+            // 0円は許容（業者都合などで結局納品されなかった場合の実績）。マイナスのみ不可。
+            if ($finalAmount === false || $finalAmount < 0) {
+                jsonError('最終金額は0以上の数値を入力してください（マイナス不可）');
             }
             $updateCols[] = 'final_amount = :final_amount';
             $updateVals[':final_amount'] = $finalAmount;
@@ -199,8 +200,9 @@ switch ($action) {
             $finalAmount = $input['final_amount'] ?? null;
             if ($finalAmount !== null && $finalAmount !== '') {
                 $finalAmount = filter_var($finalAmount, FILTER_VALIDATE_INT);
-                if ($finalAmount === false || $finalAmount <= 0) {
-                    jsonError('最終金額は1以上の数値を入力してください');
+                // 0円は許容（業者都合などで結局納品されなかった場合の実績）。マイナスのみ不可。
+                if ($finalAmount === false || $finalAmount < 0) {
+                    jsonError('最終金額は0以上の数値を入力してください（マイナス不可）');
                 }
                 $updateCols[] = 'final_amount = :final_amount';
                 $updateVals[':final_amount'] = $finalAmount;

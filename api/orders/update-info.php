@@ -66,7 +66,7 @@ if (in_array($user['role'], ['admin', 'system'], true)) {
     jsonError('権限がありません', 403);
 }
 
-// --- 金額バリデーション（estimate_amount / final_amount は1以上の整数） ---
+// --- 金額バリデーション（見積金額は1以上／最終金額は0以上＝マイナスのみ不可） ---
 if (isset($input['estimate_amount'])) {
     $est = filter_var($input['estimate_amount'], FILTER_VALIDATE_INT);
     if ($est === false || $est <= 0) {
@@ -75,9 +75,10 @@ if (isset($input['estimate_amount'])) {
     $input['estimate_amount'] = $est;
 }
 if (isset($input['final_amount'])) {
+    // 0円は許容（業者都合などで結局納品されなかった場合の実績）。マイナスのみ不可。
     $fin = filter_var($input['final_amount'], FILTER_VALIDATE_INT);
-    if ($fin === false || $fin <= 0) {
-        jsonError('最終金額は1以上の数値を入力してください');
+    if ($fin === false || $fin < 0) {
+        jsonError('最終金額は0以上の数値を入力してください（マイナス不可）');
     }
     $input['final_amount'] = $fin;
 }
