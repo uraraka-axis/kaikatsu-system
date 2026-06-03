@@ -48,6 +48,7 @@ $orderType     = $order['type'];
 $newStatus   = null;
 $updateCols  = [];
 $updateVals  = [];
+$orderItems  = null; // 備品 0→1 で明細単価を編集する場合のみセット（[{id, price}]）
 
 switch ($action) {
     case 'order':
@@ -58,17 +59,39 @@ switch ($action) {
         if ($currentStatus !== 0) {
             jsonError('依頼中の発注のみ発注済に変更できます');
         }
-        $estimateAmount = $input['estimate_amount'] ?? null;
-        if ($estimateAmount === null || $estimateAmount === '') {
-            jsonError('見積金額は必須です');
-        }
-        $estimateAmount = filter_var($estimateAmount, FILTER_VALIDATE_INT);
-        if ($estimateAmount === false || $estimateAmount <= 0) {
-            jsonError('見積金額は1以上の数値を入力してください');
-        }
         $newStatus = 1;
-        $updateCols[] = 'estimate_amount = :estimate_amount';
-        $updateVals[':estimate_amount'] = $estimateAmount;
+
+        // 備品は明細単価を編集できる。items 指定時は estimate_amount を
+        // Σ(price × qty) でトランザクション内に再計算する（合計1欄だけの編集をやめ、
+        // 発注済後の明細編集と同じ粒度を発注確定時にも提供する）。
+        if ($orderType === 'equipment' && isset($input['items']) && is_array($input['items'])) {
+            $orderItems = [];
+            foreach ($input['items'] as $item) {
+                $itemId = filter_var($item['id'] ?? null, FILTER_VALIDATE_INT);
+                $price  = filter_var($item['price'] ?? null, FILTER_VALIDATE_INT);
+                if ($itemId === false || $itemId === null || $itemId <= 0) {
+                    jsonError('明細IDが不正です');
+                }
+                if ($price === false || $price === null || $price < 0) {
+                    jsonError('単価は0以上の数値を入力してください');
+                }
+                $orderItems[] = ['id' => $itemId, 'price' => $price];
+            }
+            // 実際の値はトランザクション内の再計算で上書きする（プレースホルダ）
+            $updateCols[] = 'estimate_amount = :estimate_amount';
+            $updateVals[':estimate_amount'] = 0;
+        } else {
+            $estimateAmount = $input['estimate_amount'] ?? null;
+            if ($estimateAmount === null || $estimateAmount === '') {
+                jsonError('見積金額は必須です');
+            }
+            $estimateAmount = filter_var($estimateAmount, FILTER_VALIDATE_INT);
+            if ($estimateAmount === false || $estimateAmount <= 0) {
+                jsonError('見積金額は1以上の数値を入力してください');
+            }
+            $updateCols[] = 'estimate_amount = :estimate_amount';
+            $updateVals[':estimate_amount'] = $estimateAmount;
+        }
 
         // delivery_date (equipment/parts) or repair_schedule_date (repair/seat-replacement)
         if (isRepairLikeType($orderType)) {
@@ -192,6 +215,33 @@ $memo = $input['memo'] ?? '';
 
 try {
     beginTransaction();
+
+    // 0. 備品 0→1 の明細単価編集: 単価を更新し estimate_amount を Σ(price × qty) で再計算
+    if ($action === 'order' && $orderItems !== null) {
+        foreach ($orderItems as $it) {
+            $owns = getOne(
+                'SELECT id FROM order_equipment_items WHERE id = :iid AND order_id = :oid',
+                [':iid' => $it['id'], ':oid' => $orderId]
+            );
+            if ($owns === null) {
+                throw new InvalidArgumentException('明細ID ' . $it['id'] . ' はこの発注に属していません');
+            }
+            execute(
+                'UPDATE order_equipment_items SET price = :p WHERE id = :iid',
+                [':p' => $it['price'], ':iid' => $it['id']]
+            );
+        }
+        $sumRow = getOne(
+            'SELECT COALESCE(SUM(price * qty), 0) AS total
+               FROM order_equipment_items WHERE order_id = :oid',
+            [':oid' => $orderId]
+        );
+        $recalc = (int)$sumRow['total'];
+        if ($recalc <= 0) {
+            throw new InvalidArgumentException('見積金額（明細合計）は1以上である必要があります');
+        }
+        $updateVals[':estimate_amount'] = $recalc;
+    }
 
     // 1. orders テーブル更新
     $updateCols[] = 'status = :new_status';

@@ -889,26 +889,64 @@ function openStatusModal(orderId, action) {
     title.textContent = '発注済にする';
     var isRepairLike = isRepairLikeType(order.type);
     var isEquipment = order.type === 'equipment';
+    var hasItems = isEquipment && order.equip_items && order.equip_items.length > 0;
     var dateLabel = order.type === 'seat-replacement' ? '作業予定日'
                   : isRepairLike ? '修理予定日'
                   : '納品予定日';
 
+    var amountBlock;
+    if (hasItems) {
+      // 備品: 明細ごとに単価を編集できる（発注済後の編集と同じ粒度）。
+      // 見積金額は Σ(単価 × 数量) で自動再計算。
+      var rows = '';
+      order.equip_items.forEach(function(it) {
+        var subtotal = Number(it.price) * Number(it.qty);
+        rows +=
+          '<tr data-item-id="' + it.id + '" data-qty="' + it.qty + '">' +
+          '<td style="padding:6px 10px;border:1px solid #e2e8f0">' + escapeHtml(it.product_name) + '</td>' +
+          '<td style="padding:6px 10px;text-align:center;border:1px solid #e2e8f0">' + it.qty + '</td>' +
+          '<td style="padding:4px 6px;border:1px solid #e2e8f0">' +
+            '<input type="text" inputmode="numeric" class="edit-item-price" data-item-id="' + it.id + '" value="' + it.price + '" ' +
+            'style="width:100%;padding:4px 6px;border:1px solid #cbd5e1;border-radius:4px;text-align:right;font-size:13px;font-family:inherit" ' +
+            'oninput="recalcEditItemsTotal()"></td>' +
+          '<td class="edit-item-subtotal" data-item-id="' + it.id + '" style="padding:6px 10px;text-align:right;border:1px solid #e2e8f0;font-variant-numeric:tabular-nums">¥' + subtotal.toLocaleString() + '</td>' +
+          '</tr>';
+      });
+      amountBlock =
+        '<div class="modal-row" style="flex-direction:column;align-items:stretch;gap:8px">' +
+        '<span class="modal-label" style="margin-bottom:4px">明細単価 <span class="required">*</span>' +
+        '<span style="font-size:11px;color:#94a3b8;margin-left:8px">実際の発注単価に修正できます。見積金額は自動で再計算されます</span></span>' +
+        '<table class="edit-items-table" style="width:100%;border-collapse:collapse;font-size:13px">' +
+        '<thead><tr style="background:#f1f5f9">' +
+        '<th style="padding:6px 10px;text-align:left;border:1px solid #e2e8f0">商品名</th>' +
+        '<th style="padding:6px 10px;text-align:center;border:1px solid #e2e8f0;width:60px">数量</th>' +
+        '<th style="padding:6px 10px;text-align:right;border:1px solid #e2e8f0;width:120px">単価</th>' +
+        '<th style="padding:6px 10px;text-align:right;border:1px solid #e2e8f0;width:110px">小計</th>' +
+        '</tr></thead><tbody>' + rows + '</tbody>' +
+        '<tfoot><tr style="background:#f8fafc;font-weight:600">' +
+        '<td colspan="3" style="padding:6px 10px;text-align:right;border:1px solid #e2e8f0">見積金額（再計算）</td>' +
+        '<td id="editItemsTotal" style="padding:6px 10px;text-align:right;border:1px solid #e2e8f0;font-variant-numeric:tabular-nums">¥0</td>' +
+        '</tr></tfoot></table></div>';
+    } else {
+      amountBlock =
+        '<div class="modal-row"><span class="modal-label">見積金額 <span class="required">*</span></span><input class="modal-input" id="modalAmount" type="text" inputmode="numeric" placeholder="金額を入力"></div>';
+    }
+
     body.innerHTML =
       '<div class="modal-row"><span class="modal-label">発注番号</span><input class="modal-input readonly" value="' + order.id + '" readonly></div>' +
       '<hr class="modal-divider">' +
-      '<div class="modal-row"><span class="modal-label">見積金額 <span class="required">*</span></span><input class="modal-input" id="modalAmount" type="text" inputmode="numeric" placeholder="金額を入力"></div>' +
+      amountBlock +
       '<div class="modal-row"><span class="modal-label">' + dateLabel + '</span><input class="modal-input" id="modalDate" type="date"></div>' +
       '<div class="modal-row"><span class="modal-label">メモ</span><textarea class="modal-textarea" id="modalMemo" placeholder="任意入力"></textarea></div>';
     footer.innerHTML =
       '<button class="btn-modal btn-modal-cancel" onclick="closeModal()">キャンセル</button>' +
       '<button class="btn-modal btn-modal-primary" onclick="doOrder(\'' + orderId + '\')">発注済にする</button>';
 
-    if (isEquipment && order.equip_items) {
-      var total = 0;
-      order.equip_items.forEach(function(d) { total += Number(d.price) * Number(d.qty); });
+    if (isEquipment) {
       setTimeout(function() {
-        document.getElementById('modalAmount').value = total;
-        document.getElementById('modalDate').value = getEquipmentDeliveryDate(order);
+        if (hasItems) recalcEditItemsTotal();
+        var d = document.getElementById('modalDate');
+        if (d) d.value = getEquipmentDeliveryDate(order);
       }, 0);
     }
 
@@ -1007,23 +1045,48 @@ function updateDiff(estimateAmount) {
 function doOrder(orderId) {
   var order = findOrder(orderId);
   if (!order) return;
-  var amountInput = document.getElementById('modalAmount');
   var dateInput = document.getElementById('modalDate');
   var memo = (document.getElementById('modalMemo') || {}).value || '';
-
-  // カンマ区切り入力（例: "10,000"）にも対応
-  var amount = parseInt(String(amountInput.value).replace(/,/g, ''), 10);
-  if (isNaN(amount) || amount <= 0) {
-    alert('見積金額を入力してください');
-    return;
-  }
 
   var body = {
     order_id: orderId,
     action: 'order',
-    estimate_amount: amount,
     memo: memo
   };
+
+  // 備品で明細単価テーブルがある場合は items を送る（見積金額はサーバ側で Σ(単価×数量) 再計算）。
+  // それ以外は従来どおり見積金額（合計）を送る。
+  var priceInputs = document.querySelectorAll('.edit-item-price');
+  if (order.type === 'equipment' && priceInputs.length > 0) {
+    var items = [];
+    var total = 0;
+    for (var i = 0; i < priceInputs.length; i++) {
+      var inp = priceInputs[i];
+      var itemId = parseInt(inp.getAttribute('data-item-id'), 10);
+      var price = parseInt(String(inp.value).replace(/,/g, ''), 10);
+      if (isNaN(price) || price < 0) {
+        alert('単価は0以上の数値を入力してください');
+        return;
+      }
+      var qty = Number(inp.closest('tr').getAttribute('data-qty')) || 0;
+      total += price * qty;
+      items.push({ id: itemId, price: price });
+    }
+    if (total <= 0) {
+      alert('見積金額（明細合計）が1以上になるよう単価を入力してください');
+      return;
+    }
+    body.items = items;
+  } else {
+    var amountInput = document.getElementById('modalAmount');
+    var amount = parseInt(String(amountInput.value).replace(/,/g, ''), 10);
+    if (isNaN(amount) || amount <= 0) {
+      alert('見積金額を入力してください');
+      return;
+    }
+    body.estimate_amount = amount;
+  }
+
   if (isRepairLikeType(order.type)) {
     body.repair_schedule_date = dateInput.value || '';
   } else {
