@@ -447,6 +447,12 @@ function onAreaChange() {
 function applyFilters() {
   if (isInitializing) return; // 初期化中の二重発火を防ぐ
   saveFilters();
+  // フィルタ変更時は選択をクリア（「見えている行だけが対象」に揃える）。
+  // 種別など条件を変えると非表示の選択が黙って残り、出力対象に混ざるのを防ぐ。
+  // ページング（もっと見る）内の保持には影響しない（applyFilters は条件変更時のみ呼ばれる）。
+  selectedIds = {};
+  var selectAllReset = document.getElementById('selectAll');
+  if (selectAllReset) selectAllReset.checked = false;
   // フィルタ変更時は表示件数をリセット
   displayLimit = (pageSize === 'all') ? Number.MAX_SAFE_INTEGER : pageSize;
   fetchOrders(function() {
