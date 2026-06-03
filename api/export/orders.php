@@ -165,6 +165,9 @@ $repairDetails          = [];
 $seatReplacementDetails = [];
 $partsDetails           = [];
 $equipItems             = [];
+$unavailDates           = []; // order_id => [ {date,is_all_day,time_start,time_end}, ... ] 修理・シート交換
+$unavailDays            = []; // order_id => [ 'saturday', ... ]                         修理・シート交換
+$photoCounts            = []; // order_id => 写真枚数
 
 if (!empty($orders)) {
     $orderIds = array_column($orders, 'id');
@@ -174,14 +177,14 @@ if (!empty($orders)) {
         $idParams[':oid' . $i] = $oid;
     }
 
-    $repairSql = "SELECT order_id, equipment_name, issue
+    $repairSql = "SELECT order_id, equipment_name, issue, repair_schedule_date, repair_completed_date
                   FROM order_repair_details
                   WHERE order_id IN ({$placeholders})";
     foreach (query($repairSql, $idParams) as $row) {
         $repairDetails[$row['order_id']] = $row;
     }
 
-    $seatSql = "SELECT order_id, equipment_name, issue
+    $seatSql = "SELECT order_id, equipment_name, issue, repair_schedule_date, repair_completed_date
                 FROM order_seat_replacement_details
                 WHERE order_id IN ({$placeholders})";
     foreach (query($seatSql, $idParams) as $row) {
@@ -207,193 +210,255 @@ if (!empty($orders)) {
     foreach (query($equipSql, $idParams) as $row) {
         $equipItems[$row['order_id']][] = $row;
     }
+
+    // 対応不可日（修理・シート交換）: 1発注に複数。終日 or 時間帯。
+    $udSql = "SELECT order_id, date, is_all_day, time_start, time_end
+              FROM order_repair_unavail_dates
+              WHERE order_id IN ({$placeholders})
+              ORDER BY order_id, date";
+    foreach (query($udSql, $idParams) as $row) {
+        $unavailDates[$row['order_id']][] = $row;
+    }
+
+    // 対応不可曜日（修理・シート交換）: 1発注に複数。
+    $uwSql = "SELECT order_id, day_of_week
+              FROM order_repair_unavail_days
+              WHERE order_id IN ({$placeholders})";
+    foreach (query($uwSql, $idParams) as $row) {
+        $unavailDays[$row['order_id']][] = $row['day_of_week'];
+    }
+
+    // 写真枚数（全種別）
+    $pcSql = "SELECT order_id, COUNT(*) AS cnt
+              FROM order_photos
+              WHERE order_id IN ({$placeholders})
+              GROUP BY order_id";
+    foreach (query($pcSql, $idParams) as $row) {
+        $photoCounts[$row['order_id']] = (int)$row['cnt'];
+    }
 }
 
-// --- Excel作成 ---
-$spreadsheet = new Spreadsheet();
-$spreadsheet->getDefaultStyle()->getFont()->setName('Meiryo UI');
-$sheet = $spreadsheet->getActiveSheet();
-$sheet->setTitle('発注一覧');
+// --- フォーマットヘルパー ---
+// 対応不可日: 終日 or 時間帯（HH:MM-HH:MM）。複数はセル内改行で列挙。
+function fmtUnavailDates(?array $rows): string
+{
+    if (empty($rows)) {
+        return '';
+    }
+    $parts = [];
+    foreach ($rows as $r) {
+        $d = date('Y/n/j', strtotime((string)$r['date']));
+        if ((int)$r['is_all_day'] === 1) {
+            $parts[] = $d . ' 終日';
+        } else {
+            $ts = $r['time_start'] ? substr((string)$r['time_start'], 0, 5) : '';
+            $te = $r['time_end']   ? substr((string)$r['time_end'], 0, 5)   : '';
+            $parts[] = trim($d . ' ' . $ts . '-' . $te);
+        }
+    }
+    return implode("\n", $parts);
+}
 
-// ヘッダ定義
-// 2026-05-28: 列順を業務上見やすい順に並べ替え。
-//   発注日 > 種別 > 発注番号 > 店舗 > カテゴリ > 品名 > 会社商品コード >
-//   仕入先商品コード > 仕入先 > 数量 > 単価 > 小計 > 納品予定日 >
-//   確定金額 > 納品実績日 > ステータス > 詳細 > 登録日時
-// 店舗は "10101:札幌" 形式でコードと名前を1列に結合。
-// 見積金額列は単価編集可能化により Σ小計 と常に一致するため削除。
-$headers = [
-    'A' => '発注日',
-    'B' => '種別',
-    'C' => '発注番号',
-    'D' => '店舗',
-    'E' => 'カテゴリ',
-    'F' => '品名',
-    'G' => '会社商品コード',
-    'H' => '仕入先商品コード',
-    'I' => '仕入先',
-    'J' => '数量',
-    'K' => '単価',
-    'L' => '小計',
-    'M' => '納品予定日',
-    'N' => '確定金額',
-    'O' => '納品実績日',
-    'P' => 'ステータス',
-    'Q' => '詳細',
-    'R' => '登録日時',
+// 対応不可曜日: 英語→日本語、月〜日の順に並べ「・」連結。
+function fmtUnavailDays(?array $days): string
+{
+    if (empty($days)) {
+        return '';
+    }
+    static $map   = ['monday'=>'月','tuesday'=>'火','wednesday'=>'水','thursday'=>'木','friday'=>'金','saturday'=>'土','sunday'=>'日'];
+    static $order = ['monday'=>1,'tuesday'=>2,'wednesday'=>3,'thursday'=>4,'friday'=>5,'saturday'=>6,'sunday'=>7];
+    $uniq = array_values(array_unique($days));
+    usort($uniq, fn($a, $b) => ($order[$a] ?? 99) <=> ($order[$b] ?? 99));
+    return implode('・', array_map(fn($d) => $map[$d] ?? $d, $uniq));
+}
+
+// 1シートを埋めるヘルパ（ヘッダ・データ・スタイル・幅・枠固定）。
+//   $moneyIdx/$centerIdx/$wrapIdx は 0 始まりの列インデックス。
+function fillSheet($sheet, array $headers, array $rows, array $moneyIdx, array $centerIdx, array $wrapIdx): void
+{
+    $colIdx  = fn(int $i) => \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($i + 1);
+    $lastCol = $colIdx(count($headers) - 1);
+
+    // ヘッダ
+    foreach ($headers as $i => $label) {
+        $sheet->setCellValue($colIdx($i) . '1', $label);
+    }
+    $sheet->getStyle("A1:{$lastCol}1")->applyFromArray([
+        'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF'], 'size' => 10],
+        'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '4472C4']],
+        'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+        'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
+    ]);
+    $sheet->getRowDimension(1)->setRowHeight(24);
+
+    // データ（数値は数値型、その他は文字列型で明示セット）
+    $r = 2;
+    foreach ($rows as $row) {
+        foreach ($row as $i => $val) {
+            $type = is_int($val)
+                ? \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_NUMERIC
+                : \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING;
+            $sheet->setCellValueExplicit($colIdx($i) . $r, $val, $type);
+        }
+        $r++;
+    }
+    $last = $r - 1;
+
+    if ($last >= 2) {
+        $sheet->getStyle("A2:{$lastCol}{$last}")->applyFromArray([
+            'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
+            'font' => ['size' => 10],
+            'alignment' => ['vertical' => Alignment::VERTICAL_CENTER],
+        ]);
+        foreach ($moneyIdx as $ci) {
+            $L = $colIdx($ci);
+            $sheet->getStyle("{$L}2:{$L}{$last}")->getNumberFormat()->setFormatCode('#,##0');
+            $sheet->getStyle("{$L}2:{$L}{$last}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+        }
+        foreach ($centerIdx as $ci) {
+            $L = $colIdx($ci);
+            $sheet->getStyle("{$L}2:{$L}{$last}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        }
+        foreach ($wrapIdx as $ci) {
+            $L = $colIdx($ci);
+            $sheet->getStyle("{$L}2:{$L}{$last}")->getAlignment()->setWrapText(true);
+        }
+    }
+
+    // 幅: wrap 列は固定幅、その他は自動幅
+    $wrapSet = array_flip($wrapIdx);
+    foreach ($headers as $i => $label) {
+        $L = $colIdx($i);
+        if (isset($wrapSet[$i])) {
+            $sheet->getColumnDimension($L)->setWidth(26);
+        } else {
+            $sheet->getColumnDimension($L)->setAutoSize(true);
+        }
+    }
+
+    $sheet->freezePane('A2');
+    $sheet->setSelectedCell('A1');
+}
+
+// --- 種別ごとの行データ生成 ---
+$shopOf = fn($o) => $o['shop_code'] . ':' . $o['shop_name'];
+$catOf  = fn($o) => $categoryLabels[$o['category_code']] ?? $o['category_code'];
+$stOf   = fn($o) => $statusLabels[(int)$o['status']] ?? (string)$o['status'];
+$finOf  = fn($o) => $o['final_amount'] !== null ? (int)$o['final_amount'] : '';
+
+// 種別ごとに発注を仕分け（メインクエリの並び順を維持）
+$byType = ['equipment' => [], 'repair' => [], 'parts' => [], 'seat-replacement' => []];
+foreach ($orders as $o) {
+    if (isset($byType[$o['type']])) {
+        $byType[$o['type']][] = $o;
+    }
+}
+
+$sheetSpecs = [];
+
+// 備品（明細1行）
+$rows = [];
+foreach ($byType['equipment'] as $o) {
+    $items = $equipItems[$o['id']] ?? [];
+    if (empty($items)) {
+        $rows[] = [$o['date'], $o['id'], $shopOf($o), $catOf($o), '', '', '', '', '', '', '',
+                   $o['delivery_date'] ?? '', $o['actual_delivery_date'] ?? '', $finOf($o), $stOf($o), $o['created_at']];
+    } else {
+        foreach ($items as $ei) {
+            $rows[] = [
+                $o['date'], $o['id'], $shopOf($o), $catOf($o),
+                $ei['product_name'], $ei['product_code'] ?? '', $ei['supplier_product_code'] ?? '', $ei['supplier'] ?? '',
+                (int)$ei['qty'], (int)$ei['price'], (int)$ei['price'] * (int)$ei['qty'],
+                $o['delivery_date'] ?? '', $o['actual_delivery_date'] ?? '', $finOf($o), $stOf($o), $o['created_at'],
+            ];
+        }
+    }
+}
+$sheetSpecs['equipment'] = [
+    'title' => '備品',
+    'headers' => ['発注日','発注番号','店舗','カテゴリ','品名','会社商品コード','仕入先商品コード','仕入先','数量','単価','小計','納品予定日','納品実績日','確定金額','ステータス','登録日時'],
+    'rows' => $rows, 'money' => [9, 10, 13], 'center' => [8], 'wrap' => [],
 ];
 
-// ヘッダ行書き込み
-foreach ($headers as $col => $label) {
-    $sheet->setCellValue($col . '1', $label);
-}
-
-// ヘッダスタイル
-$headerRange = 'A1:R1';
-$sheet->getStyle($headerRange)->applyFromArray([
-    'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF'], 'size' => 10],
-    'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '4472C4']],
-    'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
-    'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
-]);
-$sheet->getRowDimension(1)->setRowHeight(24);
-
-// カラム幅（データ書き込み後に自動調整）
-
-// --- 共通カラム生成 ---
-// 新列順（A〜R）に合わせて行データを組み立てるヘルパ。
-// $variable は per-type の差異（F品名 / G会社商品コード / H仕入先商品コード / I仕入先 /
-// J数量 / K単価 / L小計 / Q詳細）の連想配列。
-function buildRow(
-    array $order,
-    array $typeLabels,
-    array $categoryLabels,
-    array $statusLabels,
-    array $variable
-): array {
-    $shopCombined = $order['shop_code'] . ':' . $order['shop_name'];
-    return [
-        $order['date'],                                                                      // A 発注日
-        $typeLabels[$order['type']] ?? $order['type'],                                       // B 種別
-        $order['id'],                                                                        // C 発注番号
-        $shopCombined,                                                                       // D 店舗
-        $categoryLabels[$order['category_code']] ?? $order['category_code'],                 // E カテゴリ
-        $variable['product_name']     ?? '',                                                 // F 品名
-        $variable['product_code']     ?? '',                                                 // G 会社商品コード
-        $variable['supplier_product_code'] ?? '',                                            // H 仕入先商品コード
-        $variable['supplier']         ?? '',                                                 // I 仕入先
-        $variable['qty']              ?? '',                                                 // J 数量
-        $variable['price']            ?? '',                                                 // K 単価
-        $variable['subtotal']         ?? '',                                                 // L 小計
-        $order['delivery_date']       ?? '',                                                 // M 納品予定日
-        $order['final_amount'] !== null ? (int)$order['final_amount'] : '',                  // N 確定金額
-        $order['actual_delivery_date'] ?? '',                                                // O 納品実績日
-        $statusLabels[(int)$order['status']] ?? $order['status'],                            // P ステータス
-        $variable['detail']           ?? '',                                                 // Q 詳細
-        $order['created_at'],                                                                // R 登録日時
+// 修理
+$rows = [];
+foreach ($byType['repair'] as $o) {
+    $rd = $repairDetails[$o['id']] ?? [];
+    $rows[] = [
+        $o['date'], $o['id'], $shopOf($o), $catOf($o),
+        $rd['equipment_name'] ?? '', $rd['issue'] ?? '',
+        fmtUnavailDates($unavailDates[$o['id']] ?? null), fmtUnavailDays($unavailDays[$o['id']] ?? null),
+        $rd['repair_schedule_date'] ?? '', $rd['repair_completed_date'] ?? '',
+        $finOf($o), $photoCounts[$o['id']] ?? 0, $stOf($o), $o['created_at'],
     ];
 }
+$sheetSpecs['repair'] = [
+    'title' => '修理',
+    'headers' => ['発注日','発注番号','店舗','カテゴリ','対象機材','不具合内容','対応不可日時','対応不可曜日','修理予定日','修理完了日','確定金額','写真枚数','ステータス','登録日時'],
+    'rows' => $rows, 'money' => [10], 'center' => [11], 'wrap' => [5, 6, 7],
+];
 
-// データ行書き込み
-$rowNum = 2;
+// シート交換
+$rows = [];
+foreach ($byType['seat-replacement'] as $o) {
+    $sd = $seatReplacementDetails[$o['id']] ?? [];
+    $rows[] = [
+        $o['date'], $o['id'], $shopOf($o), $catOf($o),
+        $sd['equipment_name'] ?? '', $sd['issue'] ?? '',
+        fmtUnavailDates($unavailDates[$o['id']] ?? null), fmtUnavailDays($unavailDays[$o['id']] ?? null),
+        $sd['repair_schedule_date'] ?? '', $sd['repair_completed_date'] ?? '',
+        $finOf($o), $photoCounts[$o['id']] ?? 0, $stOf($o), $o['created_at'],
+    ];
+}
+$sheetSpecs['seat-replacement'] = [
+    'title' => 'シート交換',
+    'headers' => ['発注日','発注番号','店舗','カテゴリ','対象機材','内容','対応不可日時','対応不可曜日','作業予定日','作業完了日','確定金額','写真枚数','ステータス','登録日時'],
+    'rows' => $rows, 'money' => [10], 'center' => [11], 'wrap' => [5, 6, 7],
+];
 
-foreach ($orders as $order) {
-    $id    = $order['id'];
-    $oType = $order['type'];
+// 部品
+$rows = [];
+foreach ($byType['parts'] as $o) {
+    $pd = $partsDetails[$o['id']] ?? [];
+    $rows[] = [
+        $o['date'], $o['id'], $shopOf($o), $catOf($o),
+        $pd['parts_name'] ?? '', $pd['target_equipment'] ?? '',
+        isset($pd['quantity']) ? (int)$pd['quantity'] : 1, $pd['reason'] ?? '',
+        $o['delivery_date'] ?? '', $o['actual_delivery_date'] ?? '',
+        $finOf($o), $photoCounts[$o['id']] ?? 0, $stOf($o), $o['created_at'],
+    ];
+}
+$sheetSpecs['parts'] = [
+    'title' => '部品',
+    'headers' => ['発注日','発注番号','店舗','カテゴリ','部品名・品番','対象機材','数量','発注理由','納品予定日','納品実績日','確定金額','写真枚数','ステータス','登録日時'],
+    'rows' => $rows, 'money' => [10], 'center' => [6, 11], 'wrap' => [7],
+];
 
-    if ($oType === 'repair') {
-        $rd = $repairDetails[$id] ?? null;
-        $rowData = buildRow($order, $typeLabels, $categoryLabels, $statusLabels, [
-            'product_name' => $rd['equipment_name'] ?? '',
-            'qty'          => 1,
-            'detail'       => $rd['issue'] ?? '',
-        ]);
-        writeRow($sheet, $rowNum, $rowData);
-        $rowNum++;
+// --- Excel作成（データのある種別のみシート化）---
+$spreadsheet = new Spreadsheet();
+$spreadsheet->getDefaultStyle()->getFont()->setName('Meiryo UI');
 
-    } elseif ($oType === 'seat-replacement') {
-        $sd = $seatReplacementDetails[$id] ?? null;
-        $rowData = buildRow($order, $typeLabels, $categoryLabels, $statusLabels, [
-            'product_name' => $sd['equipment_name'] ?? '',
-            'qty'          => 1,
-            'detail'       => $sd['issue'] ?? 'マシンのシート交換',
-        ]);
-        writeRow($sheet, $rowNum, $rowData);
-        $rowNum++;
-
-    } elseif ($oType === 'equipment') {
-        $items = $equipItems[$id] ?? [];
-        if (empty($items)) {
-            $rowData = buildRow($order, $typeLabels, $categoryLabels, $statusLabels, []);
-            writeRow($sheet, $rowNum, $rowData);
-            $rowNum++;
-        } else {
-            foreach ($items as $ei) {
-                $subtotal = (int)$ei['price'] * (int)$ei['qty'];
-                $rowData = buildRow($order, $typeLabels, $categoryLabels, $statusLabels, [
-                    'product_name'          => $ei['product_name'],
-                    'product_code'          => $ei['product_code'] ?? '',
-                    'supplier_product_code' => $ei['supplier_product_code'] ?? '',
-                    'supplier'              => $ei['supplier'] ?? '',
-                    'qty'                   => (int)$ei['qty'],
-                    'price'                 => (int)$ei['price'],
-                    'subtotal'              => $subtotal,
-                ]);
-                writeRow($sheet, $rowNum, $rowData);
-                $rowNum++;
-            }
-        }
-
-    } elseif ($oType === 'parts') {
-        $pd = $partsDetails[$id] ?? null;
-        $detail = '';
-        if (($pd['target_equipment'] ?? '') !== '') {
-            $detail = '対象: ' . $pd['target_equipment'];
-        }
-        if (($pd['reason'] ?? '') !== '') {
-            $detail .= ($detail !== '' ? ' / ' : '') . '理由: ' . $pd['reason'];
-        }
-        $rowData = buildRow($order, $typeLabels, $categoryLabels, $statusLabels, [
-            'product_name' => $pd['parts_name'] ?? '',
-            'qty'          => $pd['quantity'] ?? 1,
-            'detail'       => $detail,
-        ]);
-        writeRow($sheet, $rowNum, $rowData);
-        $rowNum++;
+$sheetOrder = ['equipment', 'repair', 'parts', 'seat-replacement'];
+$created = 0;
+foreach ($sheetOrder as $t) {
+    $spec = $sheetSpecs[$t];
+    if (empty($spec['rows'])) {
+        continue;
     }
+    $sheet = ($created === 0) ? $spreadsheet->getActiveSheet() : $spreadsheet->createSheet();
+    $sheet->setTitle($spec['title']);
+    fillSheet($sheet, $spec['headers'], $spec['rows'], $spec['money'], $spec['center'], $spec['wrap']);
+    $created++;
 }
 
-// データ行スタイル（罫線）
-$lastRow = $rowNum - 1;
-if ($lastRow >= 2) {
-    $dataRange = 'A2:R' . $lastRow;
-    $sheet->getStyle($dataRange)->applyFromArray([
-        'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
-        'font' => ['size' => 10],
-        'alignment' => ['vertical' => Alignment::VERTICAL_CENTER],
-    ]);
-    // 金額列は右寄せ・カンマ区切り（K=単価/L=小計/N=確定）
-    foreach (['K', 'L', 'N'] as $moneyCol) {
-        $sheet->getStyle($moneyCol . '2:' . $moneyCol . $lastRow)
-              ->getNumberFormat()->setFormatCode('#,##0');
-        $sheet->getStyle($moneyCol . '2:' . $moneyCol . $lastRow)
-              ->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
-    }
-    // 数量列(J)は中央
-    $sheet->getStyle('J2:J' . $lastRow)
-          ->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+// 該当データなし: 空シートにメッセージ
+if ($created === 0) {
+    $sheet = $spreadsheet->getActiveSheet();
+    $sheet->setTitle('発注一覧');
+    $sheet->setCellValue('A1', '該当する発注データがありません');
 }
 
-// カラム幅自動調整
-foreach (range('A', 'R') as $col) {
-    $sheet->getColumnDimension($col)->setAutoSize(true);
-}
-
-// ウィンドウ枠固定（ヘッダ行）
-$sheet->freezePane('A2');
-
-// アクティブセルをA1に設定
-$sheet->setSelectedCell('A1');
+$spreadsheet->setActiveSheetIndex(0);
 
 // --- 出力 ---
 $filename = 'orders_' . date('Ymd') . '.xlsx';
@@ -408,14 +473,3 @@ $writer->save('php://output');
 $spreadsheet->disconnectWorksheets();
 unset($spreadsheet);
 exit;
-
-// --- ヘルパー ---
-function writeRow(\PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet, int $rowNum, array $data): void
-{
-    $cols = range('A', 'R');
-    foreach ($data as $i => $val) {
-        if (isset($cols[$i])) {
-            $sheet->setCellValue($cols[$i] . $rowNum, $val);
-        }
-    }
-}
