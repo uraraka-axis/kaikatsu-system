@@ -9,6 +9,9 @@
 const WEEKDAY_LABELS = ['日', '月', '火', '水', '木', '金', '土'];
 
 document.addEventListener('DOMContentLoaded', () => {
+  // 読み込み完了まで保存不可（カテゴリ取得前に保存して空配列が送られる競合を防止）
+  const saveBtn = document.querySelector('.btn-submit');
+  if (saveBtn) saveBtn.disabled = true;
   loadSettings();
 });
 
@@ -37,6 +40,10 @@ async function loadSettings() {
     renderFiscalStartMonth(settings.data.fiscal_start_month);
     renderProductDeptEmail(settings.data.product_dept_email);
     renderCategoryTable(categories.data);
+
+    // 読み込み完了。保存を有効化
+    const saveBtn = document.querySelector('.btn-submit');
+    if (saveBtn) saveBtn.disabled = false;
   } catch (err) {
     console.error(err);
     alert('設定の読み込みに失敗しました: ' + err.message);
