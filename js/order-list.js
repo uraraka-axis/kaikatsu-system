@@ -1862,7 +1862,10 @@ function openDraftMails() {
         return;
       }
       draftMailsState.suppliers = (res.data && res.data.suppliers) || [];
+      draftMailsState.repairs = (res.data && res.data.repairs) || [];
+      draftMailsState.signature = (res.data && res.data.signature) || '';
       draftMailsState.ccEmail = (res.data && res.data.cc_email) || '';
+      draftMailsState.entries = buildDraftEntries();
       draftMailsState.activeIndex = 0;
       renderDraftMails();
       var ov = document.getElementById('draftMailsOverlay');
@@ -1896,107 +1899,135 @@ function formatYen(n) {
   return '¥' + (Number(n) || 0).toLocaleString();
 }
 
-function buildMailSubject(sup) {
-  var today = new Date();
-  var ymd = today.getFullYear() + ('0' + (today.getMonth() + 1)).slice(-2) + ('0' + today.getDate()).slice(-2);
-  return '【発注依頼】' + ymd + '_' + sup.supplier + ' 御中';
+// 下書きエントリ（備品＝仕入先別／修理＝1発注1通）を1つのリストにまとめる
+function buildDraftEntries() {
+  var entries = [];
+  (draftMailsState.suppliers || []).forEach(function(s) {
+    entries.push({ kind: 'equipment', label: s.supplier, to: s.email || '', order_ids: s.order_ids || [], data: s });
+  });
+  (draftMailsState.repairs || []).forEach(function(r) {
+    entries.push({ kind: 'repair', label: '修理：' + (r.equipment_name || '') + '（' + (r.shop_name || '') + '）', to: '', order_ids: [r.order_id], data: r });
+  });
+  return entries;
 }
 
-function buildMailBody(sup) {
-  var lines = [];
-  var contactName = sup.contact ? (sup.contact + ' 様') : 'ご担当者様';
-  lines.push(sup.supplier + ' 御中');
-  lines.push(contactName);
-  lines.push('');
-  lines.push('いつもお世話になっております。');
-  lines.push('快活フロンティア商品部です。');
-  lines.push('');
-  lines.push('下記のとおり発注いたしますので、ご手配のほど');
-  lines.push('よろしくお願いいたします。');
-  lines.push('');
-  lines.push('─────────────────────────');
-  lines.push('■ 発注明細');
-  lines.push('─────────────────────────');
+function withSignature(body) {
+  var sig = draftMailsState.signature || '';
+  if (!sig) return body;
+  var bar = '□□□□□□□□□□□□□□□□□□□□□□□□';
+  return body + '\n\n' + bar + '\n\n' + sig + '\n\n' + bar;
+}
 
-  // 店舗単位でまとめる
-  var byShop = {};
-  sup.items.forEach(function(it) {
-    var key = it.shop_code + ':' + it.shop_name;
-    if (!byShop[key]) byShop[key] = [];
-    byShop[key].push(it);
-  });
-
-  Object.keys(byShop).forEach(function(key) {
-    var label = key.split(':').slice(1).join(':');
-    lines.push('');
-    lines.push('【' + label + '】');
-    byShop[key].forEach(function(it) {
-      // 仕入先へ送るメールなので、仕入先の商品コードを優先（無ければ社内コード）
-      var dispCode = it.supplier_product_code || it.product_code;
-      var codePart = dispCode ? ' (' + dispCode + ')' : '';
-      var priceLine = it.price > 0
-        ? '  ・' + it.product_name + codePart + ' ×' + it.qty + ' @' + it.price.toLocaleString() + '円'
-        : '  ・' + it.product_name + codePart + ' ×' + it.qty;
-      lines.push(priceLine);
-    });
-  });
-
-  lines.push('');
-  lines.push('─────────────────────────');
-  lines.push('合計数量: ' + sup.total_qty + ' 点');
-  if (sup.total_amount > 0) {
-    lines.push('合計金額（税抜）: ' + sup.total_amount.toLocaleString() + ' 円');
+function buildMailSubject(entry) {
+  var today = new Date();
+  var ymd = today.getFullYear() + ('0' + (today.getMonth() + 1)).slice(-2) + ('0' + today.getDate()).slice(-2);
+  if (entry.kind === 'repair') {
+    return '【修理・メンテナンスのご相談】' + ymd + '_' + (entry.data.equipment_name || '');
   }
-  lines.push('─────────────────────────');
-  lines.push('');
-  lines.push('納期・納品先・運送条件など、ご不明な点があれば');
-  lines.push('ご連絡くださいますようお願いいたします。');
-  lines.push('');
-  lines.push('以上、よろしくお願いいたします。');
+  return '【発注依頼】' + ymd + '_' + entry.data.supplier;
+}
 
-  return lines.join('\n');
+function buildMailBody(entry) {
+  return entry.kind === 'repair' ? buildRepairBody(entry.data) : buildEquipmentBody(entry.data);
+}
+
+// 備品（仕入先別に集約・店舗名は記載しない）
+function buildEquipmentBody(sup) {
+  var L = [];
+  L.push(sup.supplier + ' 御中');
+  L.push(sup.contact ? (sup.contact + ' 様') : 'ご担当者様');
+  L.push('');
+  L.push('いつもお世話になっております。');
+  L.push('株式会社快活フロンティアの〇〇です。');
+  L.push('');
+  L.push('下記の商品を発注いたします。');
+  L.push('');
+  L.push('【ご注文内容】');
+  (sup.items || []).forEach(function(it) {
+    L.push('・商品名：' + it.product_name);
+    L.push('　個数：' + it.qty + '個');
+  });
+  L.push('');
+  L.push('つきましては、お見積書と注文書をご送付いただけますでしょうか。');
+  L.push('');
+  L.push('ご確認のほど、よろしくお願いいたします。');
+  return withSignature(L.join('\n'));
+}
+
+// 修理（1発注1通・宛先は手入力）
+function buildRepairBody(r) {
+  var L = [];
+  L.push('〇〇〇〇');
+  L.push('〇〇様');
+  L.push('');
+  L.push('いつもお世話になっております。');
+  L.push('株式会社快活フロンティアの〇〇です。');
+  L.push('');
+  L.push('弊社にて使用しております御社製品につきまして、');
+  L.push('不具合が発生したため修理・メンテナンスのご相談をさせていただきたくご連絡いたしました。');
+  L.push('対象の商品および症状は以下の通りです。');
+  L.push('');
+  L.push('【不具合の概要】');
+  L.push('対象商品：' + (r.equipment_name || ''));
+  L.push('設置場所：FiT24 ' + (r.shop_name || ''));
+  L.push('発生症状：' + (r.issue || ''));
+  L.push('');
+  L.push('つきましては、修理に要する概算のお見積りと、今後のご対応の流れ（現地調査の有無など）についてご教示いただけますでしょうか。');
+  L.push('');
+  L.push('お手数をおかけしますが、ご確認のほどよろしくお願いいたします。');
+  return withSignature(L.join('\n'));
 }
 
 function renderDraftMails() {
   var body = document.getElementById('draftMailsBody');
   if (!body) return;
 
-  var suppliers = draftMailsState.suppliers;
+  var entries = draftMailsState.entries || [];
 
-  if (!suppliers || suppliers.length === 0) {
-    body.innerHTML = '<div class="draft-mails-empty">対象となる「依頼中」の備品発注がありません。<br>発注一覧のフィルタ条件をご確認ください。</div>';
+  if (entries.length === 0) {
+    body.innerHTML = '<div class="draft-mails-empty">対象となる「依頼中」の発注（備品・修理）がありません。<br>発注一覧のフィルタ条件をご確認ください。</div>';
     return;
   }
 
   // Tabs
   var tabsHtml = '<div class="draft-mails-tabs">';
-  suppliers.forEach(function(sup, i) {
+  entries.forEach(function(e, i) {
     var active = (i === draftMailsState.activeIndex) ? ' active' : '';
+    var badge = e.kind === 'equipment' ? '<span class="badge-count">' + e.order_ids.length + '</span>' : '<span class="badge-count">修理</span>';
     tabsHtml += '<button type="button" class="draft-mails-tab' + active + '" onclick="switchDraftTab(' + i + ')">' +
-      escapeHtml(sup.supplier) +
-      '<span class="badge-count">' + sup.order_ids.length + '</span>' +
+      escapeHtml(e.label) + badge +
     '</button>';
   });
   tabsHtml += '</div>';
 
   // Cards
   var cardsHtml = '';
-  suppliers.forEach(function(sup, i) {
+  entries.forEach(function(e, i) {
     var active = (i === draftMailsState.activeIndex) ? ' active' : '';
-    var subject = buildMailSubject(sup);
-    var bodyText = buildMailBody(sup);
+    var subject = buildMailSubject(e);
+    var bodyText = buildMailBody(e);
     cardsHtml += '<div class="draft-mail-card' + active + '" id="draftMailCard-' + i + '">';
+
     cardsHtml +=   '<div class="draft-mail-summary">';
-    cardsHtml +=     '<div><span class="draft-mail-summary-label">仕入先:</span><span class="draft-mail-summary-value">' + escapeHtml(sup.supplier) + '</span></div>';
-    cardsHtml +=     '<div><span class="draft-mail-summary-label">対象発注数:</span><span class="draft-mail-summary-value">' + sup.order_ids.length + ' 件</span></div>';
-    cardsHtml +=     '<div><span class="draft-mail-summary-label">合計数量:</span><span class="draft-mail-summary-value">' + sup.total_qty + ' 点</span></div>';
-    cardsHtml +=     '<div><span class="draft-mail-summary-label">合計金額:</span><span class="draft-mail-summary-value">' + formatYen(sup.total_amount) + '</span></div>';
-    cardsHtml +=     '<div style="grid-column:1/-1"><span class="draft-mail-summary-label">対象店舗:</span><span class="draft-mail-summary-value">' + escapeHtml(sup.shops.join(' / ')) + '</span></div>';
+    if (e.kind === 'equipment') {
+      var sup = e.data;
+      cardsHtml += '<div><span class="draft-mail-summary-label">仕入先:</span><span class="draft-mail-summary-value">' + escapeHtml(sup.supplier) + '</span></div>';
+      cardsHtml += '<div><span class="draft-mail-summary-label">対象発注数:</span><span class="draft-mail-summary-value">' + sup.order_ids.length + ' 件</span></div>';
+      cardsHtml += '<div><span class="draft-mail-summary-label">合計数量:</span><span class="draft-mail-summary-value">' + sup.total_qty + ' 点</span></div>';
+      cardsHtml += '<div><span class="draft-mail-summary-label">合計金額:</span><span class="draft-mail-summary-value">' + formatYen(sup.total_amount) + '</span></div>';
+      cardsHtml += '<div style="grid-column:1/-1"><span class="draft-mail-summary-label">対象店舗:</span><span class="draft-mail-summary-value">' + escapeHtml((sup.shops || []).join(' / ')) + '</span></div>';
+    } else {
+      var r = e.data;
+      cardsHtml += '<div><span class="draft-mail-summary-label">区分:</span><span class="draft-mail-summary-value">修理（1件）</span></div>';
+      cardsHtml += '<div><span class="draft-mail-summary-label">対象商品:</span><span class="draft-mail-summary-value">' + escapeHtml(r.equipment_name || '') + '</span></div>';
+      cardsHtml += '<div style="grid-column:1/-1"><span class="draft-mail-summary-label">設置場所:</span><span class="draft-mail-summary-value">' + escapeHtml(r.shop_name || '') + '</span></div>';
+    }
     cardsHtml +=   '</div>';
 
+    var toPlaceholder = e.kind === 'repair' ? '例: maker@example.co.jp（メーカー）' : '例: contact@supplier.co.jp';
     cardsHtml +=   '<div class="draft-mail-field">';
     cardsHtml +=     '<label>To（送信先メールアドレス）</label>';
-    cardsHtml +=     '<input type="text" class="draft-mail-input" id="draftMailTo-' + i + '" value="' + escapeHtml(sup.email || '') + '" placeholder="例: contact@supplier.co.jp">';
+    cardsHtml +=     '<input type="text" class="draft-mail-input" id="draftMailTo-' + i + '" value="' + escapeHtml(e.to || '') + '" placeholder="' + toPlaceholder + '">';
     cardsHtml +=   '</div>';
 
     cardsHtml +=   '<div class="draft-mail-field">';
@@ -2024,7 +2055,7 @@ function renderDraftMails() {
     cardsHtml +=     '<span class="copy-feedback" id="copyFeedback-' + i + '">コピーしました</span>';
     cardsHtml +=     '<div class="spacer"></div>';
     cardsHtml +=     '<button type="button" class="btn-action btn-primary" onclick="markSupplierOrdered(' + i + ')">';
-    cardsHtml +=       'この仕入先分を発注済にする</button>';
+    cardsHtml +=       (e.kind === 'repair' ? 'この修理を発注済にする' : 'この仕入先分を発注済にする') + '</button>';
     cardsHtml +=   '</div>';
     cardsHtml += '</div>';
   });
@@ -2109,19 +2140,20 @@ function legacyCopy(text) {
 }
 
 function markSupplierOrdered(i) {
-  var sup = draftMailsState.suppliers[i];
-  if (!sup) return;
+  var entry = (draftMailsState.entries || [])[i];
+  if (!entry) return;
 
-  var msg = '【' + sup.supplier + '】に紐付く ' + sup.order_ids.length + ' 件の発注を「発注済」に変更します。\n' +
+  var name = entry.kind === 'repair' ? (entry.data.equipment_name || 'この修理') : entry.label;
+  var msg = '【' + name + '】に紐付く ' + entry.order_ids.length + ' 件の発注を「発注済」に変更します。\n' +
             'よろしいですか？';
   if (!confirm(msg)) return;
 
   if (typeof window.showLoading === 'function') window.showLoading('発注済に更新中…');
 
   apiPost('api/orders/bulk-status.php', {
-    order_ids: sup.order_ids,
+    order_ids: entry.order_ids,
     action: 'order',
-    memo: 'メール下書きから発注: ' + sup.supplier
+    memo: 'メール下書きから発注: ' + name
   })
     .then(function(res) {
       if (!res || !res.success) {
@@ -2132,10 +2164,10 @@ function markSupplierOrdered(i) {
       var skipped   = (res.skipped || []).length;
       alert('発注済に更新しました（' + processed + ' 件 / スキップ: ' + skipped + ' 件）');
 
-      // この仕入先タブを閉じてリストから除外
-      draftMailsState.suppliers.splice(i, 1);
-      if (draftMailsState.activeIndex >= draftMailsState.suppliers.length) {
-        draftMailsState.activeIndex = Math.max(0, draftMailsState.suppliers.length - 1);
+      // このタブを閉じてリストから除外
+      (draftMailsState.entries || []).splice(i, 1);
+      if (draftMailsState.activeIndex >= draftMailsState.entries.length) {
+        draftMailsState.activeIndex = Math.max(0, draftMailsState.entries.length - 1);
       }
       renderDraftMails();
 

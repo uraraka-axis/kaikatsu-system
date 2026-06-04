@@ -187,17 +187,50 @@ foreach ($rows as $r) {
 // 連想配列 → リスト化（フロントが扱いやすいよう）
 $suppliers = array_values($grouped);
 
+// --- 修理(status=0) の下書き（1発注=1通。宛先は手入力） ---
+$rsql = "SELECT o.id AS order_id, o.shop_code, s.name AS shop_name,
+                rd.equipment_name, rd.issue
+         FROM orders o
+         JOIN shops s ON o.shop_code = s.code";
+if ($zoneCode !== '') {
+    $rsql .= ' JOIN areas a ON s.area_code = a.code';
+}
+$rsql .= " JOIN order_repair_details rd ON rd.order_id = o.id
+           WHERE o.status = 0 AND o.type = 'repair' AND o.cancelled_at IS NULL";
+if (!empty($where)) {
+    $rsql .= ' AND ' . implode(' AND ', $where);
+}
+$rsql .= ' ORDER BY o.shop_code, o.date, o.id';
+
+$repairs = [];
+foreach (query($rsql, $params) as $r) {
+    $repairs[] = [
+        'order_id'       => $r['order_id'],
+        'shop_name'      => $r['shop_name'],
+        'equipment_name' => $r['equipment_name'],
+        'issue'          => $r['issue'],
+    ];
+}
+
 // CC 用: 商品部メアド (system_settings.product_dept_email)
 $ccRow = getOne(
     "SELECT `value` FROM system_settings WHERE `key` = 'product_dept_email' AND is_active = 1"
 );
 $ccEmail = $ccRow['value'] ?? '';
 
+// メール署名（system_settings.mail_signature。〇〇＝担当者名/メールは手入力プレースホルダ）
+$sigRow = getOne(
+    "SELECT `value` FROM system_settings WHERE `key` = 'mail_signature' AND is_active = 1"
+);
+$signature = $sigRow['value'] ?? '';
+
 jsonResponse([
     'success' => true,
     'data'    => [
         'suppliers'    => $suppliers,
+        'repairs'      => $repairs,
         'cc_email'     => $ccEmail,
+        'signature'    => $signature,
         'fetched_at'   => date('Y-m-d H:i:s'),
         'requester'    => $user['name'] ?? '',
     ],

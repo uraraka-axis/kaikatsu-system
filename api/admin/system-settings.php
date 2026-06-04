@@ -36,11 +36,15 @@ function handleGet(): void
     $emailRow = getOne("SELECT value FROM system_settings WHERE `key` = 'product_dept_email' AND is_active = 1");
     $productDeptEmail = $emailRow['value'] ?? '';
 
+    $sigRow = getOne("SELECT value FROM system_settings WHERE `key` = 'mail_signature' AND is_active = 1");
+    $mailSignature = $sigRow['value'] ?? '';
+
     jsonResponse([
         'success' => true,
         'data'    => [
             'fiscal_start_month' => $month,
             'product_dept_email' => $productDeptEmail,
+            'mail_signature'     => $mailSignature,
         ],
     ]);
 }
@@ -67,6 +71,12 @@ function handlePost(): void
         if (mb_strlen($productDeptEmail) > 255) {
             jsonError('商品部メールアドレスは255文字以内で入力してください', 400);
         }
+    }
+
+    // メール署名（複数行・任意。〇〇等のプレースホルダ込みでそのまま保存）
+    $mailSignature = (string)($body['mail_signature'] ?? '');
+    if (mb_strlen($mailSignature) > 2000) {
+        jsonError('メール署名は2000文字以内で入力してください', 400);
     }
 
     $categories = $body['categories'] ?? null;
@@ -163,6 +173,14 @@ function handlePost(): void
              VALUES ('product_dept_email', :v, '商品部メール通知先（全店舗共通／商品・修理・部品発注時に通知）', 1)
              ON DUPLICATE KEY UPDATE value = :v2, is_active = 1",
             [':v' => $productDeptEmail, ':v2' => $productDeptEmail]
+        );
+
+        // メール署名を更新
+        execute(
+            "INSERT INTO system_settings (`key`, value, description, is_active)
+             VALUES ('mail_signature', :v, '発注メール下書きの署名（全メール共通）', 1)
+             ON DUPLICATE KEY UPDATE value = :v2, is_active = 1",
+            [':v' => $mailSignature, ':v2' => $mailSignature]
         );
 
         foreach ($codesToDelete as $delCode) {

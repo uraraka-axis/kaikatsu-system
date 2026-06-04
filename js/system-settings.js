@@ -39,6 +39,8 @@ async function loadSettings() {
 
     renderFiscalStartMonth(settings.data.fiscal_start_month);
     renderProductDeptEmail(settings.data.product_dept_email);
+    var sigEl = document.getElementById('mailSignature');
+    if (sigEl) sigEl.value = settings.data.mail_signature || '';
     renderCategoryTable(categories.data);
 
     // 読み込み完了。保存を有効化
@@ -265,6 +267,7 @@ async function saveSettings() {
       body: JSON.stringify({
         fiscal_start_month: fiscalStartMonth,
         product_dept_email: productDeptEmail,
+        mail_signature: (document.getElementById('mailSignature') || {}).value || '',
         categories,
       }),
     });
