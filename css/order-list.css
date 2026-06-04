@@ -129,8 +129,10 @@
   gap: 12px 16px;
   margin-bottom: 12px;
 }
+/* グリッドセルが内容で広がってはみ出すのを防ぐ（長い英数字連続対策） */
+.detail-grid > div { min-width: 0; }
 .detail-label { font-size: 12px; color: #94a3b8; font-weight: 600; margin-bottom: 4px; }
-.detail-value { font-size: 14px; color: #1e293b; white-space: pre-wrap; word-wrap: break-word; }
+.detail-value { font-size: 14px; color: #1e293b; white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; }
 
 /* ===== Pagination ===== */
 .pagination-bar {

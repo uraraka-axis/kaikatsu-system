@@ -427,13 +427,13 @@ function onZoneChange() {
   if (isArea) {
     // area ロールは管轄エリアのみ + disabled
     areaSelect.innerHTML = filtered.map(function(a) {
-      return '<option value="' + a.area_code + '">' + a.area_code + ':' + a.area_name + '</option>';
+      return '<option value="' + a.area_code + '">' + a.area_code + ':' + escapeHtml(a.area_name) + '</option>';
     }).join('');
     areaSelect.disabled = true;
     if (filtered[0]) areaSelect.value = filtered[0].area_code;
   } else {
     areaSelect.innerHTML = '<option value="">すべて</option>' +
-      filtered.map(function(a) { return '<option value="' + a.area_code + '">' + a.area_code + ':' + a.area_name + '</option>'; }).join('');
+      filtered.map(function(a) { return '<option value="' + a.area_code + '">' + a.area_code + ':' + escapeHtml(a.area_name) + '</option>'; }).join('');
   }
   onAreaChange();
 }
@@ -450,7 +450,7 @@ function onAreaChange() {
     filtered = shops.filter(function(s) { return areaCodes.indexOf(s.area_code) >= 0; });
   }
   shopSelect.innerHTML = '<option value="">すべて</option>' +
-    filtered.map(function(s) { return '<option value="' + s.shop_code + '">' + s.shop_code + ':' + s.shop_name + '</option>'; }).join('');
+    filtered.map(function(s) { return '<option value="' + s.shop_code + '">' + s.shop_code + ':' + escapeHtml(s.shop_name) + '</option>'; }).join('');
   applyFilters();
 }
 
@@ -478,8 +478,9 @@ function formatUnavailDate(ud) {
     label += '（終日）';
   } else {
     var parts = [];
-    if (ud.time_start) parts.push(ud.time_start);
-    if (ud.time_end) parts.push(ud.time_end);
+    // 時刻は HH:MM 表示（DBは HH:MM:SS。秒は不要）
+    if (ud.time_start) parts.push(String(ud.time_start).slice(0, 5));
+    if (ud.time_end) parts.push(String(ud.time_end).slice(0, 5));
     if (parts.length) {
       label += '（' + parts.join('〜') + '）';
     }
@@ -545,11 +546,11 @@ function renderOrders() {
       '<td><strong>' + o.id + '</strong></td>';
 
     if (viewMode === 'admin') {
-      html += '<td>' + (o.shop_name || o.shop_code) + '</td>';
+      html += '<td>' + escapeHtml(o.shop_name || o.shop_code) + '</td>';
     }
 
-    html += '<td>' + catLabel + '</td>' +
-      '<td class="td-content">' + contentLabel + '</td>' +
+    html += '<td>' + escapeHtml(catLabel) + '</td>' +
+      '<td class="td-content">' + escapeHtml(contentLabel) + '</td>' +
       '<td>' + orderCount + '</td>' +
       '<td>' + displayAmount + '</td>' +
       '<td><span class="status-badge ' + statusClass + '">' + statusLabel + '</span></td>' +
@@ -642,8 +643,8 @@ function renderDetailContent(o) {
     var issueLabel = o.type === 'seat-replacement' ? '依頼内容' : '不具合内容';
     var photoLabel = o.type === 'seat-replacement' ? 'マシン写真' : '故障写真';
     html += '<div class="detail-grid">' +
-      '<div><div class="detail-label">' + equipLabel + '</div><div class="detail-value">' + (o.equipment_name || '') + '</div></div>' +
-      '<div><div class="detail-label">' + issueLabel + '</div><div class="detail-value">' + (o.issue || '') + '</div></div>' +
+      '<div><div class="detail-label">' + equipLabel + '</div><div class="detail-value">' + escapeHtml(o.equipment_name || '') + '</div></div>' +
+      '<div><div class="detail-label">' + issueLabel + '</div><div class="detail-value">' + escapeHtml(o.issue || '') + '</div></div>' +
     '</div>';
     var unavailDates = formatUnavailDates(o.unavail_dates);
     var unavailDays = formatUnavailDays(o.unavail_days);
@@ -664,16 +665,16 @@ function renderDetailContent(o) {
     if (o.equip_items && o.equip_items.length) {
       html += '<div class="equip-items-table"><table class="equip-table"><thead><tr><th>商品名</th><th>商品コード</th><th>仕入先</th><th>単価</th><th>数量</th><th>小計</th></tr></thead><tbody>';
       o.equip_items.forEach(function(d) {
-        html += '<tr><td>' + d.product_name + '</td><td>' + d.product_code + '</td><td>' + (d.supplier || '') + '</td><td>¥' + Number(d.price).toLocaleString() + '</td><td>' + d.qty + '</td><td>¥' + (Number(d.price) * Number(d.qty)).toLocaleString() + '</td></tr>';
+        html += '<tr><td>' + escapeHtml(d.product_name) + '</td><td>' + escapeHtml(d.product_code) + '</td><td>' + escapeHtml(d.supplier || '') + '</td><td>¥' + Number(d.price).toLocaleString() + '</td><td>' + d.qty + '</td><td>¥' + (Number(d.price) * Number(d.qty)).toLocaleString() + '</td></tr>';
       });
       html += '</tbody></table></div>';
     }
   } else {
     html += '<div class="detail-grid">' +
-      '<div><div class="detail-label">部品名・品番</div><div class="detail-value">' + (o.parts_name || '') + '</div></div>' +
-      '<div><div class="detail-label">対象機材</div><div class="detail-value">' + (o.target_equipment || '') + '</div></div>' +
+      '<div><div class="detail-label">部品名・品番</div><div class="detail-value">' + escapeHtml(o.parts_name || '') + '</div></div>' +
+      '<div><div class="detail-label">対象機材</div><div class="detail-value">' + escapeHtml(o.target_equipment || '') + '</div></div>' +
       '<div><div class="detail-label">数量</div><div class="detail-value">' + (o.quantity || 1) + '</div></div>' +
-      '<div><div class="detail-label">発注理由・備考</div><div class="detail-value">' + (o.reason || '') + '</div></div>' +
+      '<div><div class="detail-label">発注理由・備考</div><div class="detail-value">' + escapeHtml(o.reason || '') + '</div></div>' +
     '</div>';
     if (o.photos && o.photos.length > 0) {
       html += renderPhotos(o.photos, '写真');
@@ -975,7 +976,7 @@ function openStatusModal(orderId, action) {
     title.textContent = nextLabel + 'にする';
     body.innerHTML =
       '<div class="modal-row"><span class="modal-label">発注番号</span><input class="modal-input readonly" value="' + order.id + '" readonly></div>' +
-      '<div class="modal-row"><span class="modal-label">内容</span><input class="modal-input readonly" value="' + (order.content_label || '') + '" readonly></div>' +
+      '<div class="modal-row"><span class="modal-label">内容</span><input class="modal-input readonly" value="' + escapeHtml(order.content_label || '') + '" readonly></div>' +
       '<hr class="modal-divider">' +
       '<div class="modal-row"><span class="modal-label">メモ</span><textarea class="modal-textarea" id="modalMemo" placeholder="任意入力"></textarea></div>';
     footer.innerHTML =
@@ -993,7 +994,7 @@ function openStatusModal(orderId, action) {
     title.textContent = modalTitle;
     body.innerHTML =
       '<div class="modal-row"><span class="modal-label">発注番号</span><input class="modal-input readonly" value="' + order.id + '" readonly></div>' +
-      '<div class="modal-row"><span class="modal-label">' + equipFieldLabel + '</span><input class="modal-input readonly" value="' + (order.equipment_name || '') + '" readonly></div>' +
+      '<div class="modal-row"><span class="modal-label">' + equipFieldLabel + '</span><input class="modal-input readonly" value="' + escapeHtml(order.equipment_name || '') + '" readonly></div>' +
       '<hr class="modal-divider">' +
       '<div class="modal-info">' + infoText + '</div>' +
       '<div class="modal-row"><span class="modal-label">' + dateFieldLabel + ' <span class="required">*</span></span><input class="modal-input" id="modalRepairDate" type="date"></div>' +
@@ -1007,7 +1008,7 @@ function openStatusModal(orderId, action) {
     var todayStr = (new Date()).toISOString().slice(0, 10);
     body.innerHTML =
       '<div class="modal-row"><span class="modal-label">発注番号</span><input class="modal-input readonly" value="' + order.id + '" readonly></div>' +
-      '<div class="modal-row"><span class="modal-label">内容</span><input class="modal-input readonly" value="' + (order.content_label || '') + '" readonly></div>' +
+      '<div class="modal-row"><span class="modal-label">内容</span><input class="modal-input readonly" value="' + escapeHtml(order.content_label || '') + '" readonly></div>' +
       '<hr class="modal-divider">' +
       '<div class="modal-row"><span class="modal-label">納品実績日 <span class="required">*</span></span><input class="modal-input" id="modalActualDeliveryDate" type="date" value="' + todayStr + '"></div>' +
       '<div class="modal-row"><span class="modal-label">メモ</span><textarea class="modal-textarea" id="modalMemo" placeholder="任意入力"></textarea></div>';
