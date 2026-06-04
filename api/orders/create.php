@@ -164,6 +164,9 @@ function createRepairDetail(string $orderId): void
     if ($equipmentName === '' || $issue === '') {
         throw new InvalidArgumentException('故障機材名と不具合内容は必須です');
     }
+    if (mb_strlen($equipmentName) > 100) {
+        throw new InvalidArgumentException('故障機材名は100文字以内で入力してください');
+    }
 
     execute(
         'INSERT INTO order_repair_details (order_id, equipment_name, issue)
@@ -220,6 +223,9 @@ function createSeatReplacementDetail(string $orderId): void
 
     if ($equipmentName === '') {
         throw new InvalidArgumentException('マシン名・品番は必須です');
+    }
+    if (mb_strlen($equipmentName) > 100) {
+        throw new InvalidArgumentException('マシン名・品番は100文字以内で入力してください');
     }
 
     execute(
@@ -333,6 +339,12 @@ function createPartsDetail(string $orderId): void
 
     if ($partsName === '' || $quantity <= 0 || $reason === '') {
         throw new InvalidArgumentException('部品名、数量、発注理由は必須です');
+    }
+    if (mb_strlen($partsName) > 100) {
+        throw new InvalidArgumentException('部品名・品番は100文字以内で入力してください');
+    }
+    if (mb_strlen($targetEquipment) > 100) {
+        throw new InvalidArgumentException('対象機材は100文字以内で入力してください');
     }
 
     execute(
