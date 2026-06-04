@@ -381,9 +381,14 @@ function initView() {
   document.getElementById('storeFilterBar').style.display = viewMode === 'store' ? 'block' : 'none';
   document.getElementById('storeActionBar').style.display = viewMode === 'store' ? 'flex' : 'none';
   document.getElementById('adminFilterBar').style.display = viewMode === 'admin' ? 'block' : 'none';
-  // 一括操作バーは admin/system のみ表示（zone/area は閲覧専用）
-  document.getElementById('adminActionBar').style.display =
-    (viewMode === 'admin' && window.__canOperate) ? 'flex' : 'none';
+  // 管理ビュー（admin/system/zone/area）ではアクションバーを表示。
+  // ただし一括変更・メール下書きは admin/system のみ。Excel出力は zone/area も可（管轄スコープ）。
+  document.getElementById('adminActionBar').style.display = (viewMode === 'admin') ? 'flex' : 'none';
+  var operate = !!window.__canOperate;
+  var btnBulk = document.getElementById('btnBulkStatus');
+  var btnDraft = document.getElementById('btnDraftMails');
+  if (btnBulk) btnBulk.style.display = operate ? '' : 'none';
+  if (btnDraft) btnDraft.style.display = operate ? '' : 'none';
   renderTableHeader();
   loadPageSize();
   displayLimit = (pageSize === 'all') ? Number.MAX_SAFE_INTEGER : pageSize;

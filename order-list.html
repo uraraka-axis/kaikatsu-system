@@ -133,11 +133,11 @@
 
     <!-- Action Bar (admin mode) -->
     <div class="admin-action-bar" id="adminActionBar">
-      <button class="btn-action btn-secondary" onclick="bulkStatusChange()">
+      <button class="btn-action btn-secondary" id="btnBulkStatus" onclick="bulkStatusChange()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
         ステータス一括変更
       </button>
-      <button class="btn-action btn-secondary" onclick="openDraftMails()">
+      <button class="btn-action btn-secondary" id="btnDraftMails" onclick="openDraftMails()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
         メール下書き作成
       </button>
@@ -205,6 +205,6 @@
     </div>
   </div>
 
-  <script src="js/order-list.js?v=20260603f"></script>
+  <script src="js/order-list.js?v=20260604b"></script>
 </body>
 </html>
