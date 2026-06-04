@@ -1934,7 +1934,7 @@ function buildMailBody(entry) {
 // 備品（仕入先別に集約・店舗名は記載しない）
 function buildEquipmentBody(sup) {
   var L = [];
-  L.push(sup.supplier + ' 御中');
+  L.push(sup.supplier);
   L.push(sup.contact ? (sup.contact + ' 様') : 'ご担当者様');
   L.push('');
   L.push('いつもお世話になっております。');
