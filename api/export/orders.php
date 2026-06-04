@@ -86,10 +86,11 @@ $statusLabels = [
     4 => '完了',
 ];
 
-$categoryLabels = [
-    'fitness' => 'フィットネス',
-    'golf'    => 'ゴルフ',
-];
+// カテゴリ名は categories マスタから取得（固定マップをやめ、カテゴリ増設に対応）
+$categoryLabels = [];
+foreach (query('SELECT code, name FROM categories') as $c) {
+    $categoryLabels[$c['code']] = $c['name'];
+}
 
 // --- メインクエリ組み立て ---
 $sql = 'SELECT o.id, o.type, o.category_code, o.status, o.shop_code, o.date,

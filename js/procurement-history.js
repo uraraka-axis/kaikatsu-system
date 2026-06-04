@@ -233,22 +233,22 @@ document.addEventListener('DOMContentLoaded', function() {
   // ===== サマリー表示 =====
   function renderSummary() {
     var s = summary;
-    document.getElementById('summaryBar').innerHTML =
+    // 総件数＋カテゴリ別の内訳カード（by_category はカテゴリ数に応じて可変）
+    var html =
       '<div class="summary-item">' +
         '<div class="summary-label">総件数</div>' +
         '<div class="summary-value">' + (s.total_count || 0) + '</div>' +
         '<div class="summary-count">¥' + (s.total_amount || 0).toLocaleString() + '</div>' +
-      '</div>' +
-      '<div class="summary-item">' +
-        '<div class="summary-label">フィットネス</div>' +
-        '<div class="summary-value">' + (s.fit_count || 0) + '</div>' +
-        '<div class="summary-count">¥' + (s.fit_amount || 0).toLocaleString() + '</div>' +
-      '</div>' +
-      '<div class="summary-item">' +
-        '<div class="summary-label">インドアゴルフ</div>' +
-        '<div class="summary-value">' + (s.golf_count || 0) + '</div>' +
-        '<div class="summary-count">¥' + (s.golf_amount || 0).toLocaleString() + '</div>' +
       '</div>';
+    (s.by_category || []).forEach(function(c) {
+      html +=
+        '<div class="summary-item">' +
+          '<div class="summary-label">' + escapeHtml(c.name || c.code) + '</div>' +
+          '<div class="summary-value">' + (c.count || 0) + '</div>' +
+          '<div class="summary-count">¥' + (c.amount || 0).toLocaleString() + '</div>' +
+        '</div>';
+    });
+    document.getElementById('summaryBar').innerHTML = html;
   }
 
   // ===== テーブル表示 =====

@@ -145,24 +145,25 @@ if ($method === 'GET') {
 
     $rows = query($sql, $params);
 
-    // 集計
+    // 集計（カテゴリ別。固定2分割をやめ categories マスタ駆動にして増設に耐える）
+    $catRows = query('SELECT code, name FROM categories WHERE is_active = 1 ORDER BY sort_order, code');
+    $byCat = [];
+    foreach ($catRows as $c) {
+        $byCat[$c['code']] = ['code' => $c['code'], 'name' => $c['name'], 'count' => 0, 'amount' => 0];
+    }
+
     $totalCount  = count($rows);
     $totalAmount = 0;
-    $fitCount    = 0;
-    $fitAmount   = 0;
-    $golfCount   = 0;
-    $golfAmount  = 0;
-
     foreach ($rows as $row) {
         $amt = (int)$row['amount'];
         $totalAmount += $amt;
-        if ($row['category_code'] === 'fitness') {
-            $fitCount++;
-            $fitAmount += $amt;
-        } else {
-            $golfCount++;
-            $golfAmount += $amt;
+        $cc = (string)$row['category_code'];
+        if (!isset($byCat[$cc])) {
+            // マスタに無い（廃止済み等の）カテゴリも取りこぼさず表示する
+            $byCat[$cc] = ['code' => $cc, 'name' => $cc, 'count' => 0, 'amount' => 0];
         }
+        $byCat[$cc]['count']++;
+        $byCat[$cc]['amount'] += $amt;
     }
 
     jsonResponse([
@@ -171,10 +172,8 @@ if ($method === 'GET') {
         'summary' => [
             'total_count'  => $totalCount,
             'total_amount' => $totalAmount,
-            'fit_count'    => $fitCount,
-            'fit_amount'   => $fitAmount,
-            'golf_count'   => $golfCount,
-            'golf_amount'  => $golfAmount,
+            // カテゴリ別の内訳（[{code, name, count, amount}, ...]）。カテゴリ数に応じて可変。
+            'by_category'  => array_values($byCat),
         ],
     ]);
 
