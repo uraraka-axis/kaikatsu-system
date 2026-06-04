@@ -139,6 +139,12 @@ if (!empty($selectedShops)) {
 $shopSql .= ' ORDER BY s.sort_order, s.code';
 $shops = query($shopSql, $shopParams);
 
+// 店舗×取扱カテゴリ（画面と同様、取扱わないカテゴリの行は出力しないために使う）
+$shopCatMap = [];
+foreach (query('SELECT shop_code, category_code FROM shop_categories') as $r) {
+    $shopCatMap[$r['shop_code']][$r['category_code']] = true;
+}
+
 // --- 予算データ取得 ---
 // 出力する dept のリストを決定:
 //   - dept='all'         → 全体（SUM）＋全カテゴリの内訳行を出力（カテゴリ拡張時も自動対応）
@@ -252,6 +258,11 @@ foreach ($shops as $shop) {
 
     foreach ($yearsToOutput as $year) {
         foreach ($deptsToOutput as $deptKey) {
+            // 「全体」は常に出力。カテゴリ別は、その店舗が取り扱うカテゴリのみ出力
+            // （取扱なしカテゴリの全ゼロ行を出さない＝画面の月別明細と同じ挙動）。
+            if ($deptKey !== 'all' && empty($shopCatMap[$code][$deptKey])) {
+                continue;
+            }
             $monthMap = $budgetMap[$deptKey][$code][$year] ?? [];
 
             // 月別 budget / actual 配列を作成
