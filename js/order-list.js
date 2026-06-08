@@ -2060,9 +2060,9 @@ function renderDraftMails() {
     cardsHtml +=   '</div>';
 
     cardsHtml +=   '<div class="draft-mail-actions">';
-    cardsHtml +=     '<button type="button" class="btn-action btn-secondary" onclick="openMailtoForSupplier(' + i + ')">';
-    cardsHtml +=       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>';
-    cardsHtml +=       'メーラーで開く</button>';
+    cardsHtml +=     '<button type="button" class="btn-action btn-secondary" onclick="copyDraftSubject(' + i + ')">';
+    cardsHtml +=       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
+    cardsHtml +=       '件名コピー</button>';
     cardsHtml +=     '<button type="button" class="btn-action btn-secondary" onclick="copyDraftBody(' + i + ')">';
     cardsHtml +=       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
     cardsHtml +=       '本文コピー</button>';
@@ -2088,40 +2088,11 @@ function switchDraftTab(i) {
   });
 }
 
-function openMailtoForSupplier(i) {
-  var toEl   = document.getElementById('draftMailTo-' + i);
-  var ccEl   = document.getElementById('draftMailCc-' + i);
-  var subEl  = document.getElementById('draftMailSubject-' + i);
-  var bodyEl = document.getElementById('draftMailBody-' + i);
-  if (!toEl || !subEl || !bodyEl) return;
-
-  var to      = (toEl.value || '').trim();
-  var cc      = ccEl ? (ccEl.value || '').trim() : '';
-  var subject = subEl.value || '';
-  var body    = bodyEl.value || '';
-
-  var qs = [];
-  if (cc !== '') qs.push('cc=' + encodeURIComponent(cc));
-  qs.push('subject=' + encodeURIComponent(subject));
-  qs.push('body=' + encodeURIComponent(body));
-  var url = 'mailto:' + encodeURIComponent(to) + '?' + qs.join('&');
-
-  // URL 長制限（実装によっては ~2000 文字）の警告
-  if (url.length > 2000) {
-    if (!confirm('本文が長いため、メーラーで開いた際に途中で切れる可能性があります。\n「本文コピー」の利用を推奨します。\n\nそれでもメーラーを起動しますか？')) {
-      return;
-    }
-  }
-
-  // 一部ブラウザ/メーラーで location.href にすると現画面が遷移してしまうため新規ウィンドウ経由が安全
-  window.location.href = url;
-}
-
-function copyDraftBody(i) {
-  var bodyEl = document.getElementById('draftMailBody-' + i);
-  if (!bodyEl) return;
-  var text = bodyEl.value || '';
-
+// 件名/本文をクリップボードにコピー（共通処理）
+function copyDraftText(i, elId) {
+  var el = document.getElementById(elId);
+  if (!el) return;
+  var text = el.value || '';
   var fb = document.getElementById('copyFeedback-' + i);
 
   function showFeedback() {
@@ -2132,8 +2103,7 @@ function copyDraftBody(i) {
 
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(text).then(showFeedback).catch(function() {
-      // フォールバック
-      legacyCopy(text);
+      legacyCopy(text);   // フォールバック
       showFeedback();
     });
   } else {
@@ -2141,6 +2111,9 @@ function copyDraftBody(i) {
     showFeedback();
   }
 }
+
+function copyDraftSubject(i) { copyDraftText(i, 'draftMailSubject-' + i); }
+function copyDraftBody(i)    { copyDraftText(i, 'draftMailBody-' + i); }
 
 function legacyCopy(text) {
   var ta = document.createElement('textarea');
