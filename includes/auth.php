@@ -13,6 +13,12 @@ require_once __DIR__ . '/db.php';
 function startSession(): void
 {
     if (session_status() === PHP_SESSION_NONE) {
+        // このアプリ専用のセッションCookie名・パスに分離する。
+        // 同一ドメイン(uraraka.moe)に同居する他アプリや、共有端末に残存する
+        // 既存の PHPSESSID と混線し、別ユーザー(例:admin)のセッションを
+        // 読んでしまう不具合を防ぐため。
+        session_name('FIT24OB_SESS');
+        ini_set('session.cookie_path', rtrim(BASE_URL, '/') . '/');
         session_start();
     }
     // アイドルタイムアウト判定（スライド式）:
