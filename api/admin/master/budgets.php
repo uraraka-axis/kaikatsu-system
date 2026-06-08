@@ -313,16 +313,31 @@ function handleBudgetUpload(bool $dryRun): array
             $scheduledPreview = [];
             foreach ($scheduledEntries as $s) {
                 $deptName = $codeToName[$s['after']['department']] ?? $s['after']['department'];
+                $sYear = $s['after']['fiscal_year'];
+                $sShop = $s['after']['shop_code'];
+                $sDept = $s['after']['department']; // code（既存値検索キー用）
+                // 現在の12ヶ月（before）を既存値から構築（プレビューで before→after を表示するため）
+                $beforeMonths = [];
+                foreach ($s['after']['months'] as $mNum => $amt) {
+                    $bk = "{$sYear}/{$sShop}/{$mNum}/{$sDept}";
+                    $beforeMonths[(string)$mNum] = $existing[$bk] ?? 0;
+                }
                 $scheduledPreview[] = [
                     'operation'      => $s['operation'],
                     'key'            => $s['key'],
                     'apply_date'     => $s['apply_date']->format('Y-m-d'),
                     'changed_fields' => $s['changed_fields'],
                     'after'          => [
-                        'fiscal_year' => $s['after']['fiscal_year'],
-                        'shop_code'   => $s['after']['shop_code'],
+                        'fiscal_year' => $sYear,
+                        'shop_code'   => $sShop,
                         'department'  => $deptName,
                         'months'      => $s['after']['months'],
+                    ],
+                    'before'         => [
+                        'fiscal_year' => $sYear,
+                        'shop_code'   => $sShop,
+                        'department'  => $deptName,
+                        'months'      => $beforeMonths,
                     ],
                 ];
             }

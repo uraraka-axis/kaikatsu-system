@@ -443,7 +443,17 @@
           var label = makeRowLabel(type, s.after);
           var opLabel = s.operation === 'insert' ? '追加' : (s.operation === 'update' ? '変更' : s.operation);
           var detail = '';
-          if (s.operation === 'update' && s.before && Array.isArray(s.changed_fields)) {
+          if (type === 'budget' && s.after && s.after.months) {
+            // 予算: 12ヶ月分の合計を before → after で表示（変更セクションと揃える）
+            var sumMonths = function(m) { var t = 0; if (m) Object.keys(m).forEach(function(k){ t += Number(m[k]) || 0; }); return t; };
+            var afterTotal = sumMonths(s.after.months);
+            label = (s.after.fiscal_year || '') + '年度 / 店舗' + (s.after.shop_code || '') + ' / ' + (s.after.department || '') + ' / 12ヶ月分';
+            if (s.before && s.before.months) {
+              detail = '合計 ' + sumMonths(s.before.months).toLocaleString() + '円 → ' + afterTotal.toLocaleString() + '円';
+            } else {
+              detail = '合計 ' + afterTotal.toLocaleString() + '円';
+            }
+          } else if (s.operation === 'update' && s.before && Array.isArray(s.changed_fields)) {
             detail = s.changed_fields.map(function(f) {
               if (maskedFields.indexOf(f) >= 0) {
                 return f + ': 変更あり';
