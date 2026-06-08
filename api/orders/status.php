@@ -298,6 +298,15 @@ try {
         $updateVals[':final_amount'] = (int)$sumRow['total']; // 0円許容
     }
 
+    // to-delivering(1→2) でも 納品予定日(備品/部品) を更新できる（修理ライクは詳細テーブルで処理）
+    if ($action === 'to-delivering' && !isRepairLikeType($orderType)) {
+        $dd = $input['delivery_date'] ?? null;
+        if ($dd !== null && $dd !== '') {
+            $updateCols[] = 'delivery_date = :delivery_date';
+            $updateVals[':delivery_date'] = $dd;
+        }
+    }
+
     // 1. orders テーブル更新
     $updateCols[] = 'status = :new_status';
     $updateVals[':new_status'] = $newStatus;
@@ -309,7 +318,8 @@ try {
     // 2. 詳細テーブル更新（修理ライク固有フィールド: 修理 / シート交換）
     if (isRepairLikeType($orderType)) {
         $detailTable = getRepairLikeDetailTable($orderType);
-        if ($action === 'order') {
+        if ($action === 'order' || $action === 'to-delivering') {
+            // 発注済(0→1) に加え、修理待ち(1→2) のダイアログでも修理予定日を更新できる
             $repairScheduleDate = $input['repair_schedule_date'] ?? null;
             if ($repairScheduleDate !== null && $repairScheduleDate !== '') {
                 execute(

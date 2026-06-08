@@ -972,12 +972,21 @@ function openStatusModal(orderId, action) {
     }
 
   } else if (action === 'to-delivering') {
-    var nextLabel = isRepairLikeType(order.type) ? '修理待ち' : '配達中';
+    var isRepairLikeTD = isRepairLikeType(order.type);
+    var nextLabel = isRepairLikeTD ? '修理待ち' : '配達中';
     title.textContent = nextLabel + 'にする';
+    // 手動運用のため、全種別でこの時点でも予定日を編集できるようにする
+    // 修理→修理予定日 / シート交換→作業予定日 / 備品・部品→納品予定日
+    var schedLabelTD = order.type === 'seat-replacement' ? '作業予定日'
+                     : isRepairLikeTD ? '修理予定日'
+                     : '納品予定日';
+    var schedValTD = isRepairLikeTD ? (order.repair_schedule_date || '') : (order.delivery_date || '');
+    var schedRowTD = '<div class="modal-row"><span class="modal-label">' + schedLabelTD + '</span><input class="modal-input" id="modalSchedDate" type="date" value="' + schedValTD + '"></div>';
     body.innerHTML =
       '<div class="modal-row"><span class="modal-label">発注番号</span><input class="modal-input readonly" value="' + order.id + '" readonly></div>' +
       '<div class="modal-row"><span class="modal-label">内容</span><input class="modal-input readonly" value="' + escapeHtml(order.content_label || '') + '" readonly></div>' +
       '<hr class="modal-divider">' +
+      schedRowTD +
       '<div class="modal-row"><span class="modal-label">メモ</span><textarea class="modal-textarea" id="modalMemo" placeholder="任意入力"></textarea></div>';
     footer.innerHTML =
       '<button class="btn-modal btn-modal-cancel" onclick="closeModal()">キャンセル</button>' +
@@ -1171,13 +1180,17 @@ function doOrder(orderId) {
 
 // ②発注済 → ③配達中/修理待ち
 function doToDelivering(orderId) {
+  var order = findOrder(orderId);
   var memo = (document.getElementById('modalMemo') || {}).value || '';
+  var schedEl = document.getElementById('modalSchedDate');
+  var payload = { order_id: orderId, action: 'to-delivering', memo: memo };
+  if (schedEl) {
+    // 修理ライク→修理予定日 / それ以外(備品・部品)→納品予定日
+    if (order && isRepairLikeType(order.type)) payload.repair_schedule_date = schedEl.value || '';
+    else payload.delivery_date = schedEl.value || '';
+  }
 
-  apiPost('api/orders/status.php', {
-    order_id: orderId,
-    action: 'to-delivering',
-    memo: memo
-  })
+  apiPost('api/orders/status.php', payload)
     .then(function(data) {
       if (!data.success) {
         alert(data.message || 'エラーが発生しました');
