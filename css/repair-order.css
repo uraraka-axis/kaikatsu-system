@@ -25,6 +25,9 @@
   font-size: 14px;
   color: #1e293b;
   background-color: #fff;
+  /* iOSの input[type=date] は幅/高さ程度しかCSSが効かないため明示（20260606 検証反映）*/
+  min-width: 95%;
+  height: 44px;
 }
 .date-input-wrapper input[type="date"]:focus {
   outline: none;

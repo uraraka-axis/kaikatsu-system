@@ -308,7 +308,7 @@ body {
   align-items: center;
   gap: 8px;
 }
-.date-input { width: 168px; }
+.date-input { width: 168px; height: 35px; /* iOS date入力の高さを他入力と統一 20260606 */ }
 .date-separator { font-size: 14px; color: #94a3b8; }
 
 /* ===== Photo Upload (shared: repair-order, parts-order) ===== */

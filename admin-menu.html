@@ -3,13 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <title>管理メニュー</title>
   <style>html.auth-pending body{visibility:hidden}</style>
   <script>document.documentElement.classList.add('auth-pending');</script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/common.css?v=20260602a">
+  <link rel="stylesheet" href="css/common.css?v=20260606">
   <link rel="stylesheet" href="css/admin-menu.css?v=20260522">
 </head>
 <body>
@@ -193,9 +195,9 @@
               <div class="export-filter-group export-filter-date">
                 <label class="export-filter-label">発注日</label>
                 <div class="date-range">
-                  <input type="date" class="form-input" id="exportDateFrom">
+                  <input type="date" class="form-input date-input" id="exportDateFrom">
                   <span class="date-sep">〜</span>
-                  <input type="date" class="form-input" id="exportDateTo">
+                  <input type="date" class="form-input date-input" id="exportDateTo">
                 </div>
               </div>
             </div>

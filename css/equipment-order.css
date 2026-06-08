@@ -469,9 +469,8 @@
 .cart-item-remove:hover { background: #fef2f2; color: #ef4444; }
 .cart-item-remove svg { width: 14px; height: 14px; }
 
-/* ===== Responsive: iPad / Tablet ===== */
+/* ===== Responsive: iPad / Tablet (601-1280) タッチ最適化（列数は下で段階指定）===== */
 @media (min-width: 601px) and (max-width: 1280px) {
-  .product-grid { grid-template-columns: repeat(2, 1fr); }
   .filter-bar { flex-direction: row; }
   .cart-bar-summary { padding: 14px 20px; }
   .cart-items { padding: 8px 20px 12px; }
@@ -488,6 +487,10 @@
     font-size: 16px;          /* iOS ズーム対策 */
   }
 }
+/* 商品グリッドの列数を画面幅で段階指定（20260606 検証反映。タッチ最適化は上で維持）*/
+@media (min-width: 1081px) and (max-width: 1280px) { .product-grid { grid-template-columns: repeat(4, 1fr); } } /* PC寄り */
+@media (min-width: 811px)  and (max-width: 1080px) { .product-grid { grid-template-columns: repeat(3, 1fr); } } /* iPad横 */
+@media (min-width: 601px)  and (max-width: 810px)  { .product-grid { grid-template-columns: repeat(2, 1fr); } } /* iPad縦（2列・20260606）*/
 
 /* ===== Responsive: Phone ===== */
 @media (max-width: 600px) {
