@@ -145,12 +145,7 @@
   font-size: 13px;
 }
 .date-sep { color: #94a3b8; font-size: 14px; flex-shrink: 0; }
-.export-btn {
-  background: #3b82f6;
-  color: #fff;
-  border-color: #3b82f6;
-}
-.export-btn:hover { background: #2563eb; border-color: #2563eb; color: #fff; }
+/* データ出力のDLボタンもマスタ側(.btn-dl 白)に統一。青の色上書きは廃止（20260608）*/
 
 /* ===== Settings Link ===== */
 .settings-link {
