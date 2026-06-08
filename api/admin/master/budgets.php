@@ -348,10 +348,16 @@ function handleBudgetUpload(bool $dryRun): array
                 $conflictingRows = findConflictingPendingChanges('budgets', $scheduledEntries);
                 foreach ($conflictingRows as $c) {
                     $cd = json_decode((string)$c['change_data'], true);
+                    // record_key (年/店舗/カテゴリコード) を表示用に日本語名へ統一
+                    $kp = explode('/', (string)$c['record_key']);
+                    $dispKey = (count($kp) === 3)
+                        ? ($kp[0] . '年度 / 店舗' . $kp[1] . ' / ' . ($codeToName[$kp[2]] ?? $kp[2]))
+                        : (string)$c['record_key'];
                     $conflicting[] = [
                         'id'             => (int)$c['id'],
                         'target_table'   => 'budgets',
                         'record_key'     => $c['record_key'],
+                        'display_key'    => $dispKey,
                         'scheduled_at'   => $c['scheduled_at'],
                         'operation'      => $c['operation'],
                         'changed_fields' => $cd['changed_fields'] ?? [],

@@ -426,7 +426,7 @@
           html += '<li>';
           html += '<div class="master-diff-label">' +
                   '<span class="master-scheduled-date">' + escapeHtml(dateOnly) + '</span> ' +
-                  '[既存予約] ' + escapeHtml(String(c.record_key)) +
+                  '[既存予約] ' + escapeHtml(String(c.display_key || c.record_key)) +
                   '</div>';
           if (changeSummary) html += '<div class="master-diff-detail">' + changeSummary + '</div>';
           html += '</li>';
@@ -450,7 +450,7 @@
             var bm = (s.before && s.before.months) || {};
             var afterTotal = sumMonths(am);
             var beforeTotal = sumMonths(bm);
-            label = (s.after.fiscal_year || '') + '年度 / 店舗' + (s.after.shop_code || '') + ' / ' + (s.after.department || '') + ' / 12ヶ月分';
+            label = (s.after.fiscal_year || '') + '年度 / 店舗' + (s.after.shop_code || '') + ' / ' + (s.after.department || '');
             detail = '合計 ' + beforeTotal.toLocaleString() + '円 → ' + afterTotal.toLocaleString() + '円';
             // 変更があった月だけ before→after を列挙（会計年度順 4〜3月）
             var fyOrder = ['4','5','6','7','8','9','10','11','12','1','2','3'];
