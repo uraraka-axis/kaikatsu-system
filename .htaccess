@@ -12,14 +12,9 @@ DirectoryIndex login.html
     Require all denied
 </FilesMatch>
 
-# .git, database, includes, setup, vendor, docs ディレクトリへのアクセス拒否
-RedirectMatch 403 ^/kaikatsu-system/\.git(/|$)
-RedirectMatch 403 ^/kaikatsu-system/database(/|$)
-RedirectMatch 403 ^/kaikatsu-system/includes(/|$)
-RedirectMatch 403 ^/kaikatsu-system/setup(/|$)
-RedirectMatch 403 ^/kaikatsu-system/vendor(/|$)
-RedirectMatch 403 ^/kaikatsu-system/docs(/|$)
-RedirectMatch 403 ^/kaikatsu-system/backup(/|$)
+# 機密ディレクトリへのアクセス拒否（設置パス・フォルダ名に依存しない）
+# includes(=config.phpにDB接続情報) / vendor / setup / database / docs / backup / .git
+RedirectMatch 403 (?i)/(\.git|database|includes|setup|vendor|docs|backup)(/|$)
 
 # HTMLは認証ガード・フラッシュ防止の更新を確実に反映するため毎回サーバー確認
 <FilesMatch "\.html$">

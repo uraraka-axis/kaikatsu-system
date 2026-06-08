@@ -107,3 +107,6 @@ define('MAIL_FROM_NAME','快活システム');
 if (!defined('MAIL_LOG_ONLY')) {
     define('MAIL_LOG_ONLY', false);
 }
+// 検証用: 定義すると「全メール」がこのアドレスへ転送される（本来の宛先は件名に保持）。
+// 本番でメールを実宛先に飛ばす段階になったら、この行を削除/コメントアウトする。
+// define('MAIL_OVERRIDE_TO', 'dev@example.com');

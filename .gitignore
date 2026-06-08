@@ -18,6 +18,13 @@ backup_*.sql
 
 # 実マスタ seed（実従業員名・メールアドレス等の個人情報を含むため非公開）
 database/seed_master_real.sql
+# 本番投入用 seed（実従業員名・メール等の個人情報を含むため非公開）
+database/production_seed_*.sql
+# 本番セットアップ備忘・手順（DB名・初期PW等を含むため非公開）
+setup/本番セットアップ*.md
+setup/マスタ取込_備忘*.md
+# seed生成スクリプト（初期PWをハードコードしているため非公開）
+tools/gen_production_seed.php
 
 # 検証者向け手渡し資料（URL・アカウント情報を含むため非公開）
 検証用*.txt

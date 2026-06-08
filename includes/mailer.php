@@ -37,6 +37,17 @@ function sendMail(array $to, string $subject, string $body, array $options = [])
         return true;   // 宛先無し = 何もしない (エラーではない)
     }
 
+    // 検証/ステージング用: 全メールの宛先を開発者へ強制転送する。
+    // config.php で MAIL_OVERRIDE_TO を定義している間だけ有効。
+    // 本来の宛先は件名に [転送 to:...] として残す。本番運用時は config の定義を消すだけ。
+    if (defined('MAIL_OVERRIDE_TO') && MAIL_OVERRIDE_TO !== '') {
+        $origTo = implode(',', $to);
+        $origCc = implode(',', $options['cc'] ?? []);
+        $subject = '[転送 to:' . $origTo . ($origCc !== '' ? ' cc:' . $origCc : '') . '] ' . $subject;
+        $to = [MAIL_OVERRIDE_TO];
+        unset($options['cc'], $options['bcc']);   // CC/BCCも実宛先には飛ばさない
+    }
+
     // ログモード: 送信せずファイルに追記
     if (defined('MAIL_LOG_ONLY') && MAIL_LOG_ONLY === true) {
         return writeMailLog($to, $subject, $body, $options);
