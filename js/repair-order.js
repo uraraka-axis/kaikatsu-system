@@ -6,7 +6,6 @@
 
     // ===== Initialize =====
     document.addEventListener('DOMContentLoaded', function() {
-      initDateInput();
       initHourSelects();
       populateCategoryOptions();
     });
@@ -32,11 +31,6 @@
         .catch(function(e) { console.error('categories fetch error:', e); });
     }
 
-    function initDateInput() {
-      const dateInput = document.getElementById('slotDate');
-      dateInput.min = getMinDate();
-    }
-
     function initHourSelects() {
       const startHour = document.getElementById('startHour');
       const endHour = document.getElementById('endHour');
@@ -45,22 +39,6 @@
         startHour.innerHTML += '<option value="' + val + '">' + val + '</option>';
         endHour.innerHTML += '<option value="' + val + '">' + val + '</option>';
       }
-    }
-
-    // ===== Calculate min date (3 business days) =====
-    function getMinDate() {
-      var today = new Date();
-      var businessDays = 0;
-      var current = new Date(today);
-
-      while (businessDays < 3) {
-        current.setDate(current.getDate() + 1);
-        var dow = current.getDay();
-        if (dow !== 0 && dow !== 6) {
-          businessDays++;
-        }
-      }
-      return current.toISOString().split('T')[0];
     }
 
     // ===== Time Selection Toggle =====
