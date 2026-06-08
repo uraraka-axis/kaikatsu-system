@@ -1062,7 +1062,7 @@ function openStatusModal(orderId, action) {
           '<td id="completeItemsTotal" style="padding:6px 10px;text-align:right;border:1px solid #e2e8f0;font-variant-numeric:tabular-nums">¥0</td>' +
           '</tr></tfoot></table></div>' +
         '<div class="modal-diff" id="modalDiffRow" style="display:none;"><span class="modal-diff-label">差額</span><span class="modal-diff-value" id="modalDiffValue"></span></div>' +
-        '<div class="modal-row"><span class="modal-label">納品日</span><input class="modal-input" id="modalActualDeliveryDate" type="date"><div style="font-size:11px;color:#94a3b8;margin-top:2px;">未入力で納品予定日を適用</div></div>' +
+        '<div class="modal-row"><span class="modal-label">納品日</span><input class="modal-input" id="modalActualDeliveryDate" type="date"><div style="font-size:11px;color:#94a3b8;margin-top:2px;">未入力なら納品済時の納品日を維持</div></div>' +
         '<div class="modal-row"><span class="modal-label">メモ</span><textarea class="modal-textarea" id="modalMemo" placeholder="任意入力"></textarea></div>';
     } else {
       // 修理 / 部品 / シート交換: 単一の最終金額（必須・0円許容）
