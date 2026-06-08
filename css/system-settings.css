@@ -30,7 +30,7 @@
 .settings-card .form-input { max-width: 300px; }
 
 .form-label-hint { font-size: 13px; color: #94a3b8; font-weight: 400; margin-left: 8px; }
-.form-row { display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap; }
+.form-row { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
 .form-row .form-group { flex: 1; min-width: 140px; }
 
 /* ===== Category Table ===== */
