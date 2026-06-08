@@ -1001,12 +1001,13 @@ function openStatusModal(orderId, action) {
       : '修理が完了し、機材が正常に稼働していることを確認してから報告してください。';
     var dateFieldLabel = isSeat ? '作業完了日' : '修理完了日';
     title.textContent = modalTitle;
+    var todayStrRD = (new Date()).toISOString().slice(0, 10);  // 備品の納品実績日と同方式で本日をデフォルト
     body.innerHTML =
       '<div class="modal-row"><span class="modal-label">発注番号</span><input class="modal-input readonly" value="' + order.id + '" readonly></div>' +
       '<div class="modal-row"><span class="modal-label">' + equipFieldLabel + '</span><input class="modal-input readonly" value="' + escapeHtml(order.equipment_name || '') + '" readonly></div>' +
       '<hr class="modal-divider">' +
       '<div class="modal-info">' + infoText + '</div>' +
-      '<div class="modal-row"><span class="modal-label">' + dateFieldLabel + ' <span class="required">*</span></span><input class="modal-input" id="modalRepairDate" type="date"></div>' +
+      '<div class="modal-row"><span class="modal-label">' + dateFieldLabel + ' <span class="required">*</span></span><input class="modal-input" id="modalRepairDate" type="date" value="' + todayStrRD + '"></div>' +
       '<div class="modal-row"><span class="modal-label">メモ</span><textarea class="modal-textarea" id="modalMemo" placeholder="稼働状況や備考"></textarea></div>';
     footer.innerHTML =
       '<button class="btn-modal btn-modal-cancel" onclick="closeModal()">キャンセル</button>' +
