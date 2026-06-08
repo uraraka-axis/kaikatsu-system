@@ -27,6 +27,10 @@ function jsonResponse(mixed $data, int $status = 200): void
 {
     http_response_code($status);
     header('Content-Type: application/json; charset=utf-8');
+    // APIレスポンスはキャッシュ禁止（iPad Safari等が GET をキャッシュし、
+    // 別ユーザーの応答（例: 前回のadminのme.php）が残る不具合を防ぐ）
+    header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+    header('Pragma: no-cache');
     echo json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     exit;
 }
@@ -67,6 +71,8 @@ function jsonResponseAndContinue(mixed $data, int $status = 200): void
 {
     http_response_code($status);
     header('Content-Type: application/json; charset=utf-8');
+    header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+    header('Pragma: no-cache');
     $body = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
     // クライアント切断後もスクリプト継続
