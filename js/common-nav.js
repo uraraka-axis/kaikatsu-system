@@ -137,7 +137,9 @@ window.downscaleImage = function(file, maxEdge, quality) {
   }
 
   // セッションからユーザー情報を取得
-  fetch('api/me.php', { credentials: 'same-origin' })
+  // ?_=timestamp でURLを毎回ユニークにし、ブラウザ/プロキシのキャッシュを完全回避
+  //（共有端末で前ユーザーの権限メニューが残る不具合の確実な対策）
+  fetch('api/me.php?_=' + Date.now(), { credentials: 'same-origin', cache: 'no-store' })
     .then(function(res) { return res.json(); })
     .then(function(data) {
       if (!data.success) {
