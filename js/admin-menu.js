@@ -444,14 +444,24 @@
           var opLabel = s.operation === 'insert' ? '追加' : (s.operation === 'update' ? '変更' : s.operation);
           var detail = '';
           if (type === 'budget' && s.after && s.after.months) {
-            // 予算: 12ヶ月分の合計を before → after で表示（変更セクションと揃える）
+            // 予算: 12ヶ月分の合計＋変更があった月の before→after を表示（変更セクションと揃える）
             var sumMonths = function(m) { var t = 0; if (m) Object.keys(m).forEach(function(k){ t += Number(m[k]) || 0; }); return t; };
-            var afterTotal = sumMonths(s.after.months);
+            var am = s.after.months || {};
+            var bm = (s.before && s.before.months) || {};
+            var afterTotal = sumMonths(am);
+            var beforeTotal = sumMonths(bm);
             label = (s.after.fiscal_year || '') + '年度 / 店舗' + (s.after.shop_code || '') + ' / ' + (s.after.department || '') + ' / 12ヶ月分';
-            if (s.before && s.before.months) {
-              detail = '合計 ' + sumMonths(s.before.months).toLocaleString() + '円 → ' + afterTotal.toLocaleString() + '円';
-            } else {
-              detail = '合計 ' + afterTotal.toLocaleString() + '円';
+            detail = '合計 ' + beforeTotal.toLocaleString() + '円 → ' + afterTotal.toLocaleString() + '円';
+            // 変更があった月だけ before→after を列挙（会計年度順 4〜3月）
+            var fyOrder = ['4','5','6','7','8','9','10','11','12','1','2','3'];
+            var monthLines = [];
+            fyOrder.forEach(function(mk) {
+              if (!(mk in am)) return;
+              var a = Number(am[mk]) || 0, b = Number(bm[mk]) || 0;
+              if (a !== b) monthLines.push(mk + '月: ' + b.toLocaleString() + ' → ' + a.toLocaleString() + '円');
+            });
+            if (monthLines.length) {
+              detail += '<div style="margin-top:2px;color:#64748b">' + monthLines.join('<br>') + '</div>';
             }
           } else if (s.operation === 'update' && s.before && Array.isArray(s.changed_fields)) {
             detail = s.changed_fields.map(function(f) {
