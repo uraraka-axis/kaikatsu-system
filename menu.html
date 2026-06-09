@@ -65,7 +65,7 @@
             </div>
           </a>
 
-          <a href="seat-replacement.html" class="menu-card">
+          <a href="seat-replacement.html" class="menu-card" id="seatReplacementCard">
             <div class="menu-card-icon">
               <!-- トレーニングマシン (背もたれ + シート + ウェイトスタック) -->
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="4" height="10" rx="1"></rect><rect x="3" y="13" width="9" height="2.5" rx="0.5"></rect><line x1="5" y1="15.5" x2="5" y2="20"></line><line x1="10" y1="15.5" x2="10" y2="20"></line><rect x="16" y="6" width="4" height="12" rx="0.5"></rect><line x1="16" y1="10" x2="20" y2="10"></line><line x1="16" y1="14" x2="20" y2="14"></line><line x1="3" y1="20" x2="21" y2="20"></line></svg>
@@ -172,6 +172,12 @@
       } else {
         // 店舗ユーザー: 発注セクション表示
         document.getElementById('orderSection').style.display = '';
+        // シート交換はフィットネス取扱店舗のみ（ゴルフ専用店では非表示）
+        var catCodes = (user.categories || []).map(function(c) { return c.code; });
+        if (catCodes.indexOf('fitness') < 0) {
+          var seatCard = document.getElementById('seatReplacementCard');
+          if (seatCard) seatCard.style.display = 'none';
+        }
       }
     });
 
