@@ -4,6 +4,11 @@
 # ディレクトリ一覧表示禁止
 Options -Indexes
 
+# 検索エンジンにインデックスさせない（社内向けツールのため検索結果に出さない）
+<IfModule mod_headers.c>
+    Header set X-Robots-Tag "noindex, nofollow, noarchive"
+</IfModule>
+
 # デフォルトドキュメント（インデックスファイル）の指定
 DirectoryIndex login.html
 
