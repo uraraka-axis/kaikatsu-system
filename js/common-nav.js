@@ -194,16 +194,23 @@ window.downscaleImage = function(file, maxEdge, quality) {
       }
 
       // ナビゲーション構築
+      // シート交換はフィットネス専用機能のため、フィットネスを扱う店舗のみ表示する
+      var shopCatCodes = (user.categories || []).map(function(c) { return c.code; });
+      var hasFitness = shopCatCodes.indexOf('fitness') >= 0;
       var storeNav = [
         { href: 'menu.html', label: 'メニュー' },
         { href: 'repair-order.html', label: '修理発注' },
         { href: 'equipment-order.html', label: '備品発注' },
-        { href: 'parts-order.html', label: '部品発注' },
-        { href: 'seat-replacement.html', label: 'シート交換' },
+        { href: 'parts-order.html', label: '部品発注' }
+      ];
+      if (hasFitness) {
+        storeNav.push({ href: 'seat-replacement.html', label: 'シート交換' });
+      }
+      storeNav.push(
         { href: 'order-list.html', label: '発注一覧' },
         { href: 'budget-management.html', label: '予算管理' },
         { href: 'procurement-history.html', label: '自店調達' }
-      ];
+      );
 
       var adminNav = [
         { href: 'menu.html', label: 'メニュー' },
