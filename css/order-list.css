@@ -43,14 +43,17 @@
 
 /* ===== Content Column Truncation ===== */
 .td-content {
-  max-width: 280px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 /* ===== Order Table ===== */
-.order-table { width: 100%; border-collapse: collapse; }
+/* table-layout:fixed で検索条件を変えても列幅が動かない（チラつき防止）。
+   各列幅は order-list.js の thead で指定。内容列のみ幅未指定で残余を吸収。 */
+.order-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+/* 発注番号（store/admin とも4列目）は折り返さず1行表示 */
+.order-table td:nth-child(4) { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .order-table th {
   text-align: left;
   padding: 12px 16px;
@@ -624,7 +627,7 @@
     -webkit-overflow-scrolling: touch;
   }
   .order-table {
-    min-width: 920px;       /* admin は 11 列なのでこれで全列見える */
+    min-width: 1080px;      /* admin 11 列 + 固定幅で全列見える（内容列に最小幅を確保） */
   }
   /* 詳細展開ボタンのタッチターゲット 44px */
   .btn-sm {

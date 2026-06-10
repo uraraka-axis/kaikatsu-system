@@ -120,7 +120,9 @@
 .progress-fill.red { background: #ef4444; }
 
 /* ===== Budget Table ===== */
-.budget-table { width: 100%; border-collapse: collapse; white-space: nowrap; }
+/* table-layout:fixed で検索条件を変えても列幅が動かない（チラつき防止）。
+   列幅は col-shop と group-header（colspan=4→各数値列に4等分）で確定する。 */
+.budget-table { width: 100%; border-collapse: collapse; white-space: nowrap; table-layout: fixed; }
 .budget-table th {
   padding: 8px 7px;
   font-size: 12px;
@@ -131,10 +133,11 @@
   text-align: center;
 }
 .budget-table th.num { text-align: center; }
-.budget-table th.col-shop { text-align: left; min-width: 130px; }
+.budget-table th.col-shop { text-align: left; min-width: 130px; width: 150px; }
 
 /* Group headers */
-.group-header { text-align: center !important; font-size: 13px; font-weight: 700; }
+/* table-layout:fixed 用: colspan=4 のグループ幅を指定し、配下の数値4列を等分（348/4=87px） */
+.group-header { text-align: center !important; font-size: 13px; font-weight: 700; width: 348px; }
 .group-period { background: #eff6ff; color: #1d4ed8; border-bottom: 2px solid #93c5fd; }
 .group-midterm { background: #f0fdf4; color: #15803d; border-bottom: 2px solid #86efac; }
 .group-monthly { background: #fffbeb; color: #a16207; border-bottom: 2px solid #fcd34d; }
@@ -308,7 +311,7 @@
     -webkit-overflow-scrolling: touch;
   }
   .budget-table {
-    min-width: 1100px;
+    min-width: 1240px;      /* 固定幅(店舗150 + 数値12×87 + admin checkbox)で全列クリップしない幅 */
   }
 }
 @media (max-width: 600px) {

@@ -404,17 +404,18 @@ function initView() {
 function renderTableHeader() {
   var thead = document.getElementById('orderTableHead');
   if (viewMode === 'admin') {
+    // table-layout:fixed のため各列に固定幅を指定（内容列のみ幅未指定で残余を吸収）
     thead.innerHTML = '<tr>' +
       '<th style="width:40px"><input type="checkbox" id="selectAll" onchange="toggleAll(this)"></th>' +
-      '<th>発注日</th><th>種別</th><th>発注番号</th><th>店舗</th><th>カテゴリ</th><th>内容</th>' +
-      '<th>発注数</th><th>金額</th><th>ステータス</th>' +
-      '<th style="width:60px">詳細</th></tr>';
+      '<th style="width:96px">発注日</th><th style="width:62px">種別</th><th style="width:200px">発注番号</th><th style="width:116px">店舗</th><th style="width:88px">カテゴリ</th><th>内容</th>' +
+      '<th style="width:62px">発注数</th><th style="width:92px">金額</th><th style="width:112px">ステータス</th>' +
+      '<th style="width:56px">詳細</th></tr>';
   } else {
     thead.innerHTML = '<tr>' +
       '<th style="width:40px"><input type="checkbox" id="selectAll" onchange="toggleAll(this)"></th>' +
-      '<th>発注日</th><th>種別</th><th>発注番号</th><th>カテゴリ</th><th>内容</th>' +
-      '<th>発注数</th><th>金額</th><th>ステータス</th>' +
-      '<th style="width:60px">詳細</th></tr>';
+      '<th style="width:96px">発注日</th><th style="width:62px">種別</th><th style="width:200px">発注番号</th><th style="width:88px">カテゴリ</th><th>内容</th>' +
+      '<th style="width:62px">発注数</th><th style="width:92px">金額</th><th style="width:112px">ステータス</th>' +
+      '<th style="width:56px">詳細</th></tr>';
   }
 }
 

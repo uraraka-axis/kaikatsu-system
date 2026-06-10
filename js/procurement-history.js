@@ -31,7 +31,7 @@ document.addEventListener('DOMContentLoaded', function() {
           .then(populateYearFilter)
           .then(function() {
             if (viewMode === 'admin') {
-              loadShops().then(function() { loadData(); });
+              loadShops().then(function() { populateShopFilter(); loadData(); });
             } else {
               loadData();
             }
@@ -200,7 +200,6 @@ document.addEventListener('DOMContentLoaded', function() {
     if (viewMode === 'admin') {
       var shop = document.getElementById('filterShop').value;
       if (shop) params += '&shop=' + encodeURIComponent(shop);
-      populateShopFilter();
     }
 
     if (typeof window.showLoading === 'function') window.showLoading('自店調達申請を読み込み中…');
