@@ -646,10 +646,10 @@
     -webkit-overflow-scrolling: touch;
   }
   .order-table {
-    min-width: 983px;       /* admin 11 列 + 固定幅で全列見える（内容列を約2/3に縮小） */
+    min-width: 995px;       /* admin 11 列 + 固定幅で全列見える（内容列 125px ぶん） */
   }
-  /* iPad時のみ内容列を約2/3幅に固定（PCは可変のまま）。2行に収め2行目末尾で…省略 */
-  .order-table th.col-content { width: 113px; }
+  /* iPad時のみ内容列の幅を固定（PCは可変のまま）。2行に収め2行目末尾で…省略 */
+  .order-table th.col-content { width: 125px; }
   /* 詳細展開ボタンのタッチターゲット 44px */
   .btn-sm {
     min-width: 44px;
