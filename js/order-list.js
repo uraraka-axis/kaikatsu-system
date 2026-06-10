@@ -417,13 +417,13 @@ function renderTableHeader() {
     thead.innerHTML = '<tr>' +
       '<th style="width:40px"><input type="checkbox" id="selectAll" onchange="toggleAll(this)"></th>' +
       '<th style="width:76px">発注日</th><th style="width:62px">種別</th><th style="width:150px">発注番号</th><th style="width:116px">店舗</th><th style="width:88px">カテゴリ</th><th class="col-content">内容</th>' +
-      '<th style="width:62px">発注数</th><th style="width:92px">金額</th><th style="width:120px">ステータス</th>' +
+      '<th class="col-count">発注数</th><th class="col-amount">金額</th><th class="col-status">ステータス</th>' +
       '<th style="width:64px">詳細</th></tr>';
   } else {
     thead.innerHTML = '<tr>' +
       '<th style="width:40px"><input type="checkbox" id="selectAll" onchange="toggleAll(this)"></th>' +
       '<th style="width:76px">発注日</th><th style="width:62px">種別</th><th style="width:150px">発注番号</th><th style="width:88px">カテゴリ</th><th class="col-content">内容</th>' +
-      '<th style="width:62px">発注数</th><th style="width:92px">金額</th><th style="width:120px">ステータス</th>' +
+      '<th class="col-count">発注数</th><th class="col-amount">金額</th><th class="col-status">ステータス</th>' +
       '<th style="width:64px">詳細</th></tr>';
   }
 }
@@ -561,9 +561,9 @@ function renderOrders() {
 
     html += '<td>' + escapeHtml(catLabel) + '</td>' +
       '<td class="td-content"><span class="content-text">' + escapeHtml(contentLabel) + '</span></td>' +
-      '<td>' + orderCount + '</td>' +
-      '<td>' + displayAmount + '</td>' +
-      '<td><span class="status-badge ' + statusClass + '">' + statusLabel + '</span></td>' +
+      '<td class="td-count">' + orderCount + '</td>' +
+      '<td class="td-amount">' + displayAmount + '</td>' +
+      '<td class="td-status"><span class="status-badge ' + statusClass + '">' + statusLabel + '</span></td>' +
       '<td><button class="btn-sm">' + (isOpen ? '−' : '+') + '</button></td>' +
     '</tr>';
 

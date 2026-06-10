@@ -51,6 +51,11 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* 発注数・金額・ステータス列の基本幅（PC）。iPad はメディアクエリで上書き。
+   th 側に幅を持たせることで table-layout:fixed の列幅が決まる（JS のインライン幅から移設） */
+.order-table th.col-count  { width: 62px; }
+.order-table th.col-amount { width: 92px; }
+.order-table th.col-status { width: 120px; }
 
 /* ===== Order Table ===== */
 /* table-layout:fixed で検索条件を変えても列幅が動かない（チラつき防止）。
@@ -646,10 +651,17 @@
     -webkit-overflow-scrolling: touch;
   }
   .order-table {
-    min-width: 995px;       /* admin 11 列 + 固定幅で全列見える（内容列 125px ぶん） */
+    min-width: 995px;       /* admin 11 列 + 固定幅で全列見える（合計幅一定→詳細列の位置は不変） */
   }
   /* iPad時のみ内容列の幅を固定（PCは可変のまま）。2行に収め2行目末尾で…省略 */
-  .order-table th.col-content { width: 125px; }
+  .order-table th.col-content { width: 130px; }
+  /* 発注数・金額・ステータスを少し詰めて右寄せ（その分を内容へ。詳細位置は不変） */
+  .order-table th.col-count  { width: 60px; }
+  .order-table th.col-amount { width: 90px; }
+  .order-table th.col-status { width: 119px; }
+  .order-table td.td-count,
+  .order-table td.td-amount,
+  .order-table td.td-status { text-align: right; }
   /* 詳細展開ボタンのタッチターゲット 44px */
   .btn-sm {
     min-width: 44px;
