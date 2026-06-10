@@ -622,6 +622,19 @@
   .order-table { font-size: 13px; }
   .order-row td { padding: 10px 12px; }
 
+  /* iPad時のみ内容列を2行折返し（PCは1行のまま）。2行を超えた分は「…」省略 */
+  .td-content {
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
   /* 発注一覧テーブルは iPad 縦持ち(810/820px)では右切れするため、
      横スクロール許可 + min-width で全列見れる状態に */
   .table-container {
