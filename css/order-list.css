@@ -661,7 +661,10 @@
   .order-table th.col-status { width: 119px; }
   .order-table td.td-count,
   .order-table td.td-amount,
-  .order-table td.td-status { text-align: right; }
+  .order-table td.td-status,
+  .order-table th.col-count,
+  .order-table th.col-amount,
+  .order-table th.col-status { text-align: right; }
   /* 詳細展開ボタンのタッチターゲット 44px */
   .btn-sm {
     min-width: 44px;
