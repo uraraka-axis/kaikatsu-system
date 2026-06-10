@@ -42,7 +42,11 @@
 
 
 /* ===== Content Column Truncation ===== */
-.td-content {
+/* td はテーブルセルのまま維持し、省略/折返しは内側 .content-text で行う
+   （td に display:-webkit-box を当てると table-cell が壊れ表崩れするため） */
+.td-content { overflow: hidden; }
+.content-text {
+  display: block;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -622,15 +626,15 @@
   .order-table { font-size: 13px; }
   .order-row td { padding: 10px 12px; }
 
-  /* iPad時のみ内容列を2行折返し（PCは1行のまま）。2行を超えた分は「…」省略 */
-  .td-content {
+  /* iPad時のみ内容を2行折返し（PCは1行のまま）。line-clamp は内側 span に当てる
+     （td に直接当てると table-cell が壊れて表が崩れる） */
+  .content-text {
     white-space: normal;
     display: -webkit-box;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
     line-clamp: 2;
     overflow: hidden;
-    text-overflow: ellipsis;
     overflow-wrap: anywhere;
     word-break: break-word;
   }

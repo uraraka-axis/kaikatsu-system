@@ -560,7 +560,7 @@ function renderOrders() {
     }
 
     html += '<td>' + escapeHtml(catLabel) + '</td>' +
-      '<td class="td-content">' + escapeHtml(contentLabel) + '</td>' +
+      '<td class="td-content"><span class="content-text">' + escapeHtml(contentLabel) + '</span></td>' +
       '<td>' + orderCount + '</td>' +
       '<td>' + displayAmount + '</td>' +
       '<td><span class="status-badge ' + statusClass + '">' + statusLabel + '</span></td>' +
