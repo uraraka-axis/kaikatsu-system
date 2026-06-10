@@ -33,6 +33,15 @@ try {
         $sortByCode[$c['code']] = (int)$c['sort_order'];
     }
 
+    // 店舗×カテゴリの関連マップ: (shop_code => [category_code => true])
+    // 取扱を外したカテゴリの予算行（shop_categories に無い＝親なし行）を出力から除外するため。
+    // インポート側（admin/master/budgets.php）の整合チェックと出力基準を一致させ、
+    // ダウンロード→そのままアップロードの往復が必ず通るようにする。予算データ自体はDBに保持。
+    $shopCats = [];
+    foreach (query('SELECT shop_code, category_code FROM shop_categories') as $r) {
+        $shopCats[$r['shop_code']][$r['category_code']] = true;
+    }
+
     $year = isset($_GET['year']) ? (int)$_GET['year'] : null;
 
     // データ取得（全体は SUM 動的計算で行が存在しないため、そのまま全部出力すれば fit/ig 等のみ）
@@ -93,6 +102,9 @@ try {
         foreach ($shopMap as $shop => $deptMap) {
             foreach ($deptOrderCodes as $deptCode) {
                 if (!isset($deptMap[$deptCode])) continue;
+                // 取扱を外したカテゴリの予算行（親なし）は出力しない＝往復が必ず通る。
+                // データはDBに残るため、カテゴリを再付与すれば再び出力される。
+                if (!isset($shopCats[$shop][$deptCode])) continue;
                 $monthValues = $deptMap[$deptCode];
                 $sheet->setCellValue("A{$rowIdx}", $y);
                 $sheet->setCellValueExplicit("B{$rowIdx}", $shop, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
