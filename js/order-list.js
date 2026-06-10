@@ -401,6 +401,14 @@ function initView() {
 }
 
 // ===== Table Header =====
+// 発注日を YYYY- / MM-DD の2行で表示（列幅節約・PC/iPad共通）。
+// 日付はシステム生成（YYYY-MM-DD）なので <br> 挿入で XSS リスクなし。
+function formatOrderDate(d) {
+  var s = (d == null) ? '' : String(d);
+  var m = s.match(/^(\d{4})-(\d{2}-\d{2})/);
+  return m ? (m[1] + '-<br>' + m[2]) : escapeHtml(s);
+}
+
 function renderTableHeader() {
   var thead = document.getElementById('orderTableHead');
   if (viewMode === 'admin') {
@@ -408,13 +416,13 @@ function renderTableHeader() {
     // 発注日=nowrap1行ぶんの幅 / 発注番号=折返し前提で細め / 詳細=余裕を確保
     thead.innerHTML = '<tr>' +
       '<th style="width:40px"><input type="checkbox" id="selectAll" onchange="toggleAll(this)"></th>' +
-      '<th style="width:120px">発注日</th><th style="width:62px">種別</th><th style="width:150px">発注番号</th><th style="width:116px">店舗</th><th style="width:88px">カテゴリ</th><th>内容</th>' +
+      '<th style="width:76px">発注日</th><th style="width:62px">種別</th><th style="width:150px">発注番号</th><th style="width:116px">店舗</th><th style="width:88px">カテゴリ</th><th>内容</th>' +
       '<th style="width:62px">発注数</th><th style="width:92px">金額</th><th style="width:120px">ステータス</th>' +
       '<th style="width:64px">詳細</th></tr>';
   } else {
     thead.innerHTML = '<tr>' +
       '<th style="width:40px"><input type="checkbox" id="selectAll" onchange="toggleAll(this)"></th>' +
-      '<th style="width:120px">発注日</th><th style="width:62px">種別</th><th style="width:150px">発注番号</th><th style="width:88px">カテゴリ</th><th>内容</th>' +
+      '<th style="width:76px">発注日</th><th style="width:62px">種別</th><th style="width:150px">発注番号</th><th style="width:88px">カテゴリ</th><th>内容</th>' +
       '<th style="width:62px">発注数</th><th style="width:92px">金額</th><th style="width:120px">ステータス</th>' +
       '<th style="width:64px">詳細</th></tr>';
   }
@@ -543,7 +551,7 @@ function renderOrders() {
     var checkedAttr = selectedIds[o.id] ? ' checked' : '';
     html += '<tr class="order-row ' + o.type + '" onclick="onRowClick(event, \'' + o.id + '\')">' +
       '<td class="td-checkbox"><input type="checkbox" class="order-check" data-id="' + o.id + '" onchange="onCheckChange(this)"' + checkedAttr + '></td>' +
-      '<td>' + o.date + '</td>' +
+      '<td>' + formatOrderDate(o.date) + '</td>' +
       '<td><span class="type-badge ' + typeClass + '">' + typeLabel + '</span></td>' +
       '<td><strong>' + o.id + '</strong></td>';
 
