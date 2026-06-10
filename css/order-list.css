@@ -52,8 +52,10 @@
 /* table-layout:fixed で検索条件を変えても列幅が動かない（チラつき防止）。
    各列幅は order-list.js の thead で指定。内容列のみ幅未指定で残余を吸収。 */
 .order-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-/* 発注番号（store/admin とも4列目）は折り返さず1行表示 */
-.order-table td:nth-child(4) { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* 発注日（2列目）は固定長なので nowrap で1行固定 */
+.order-table td:nth-child(2) { white-space: nowrap; }
+/* 発注番号（store/admin とも4列目）はハイフンで折り返し、枝番まで全表示（切り捨て無し） */
+.order-table td:nth-child(4) { white-space: normal; word-break: normal; overflow-wrap: normal; }
 .order-table th {
   text-align: left;
   padding: 12px 16px;
