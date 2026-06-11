@@ -158,7 +158,7 @@
 /* Shop cell with expand icon */
 .shop-cell { display: flex; align-items: center; gap: 6px; font-weight: 500; overflow: hidden; }
 /* 列幅(固定)を超える長い店舗名は隣列に重ねず「…」で省略（フル名は title 表示） */
-.shop-cell .shop-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.shop-cell .shop-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
 .expand-icon {
   width: 16px;
   height: 16px;
