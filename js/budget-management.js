@@ -60,6 +60,7 @@
 
     // ===== Zone / Area / Shop master (populated from API) =====
     var areasByZone = {};
+    var shopsOrdered = []; // 店舗フラットリスト（マスタ表示順=sort_order。店舗プルダウン用）
     var shopCatMap = {}; // shop_code → 取扱カテゴリ配列（店舗ドロップダウンのカテゴリ絞り込み用）
     var currentRows = []; // 現在テーブルに描画中の行データ（折りたたみ詳細の遅延生成用）
 
@@ -185,6 +186,7 @@
         // Build shopCatMap（店舗→取扱カテゴリ）。
         // 店舗プルダウンは shops 配列（APIの表示順=sort_order）をそのままフラットに使う
         //（発注一覧・自店調達と同じ並び。エリア別の再グルーピングはしない）
+        shopsOrdered = shops; // モジュール変数へ保持（updateShopOptions から参照）
         shopCatMap = {};
         shops.forEach(function(s) {
           shopCatMap[s.shop_code] = s.categories ? String(s.categories).split(',') : [];
@@ -449,13 +451,13 @@
       var prev = shopSelect.value; // 選択中の店舗（絞り込み後も残っていれば復元）
       shopSelect.innerHTML = '<option value="">すべて</option>';
       // area選択時=その area の店舗 / zoneのみ=その zone 配下全店舗 / 両方未選択=全店舗
-      // いずれも shops 配列（表示順=sort_order）をフィルタするだけで、並びはフラットに維持
-      var list = shops;
+      // いずれも shopsOrdered（表示順=sort_order）をフィルタするだけで、並びはフラットに維持
+      var list = shopsOrdered;
       if (area) {
-        list = shops.filter(function(s) { return s.area_code === area; });
+        list = shopsOrdered.filter(function(s) { return s.area_code === area; });
       } else if (zone && areasByZone[zone]) {
         var areaCodes = areasByZone[zone].map(function(a) { return a[0]; });
-        list = shops.filter(function(s) { return areaCodes.indexOf(s.area_code) >= 0; });
+        list = shopsOrdered.filter(function(s) { return areaCodes.indexOf(s.area_code) >= 0; });
       }
       // 選択中カテゴリでの絞り込み（例: フィットネス選択時はゴルフ専用店を除外）
       var dept = getSelectedDept();

@@ -176,9 +176,10 @@ document.addEventListener('DOMContentLoaded', function() {
     if (viewMode !== 'admin') return;
     var sel = document.getElementById('filterShop');
     if (!sel) return;
-    var html = '<option value="">すべての店舗</option>';
+    // 表記は発注一覧・予算管理と統一（「すべて」＋「店舗コード:店舗名」）
+    var html = '<option value="">すべて</option>';
     shops.forEach(function(s) {
-      html += '<option value="' + s.shop_code + '">' + s.shop_name + '</option>';
+      html += '<option value="' + s.shop_code + '">' + s.shop_code + ':' + s.shop_name + '</option>';
     });
     sel.innerHTML = html;
   }
