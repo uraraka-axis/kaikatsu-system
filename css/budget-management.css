@@ -133,7 +133,7 @@
   text-align: center;
 }
 .budget-table th.num { text-align: center; }
-.budget-table th.col-shop { text-align: left; min-width: 130px; width: 150px; }
+.budget-table th.col-shop { text-align: left; min-width: 130px; width: 210px; }
 
 /* Group headers */
 /* table-layout:fixed 用: colspan=4 のグループ幅を指定し、配下の数値4列を等分（348/4=87px） */
@@ -156,7 +156,9 @@
 .budget-row:hover { background: #f8fafc; }
 
 /* Shop cell with expand icon */
-.shop-cell { display: flex; align-items: center; gap: 6px; font-weight: 500; }
+.shop-cell { display: flex; align-items: center; gap: 6px; font-weight: 500; overflow: hidden; }
+/* 列幅(固定)を超える長い店舗名は隣列に重ねず「…」で省略（フル名は title 表示） */
+.shop-cell .shop-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .expand-icon {
   width: 16px;
   height: 16px;
@@ -311,7 +313,7 @@
     -webkit-overflow-scrolling: touch;
   }
   .budget-table {
-    min-width: 1240px;      /* 固定幅(店舗150 + 数値12×87 + admin checkbox)で全列クリップしない幅 */
+    min-width: 1300px;      /* 固定幅(店舗210 + 数値12×87 + admin checkbox)で全列クリップしない幅 */
   }
 }
 @media (max-width: 600px) {
