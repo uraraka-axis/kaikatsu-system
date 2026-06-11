@@ -60,7 +60,6 @@
 
     // ===== Zone / Area / Shop master (populated from API) =====
     var areasByZone = {};
-    var shopsByArea = {};
     var shopCatMap = {}; // shop_code → 取扱カテゴリ配列（店舗ドロップダウンのカテゴリ絞り込み用）
     var currentRows = []; // 現在テーブルに描画中の行データ（折りたたみ詳細の遅延生成用）
 
@@ -183,12 +182,11 @@
           if (!areasByZone[a.zone_code]) areasByZone[a.zone_code] = [];
           areasByZone[a.zone_code].push([a.area_code, a.area_code + ':' + a.area_name]);
         });
-        // Build shopsByArea
-        shopsByArea = {};
+        // Build shopCatMap（店舗→取扱カテゴリ）。
+        // 店舗プルダウンは shops 配列（APIの表示順=sort_order）をそのままフラットに使う
+        //（発注一覧・自店調達と同じ並び。エリア別の再グルーピングはしない）
         shopCatMap = {};
         shops.forEach(function(s) {
-          if (!shopsByArea[s.area_code]) shopsByArea[s.area_code] = [];
-          shopsByArea[s.area_code].push(s.shop_code + ':' + s.shop_name);
           shopCatMap[s.shop_code] = s.categories ? String(s.categories).split(',') : [];
         });
         // Populate zone select
@@ -231,11 +229,8 @@
           var shopSel = document.getElementById('filterShop');
           if (shopSel) {
             shopSel.innerHTML = '<option value="">すべて</option>';
-            Object.keys(shopsByArea).forEach(function(k) {
-              shopsByArea[k].forEach(function(s) {
-                var code = s.split(':')[0];
-                shopSel.innerHTML += '<option value="' + code + '">' + s + '</option>';
-              });
+            shops.forEach(function(s) {
+              shopSel.innerHTML += '<option value="' + s.shop_code + '">' + s.shop_code + ':' + s.shop_name + '</option>';
             });
           }
         }
@@ -454,28 +449,22 @@
       var prev = shopSelect.value; // 選択中の店舗（絞り込み後も残っていれば復元）
       shopSelect.innerHTML = '<option value="">すべて</option>';
       // area選択時=その area の店舗 / zoneのみ=その zone 配下全店舗 / 両方未選択=全店舗
-      var list = [];
-      if (area && shopsByArea[area]) {
-        list = shopsByArea[area];
+      // いずれも shops 配列（表示順=sort_order）をフィルタするだけで、並びはフラットに維持
+      var list = shops;
+      if (area) {
+        list = shops.filter(function(s) { return s.area_code === area; });
       } else if (zone && areasByZone[zone]) {
-        areasByZone[zone].forEach(function(a) {
-          var ac = a[0];
-          if (shopsByArea[ac]) shopsByArea[ac].forEach(function(s) { list.push(s); });
-        });
-      } else {
-        Object.keys(shopsByArea).forEach(function(k) {
-          shopsByArea[k].forEach(function(s) { list.push(s); });
-        });
+        var areaCodes = areasByZone[zone].map(function(a) { return a[0]; });
+        list = shops.filter(function(s) { return areaCodes.indexOf(s.area_code) >= 0; });
       }
       // 選択中カテゴリでの絞り込み（例: フィットネス選択時はゴルフ専用店を除外）
       var dept = getSelectedDept();
       list.forEach(function(s) {
-        var code = s.split(':')[0];
         if (dept && dept !== 'all') {
-          var cats = shopCatMap[code] || [];
+          var cats = shopCatMap[s.shop_code] || [];
           if (cats.indexOf(dept) === -1) return; // 当該カテゴリを扱わない店舗は出さない
         }
-        shopSelect.innerHTML += '<option value="' + code + '">' + s + '</option>';
+        shopSelect.innerHTML += '<option value="' + s.shop_code + '">' + s.shop_code + ':' + s.shop_name + '</option>';
       });
       // 絞り込み後も同じ店舗が残っていれば選択を維持、無ければ「すべて」
       if (prev) {
