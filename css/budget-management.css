@@ -133,7 +133,7 @@
   text-align: center;
 }
 .budget-table th.num { text-align: center; }
-.budget-table th.col-shop { text-align: left; min-width: 130px; width: 210px; }
+.budget-table th.col-shop { text-align: left; min-width: 130px; width: 240px; }
 
 /* Group headers */
 /* table-layout:fixed 用: colspan=4 のグループ幅を指定し、配下の数値4列を等分（348/4=87px） */
@@ -313,7 +313,7 @@
     -webkit-overflow-scrolling: touch;
   }
   .budget-table {
-    min-width: 1300px;      /* 固定幅(店舗210 + 数値12×87 + admin checkbox)で全列クリップしない幅 */
+    min-width: 1330px;      /* 固定幅(店舗240 + 数値12×87 + admin checkbox)で全列クリップしない幅 */
   }
 }
 @media (max-width: 600px) {
