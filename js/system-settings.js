@@ -8,6 +8,15 @@
 
 const WEEKDAY_LABELS = ['日', '月', '火', '水', '木', '金', '土'];
 
+// ===== 権限ガード: common-nav.js の userLoaded を待ち、admin / system 以外は弾く（API側でも403で防御済み） =====
+window.addEventListener('userLoaded', function(e) {
+  var user = e.detail;
+  if (user.role !== 'admin' && user.role !== 'system') {
+    alert('このページは管理者専用です');
+    window.location.href = 'menu.html';
+  }
+});
+
 document.addEventListener('DOMContentLoaded', () => {
   // 読み込み完了まで保存不可（カテゴリ取得前に保存して空配列が送られる競合を防止）
   const saveBtn = document.querySelector('.btn-submit');

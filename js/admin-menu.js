@@ -1,3 +1,12 @@
+    // ===== 権限ガード: common-nav.js の userLoaded を待ち、admin / system 以外は弾く（API側でも403で防御済み） =====
+    window.addEventListener('userLoaded', function(e) {
+      var user = e.detail;
+      if (user.role !== 'admin' && user.role !== 'system') {
+        alert('このページは管理者専用です');
+        window.location.href = 'menu.html';
+      }
+    });
+
     // ===== Master Data (zones/areas/shops are loaded from API on DOMContentLoaded) =====
     // 旧来の参照箇所と互換を保つため field 名は { code, name, zone, area } に正規化する
     var zones = [];
