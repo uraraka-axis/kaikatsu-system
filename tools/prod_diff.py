@@ -8,8 +8,8 @@ from pathlib import Path
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 PROD = "https://uraraka.moe/fit24-order-budget/"
-LOCAL = Path(r"C:\Users\ssasa\kaikatsu-system")
-OUT = Path(__file__).parent / "prod_files"
+LOCAL = Path(__file__).resolve().parents[1]          # リポジトリルート
+OUT = Path(__file__).parent / "prod_files"           # 取得した本番ファイルの控え（git管理外）
 OUT.mkdir(exist_ok=True)
 
 targets = []

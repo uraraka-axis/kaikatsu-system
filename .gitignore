@@ -31,3 +31,5 @@ tools/gen_production_seed.php
 
 # cron 多重起動防止ロックファイル
 setup/.apply_scheduled_changes.lock
+
+tools/prod_files/
