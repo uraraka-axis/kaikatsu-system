@@ -25,6 +25,7 @@ $columns = [
     ['field' => 'jan_code',              'header' => 'JANコード',        'type' => 'string'],
     ['field' => 'supplier_product_code', 'header' => '仕入先商品コード', 'type' => 'string'],
     ['field' => 'recommended',           'header' => 'おすすめ',         'type' => 'bool'],
+    ['field' => 'is_chair_item',         'header' => 'チェア備品',       'type' => 'bool'],
     ['field' => 'image_path',            'header' => '画像1',            'type' => 'string'],
     ['field' => 'image_path2',           'header' => '画像2',            'type' => 'string'],
     ['field' => 'image_path3',           'header' => '画像3',            'type' => 'string'],
@@ -37,7 +38,7 @@ $columns = [
 $rows = query(
     'SELECT p.code, p.name, p.category_code, s.name AS supplier_name,
             p.price, p.jan_code, p.supplier_product_code,
-            p.recommended, p.image_path, p.image_path2, p.image_path3,
+            p.recommended, p.is_chair_item, p.image_path, p.image_path2, p.image_path3,
             p.is_active, p.sort_order
        FROM products p
        LEFT JOIN suppliers s ON p.supplier_id = s.id

@@ -62,6 +62,31 @@ $columns = [
         'pattern_msg' => '3桁の数字で指定してください',
     ],
     [
+        'field'       => 'phone',
+        'header'      => '電話番号',
+        'type'        => 'string',
+        'required'    => false,
+        'max_length'  => 20,
+        'pattern'     => '/^[0-9\-]{10,13}$/',
+        'pattern_msg' => '半角数字とハイフンで指定してください（例: 029-860-1088）',
+    ],
+    [
+        'field'       => 'postal_code',
+        'header'      => '郵便番号',
+        'type'        => 'string',
+        'required'    => false,
+        'max_length'  => 8,
+        'pattern'     => '/^\d{3}-\d{4}$/',
+        'pattern_msg' => '000-0000 の形式で指定してください',
+    ],
+    [
+        'field'      => 'address',
+        'header'     => '住所',
+        'type'       => 'string',
+        'required'   => false,
+        'max_length' => 200,
+    ],
+    [
         'field'    => 'is_active',
         'header'   => '有効',
         'type'     => 'bool',
@@ -99,7 +124,7 @@ $columns[] = [
 $catCodes = array_column($categories, 'code');
 
 // shops テーブルに存在する実カラム（cat_* は中間テーブル shop_categories 用なので除外）
-$shopsTableFields = ['code', 'name', 'short_code', 'area_code', 'is_active', 'sort_order'];
+$shopsTableFields = ['code', 'name', 'short_code', 'area_code', 'phone', 'postal_code', 'address', 'is_active', 'sort_order'];
 
 $config = [
     'table'     => 'shops',

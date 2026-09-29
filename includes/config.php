@@ -76,6 +76,9 @@ define('ORDER_PREFIX_EQUIPMENT', 'EQU');
 define('ORDER_PREFIX_PARTS', 'PTS');
 define('ORDER_PREFIX_PROCUREMENT', 'REQ');
 define('ORDER_PREFIX_SEAT_REPLACEMENT', 'SHT');
+define('ORDER_PREFIX_CLUB_REPLACEMENT', 'ALT');  // 代替ゴルフクラブ発送依頼
+define('ORDER_PREFIX_CHAIR_EQUIPMENT', 'MCE');   // マッサージチェア備品発注
+define('ORDER_PREFIX_CHAIR_REPAIR', 'MCR');      // マッサージチェア修理依頼
 
 // ============================================================
 // ステータス定義

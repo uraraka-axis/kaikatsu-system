@@ -123,6 +123,9 @@ function generateOrderNumber(string $type, string $shopCode, ?string $date = nul
         'parts'            => ORDER_PREFIX_PARTS,
         'procurement'      => ORDER_PREFIX_PROCUREMENT,
         'seat-replacement' => ORDER_PREFIX_SEAT_REPLACEMENT,
+        'club-replacement' => ORDER_PREFIX_CLUB_REPLACEMENT,
+        'chair-equipment'  => ORDER_PREFIX_CHAIR_EQUIPMENT,
+        'chair-repair'     => ORDER_PREFIX_CHAIR_REPAIR,
     ];
     $prefix = $prefixMap[$type] ?? throw new InvalidArgumentException("不正な発注種別: {$type}");
 

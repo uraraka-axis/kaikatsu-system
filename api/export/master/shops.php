@@ -35,6 +35,9 @@ $columns = [
     ['field' => 'name',       'header' => '店舗名',       'type' => 'string'],
     ['field' => 'short_code', 'header' => '短縮コード',   'type' => 'string'],
     ['field' => 'area_code',  'header' => 'エリアコード', 'type' => 'string'],
+    ['field' => 'phone',       'header' => '電話番号', 'type' => 'string'],
+    ['field' => 'postal_code', 'header' => '郵便番号', 'type' => 'string'],
+    ['field' => 'address',     'header' => '住所',     'type' => 'string'],
     ['field' => 'is_active',  'header' => '有効',         'type' => 'bool'],
     ['field' => 'sort_order', 'header' => '表示順',       'type' => 'int'],
 ];

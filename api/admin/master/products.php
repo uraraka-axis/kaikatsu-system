@@ -89,6 +89,12 @@ $config = [
             'required' => true,
         ],
         [
+            'field'    => 'is_chair_item',
+            'header'   => 'チェア備品',
+            'type'     => 'bool',
+            'required' => true,
+        ],
+        [
             'field'      => 'image_path',
             'header'     => '画像1',
             'type'       => 'string',
@@ -143,7 +149,7 @@ $config = [
     // 比較対象は実テーブルのカラムのみ（supplier_name は Excel 表示用なので除外）
     'compare_fields' => [
         'code', 'name', 'category_code', 'supplier_id', 'price',
-        'jan_code', 'supplier_product_code', 'recommended',
+        'jan_code', 'supplier_product_code', 'recommended', 'is_chair_item',
         'image_path', 'image_path2', 'image_path3', 'is_active', 'sort_order',
     ],
     // 前処理: 仕入先名 → supplier_id にルックアップ。Excel 列の supplier_name は最終的に削除する
