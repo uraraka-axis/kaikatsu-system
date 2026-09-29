@@ -61,6 +61,11 @@ function parseUploadedXlsx(string $filePath, array $columns): array
     $actualHeaders = [];
     for ($c = 1; $c <= count($expectedHeaders); $c++) {
         $val = $sheet->getCell([$c, 1])->getValue();
+        // 外部ツール(openpyxl等)で再保存されたファイルはセルが RichText 型になることが
+        // あるため、プレーン文字列へ変換してから判定する（2026-07-07 の全セル空判定事故対策）
+        if ($val instanceof \PhpOffice\PhpSpreadsheet\RichText\RichText) {
+            $val = $val->getPlainText();
+        }
         $actualHeaders[] = is_string($val) ? trim($val) : '';
     }
     if ($actualHeaders !== $expectedHeaders) {
@@ -85,6 +90,9 @@ function parseUploadedXlsx(string $filePath, array $columns): array
         $allEmpty = true;
         foreach ($columns as $i => $col) {
             $val = $sheet->getCell([$i + 1, $r])->getValue();
+            if ($val instanceof \PhpOffice\PhpSpreadsheet\RichText\RichText) {
+                $val = $val->getPlainText();
+            }
             if ($val !== null && $val !== '') {
                 $allEmpty = false;
             }
