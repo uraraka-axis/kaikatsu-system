@@ -651,11 +651,16 @@ function renderDetailContent(o) {
   if (isRepairLikeType(o.type)) {
     var equipLabel = o.type === 'seat-replacement' ? 'マシン名・品番' : '故障機材';
     var issueLabel = o.type === 'seat-replacement' ? '依頼内容' : '不具合内容';
-    var photoLabel = o.type === 'seat-replacement' ? 'マシン写真' : '故障写真';
+    var photoLabel = o.type === 'seat-replacement' ? 'マシン写真' : '故障箇所の写真';
     html += '<div class="detail-grid">' +
       '<div><div class="detail-label">' + equipLabel + '</div><div class="detail-value">' + escapeHtml(o.equipment_name || '') + '</div></div>' +
       '<div><div class="detail-label">' + issueLabel + '</div><div class="detail-value">' + escapeHtml(o.issue || '') + '</div></div>' +
     '</div>';
+    if (o.type === 'repair' && o.comment) {
+      html += '<div class="detail-grid" style="margin-top:8px;">' +
+        '<div><div class="detail-label">コメント</div><div class="detail-value">' + escapeHtml(o.comment) + '</div></div>' +
+      '</div>';
+    }
     var unavailDates = formatUnavailDates(o.unavail_dates);
     var unavailDays = formatUnavailDays(o.unavail_days);
     if (unavailDates.length || unavailDays.length) {
@@ -669,7 +674,15 @@ function renderDetailContent(o) {
       html += '</div>';
     }
     if (o.photos && o.photos.length > 0) {
-      html += renderPhotos(o.photos, photoLabel);
+      // 写真種別ごとに分けて表示（serial=シリアルナンバー / それ以外=故障箇所）
+      var damagePhotos = o.photos.filter(function(p) { return p.kind !== 'serial'; });
+      var serialPhotos = o.photos.filter(function(p) { return p.kind === 'serial'; });
+      if (damagePhotos.length > 0) {
+        html += renderPhotos(damagePhotos, photoLabel);
+      }
+      if (serialPhotos.length > 0) {
+        html += renderPhotos(serialPhotos, 'シリアルナンバーの写真');
+      }
     }
   } else if (o.type === 'equipment') {
     if (o.equip_items && o.equip_items.length) {

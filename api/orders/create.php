@@ -11,7 +11,8 @@
  *   category: fitness | golf
  *
  * 修理(repair)追加パラメータ:
- *   equipment_name, issue, unavail_dates(JSON), unavail_days(JSON), photos[]
+ *   equipment_name, issue, comment(任意), unavail_dates(JSON), unavail_days(JSON),
+ *   photos[](故障箇所・最大3枚), serial_photo(シリアルナンバー・必須1枚)
  *
  * シート交換(seat-replacement)追加パラメータ:
  *   equipment_name(マシン名), unavail_dates(JSON), unavail_days(JSON), photos[]
@@ -59,6 +60,11 @@ if ($type === 'seat-replacement') {
 $cat = getOne('SELECT code FROM categories WHERE code = :code AND is_active = 1', [':code' => $category]);
 if (!$cat) {
     jsonError('不正なカテゴリです');
+}
+
+// 修理はシリアルナンバー写真が必須（添付漏れ防止。フロントの制御を信用しない）
+if ($type === 'repair' && !isValidSerialPhotoUpload()) {
+    jsonError('シリアルナンバーの写真を添付してください');
 }
 
 try {
@@ -115,6 +121,11 @@ try {
         uploadPhotos($orderId);
     }
 
+    // --- シリアルナンバー写真（修理のみ・必須1枚） ---
+    if ($type === 'repair') {
+        uploadSerialPhoto($orderId);
+    }
+
     commit();
 
     // レスポンスを先にクライアントへ返してから商品部への発注通知メールを送る。
@@ -160,6 +171,7 @@ function createRepairDetail(string $orderId): void
 {
     $equipmentName = trim($_POST['equipment_name'] ?? '');
     $issue = trim($_POST['issue'] ?? '');
+    $comment = trim($_POST['comment'] ?? '');
 
     if ($equipmentName === '' || $issue === '') {
         throw new InvalidArgumentException('故障機材名と不具合内容は必須です');
@@ -167,14 +179,18 @@ function createRepairDetail(string $orderId): void
     if (mb_strlen($equipmentName) > 100) {
         throw new InvalidArgumentException('故障機材名は100文字以内で入力してください');
     }
+    if (mb_strlen($comment) > 500) {
+        throw new InvalidArgumentException('コメントは500文字以内で入力してください');
+    }
 
     execute(
-        'INSERT INTO order_repair_details (order_id, equipment_name, issue)
-         VALUES (:order_id, :equipment_name, :issue)',
+        'INSERT INTO order_repair_details (order_id, equipment_name, issue, comment)
+         VALUES (:order_id, :equipment_name, :issue, :comment)',
         [
             ':order_id'       => $orderId,
             ':equipment_name' => $equipmentName,
             ':issue'          => $issue,
+            ':comment'        => $comment !== '' ? $comment : null,
         ]
     );
 
@@ -397,9 +413,12 @@ function notifyProductDeptNewOrder(string $orderId, string $type, string $shopCo
     $detail = '';
     switch ($type) {
         case 'repair':
-            $r = getOne('SELECT equipment_name, issue FROM order_repair_details WHERE order_id = :id', [':id' => $orderId]);
+            $r = getOne('SELECT equipment_name, issue, comment FROM order_repair_details WHERE order_id = :id', [':id' => $orderId]);
             if ($r) {
                 $detail = "故障機材: {$r['equipment_name']}\n不具合内容: {$r['issue']}";
+                if (($r['comment'] ?? '') !== '') {
+                    $detail .= "\nコメント: {$r['comment']}";
+                }
             }
             break;
         case 'seat-replacement':
@@ -484,10 +503,11 @@ function uploadPhotos(string $orderId): void
 
         if (move_uploaded_file($files['tmp_name'][$i], $filePath)) {
             execute(
-                'INSERT INTO order_photos (order_id, file_path, original_filename, mime_type, file_size, sort_order)
-                 VALUES (:order_id, :file_path, :original, :mime, :size, :sort)',
+                'INSERT INTO order_photos (order_id, photo_kind, file_path, original_filename, mime_type, file_size, sort_order)
+                 VALUES (:order_id, :kind, :file_path, :original, :mime, :size, :sort)',
                 [
                     ':order_id' => $orderId,
+                    ':kind'      => 'damage',
                     ':file_path' => $relativePath,
                     ':original'  => $files['name'][$i],
                     ':mime'      => $mime,
@@ -497,4 +517,62 @@ function uploadPhotos(string $orderId): void
             );
         }
     }
+}
+
+// ========================================
+// シリアルナンバー写真（必須1枚）
+// ========================================
+/**
+ * $_FILES['serial_photo'] が有効な画像として添付されているか（登録前チェック用）。
+ */
+function isValidSerialPhotoUpload(): bool
+{
+    $f = $_FILES['serial_photo'] ?? null;
+    if (!$f || !is_string($f['name'] ?? null)) return false;
+    if (($f['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) return false;
+    if (($f['size'] ?? 0) <= 0 || $f['size'] > MAX_FILE_SIZE) return false;
+    if (!in_array($f['type'] ?? '', ALLOWED_MIME_TYPES, true)) return false;
+    $ext = strtolower(pathinfo($f['name'], PATHINFO_EXTENSION));
+    return in_array($ext, ALLOWED_EXTENSIONS, true);
+}
+
+/**
+ * シリアルナンバー写真を保存する（photo_kind='serial'）。
+ * 呼び出し前に isValidSerialPhotoUpload() で検証済みである前提だが、
+ * 保存失敗時は例外を投げて発注登録ごとロールバックする（必須写真のため）。
+ */
+function uploadSerialPhoto(string $orderId): void
+{
+    if (!isValidSerialPhotoUpload()) {
+        throw new InvalidArgumentException('シリアルナンバーの写真を添付してください');
+    }
+    $f = $_FILES['serial_photo'];
+
+    $uploadDir = UPLOAD_PATH . '/orders/' . $orderId;
+    if (!is_dir($uploadDir)) {
+        mkdir($uploadDir, 0755, true);
+    }
+
+    $ext = strtolower(pathinfo($f['name'], PATHINFO_EXTENSION));
+    $filename = sprintf('%s_serial.%s', $orderId, $ext);
+    $filePath = $uploadDir . '/' . $filename;
+    $relativePath = 'uploads/orders/' . $orderId . '/' . $filename;
+
+    if (!move_uploaded_file($f['tmp_name'], $filePath)) {
+        throw new RuntimeException('シリアルナンバー写真の保存に失敗しました');
+    }
+
+    execute(
+        'INSERT INTO order_photos (order_id, photo_kind, file_path, original_filename, mime_type, file_size, sort_order)
+         VALUES (:order_id, :kind, :file_path, :original, :mime, :size, :sort)',
+        [
+            ':order_id'  => $orderId,
+            ':kind'      => 'serial',
+            ':file_path' => $relativePath,
+            ':original'  => $f['name'],
+            ':mime'      => $f['type'],
+            ':size'      => $f['size'],
+            ':sort'      => 0,
+        ]
+    );
 }

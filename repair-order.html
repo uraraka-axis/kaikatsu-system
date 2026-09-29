@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/common.css?v=20260602a">
+  <link rel="stylesheet" href="css/common.css?v=20260929">
   <link rel="stylesheet" href="css/repair-order.css?v=20260606">
 </head>
 <body>
@@ -127,9 +127,16 @@
             <textarea id="issueDescription" class="form-textarea" placeholder="電源が入らない" oninput="updateSubmitState()"></textarea>
           </div>
 
-          <!-- Photo Upload -->
+          <!-- Comment (optional) -->
           <div class="form-group">
-            <label class="form-label">故障箇所の写真（全体写真・故障個所の写真・シリアルナンバー）最大3枚</label>
+            <label class="form-label">コメント（任意）</label>
+            <textarea id="commentText" class="form-textarea" style="min-height:90px;" maxlength="500" placeholder="例：ベルト・ワックスは店舗在庫があるため備品の手配は不要です／訪問は午前中を希望します など"></textarea>
+            <p class="upload-hint" style="margin-top:6px;">店舗で対応可能な備品類や、詳細のご要望があれば記載してください。</p>
+          </div>
+
+          <!-- Photo Upload: 故障箇所 -->
+          <div class="form-group">
+            <label class="form-label">故障箇所の写真（全体写真・故障箇所の写真）最大3枚</label>
             <div class="photo-upload-area" id="uploadArea" onclick="triggerFileInput()">
               <div class="upload-icon">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
@@ -139,6 +146,21 @@
             </div>
             <input type="file" id="fileInput" accept="image/jpeg,image/png,image/gif,image/webp" multiple style="display:none;" onchange="handlePhotoUpload(event)">
             <div class="photo-previews" id="photoPreviews"></div>
+          </div>
+
+          <!-- Photo Upload: シリアルナンバー（必須1枚） -->
+          <div class="form-group">
+            <label class="form-label">シリアルナンバーの写真<span class="required">*</span>（1枚）</label>
+            <div class="photo-upload-area" id="serialUploadArea" onclick="triggerSerialInput()">
+              <div class="upload-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+              </div>
+              <div class="upload-text" id="serialUploadText">タップしてシリアルナンバーの写真を選択</div>
+              <div class="upload-subtext" id="serialUploadSubtext">シリアルナンバーが読める写真を1枚（必須）</div>
+            </div>
+            <input type="file" id="serialFileInput" accept="image/jpeg,image/png,image/gif,image/webp" style="display:none;" onchange="handleSerialUpload(event)">
+            <div class="photo-previews" id="serialPhotoPreview"></div>
+            <p class="upload-required-note">※ シリアルナンバーの写真が無いと依頼できません（添付漏れ防止のため必須にしています）</p>
             <p class="upload-hint">※ iPadのカメラロールから写真を選択してアップロードしてください</p>
           </div>
         </div>
@@ -152,6 +174,6 @@
   </main>
 
   <script src="js/notify-modal.js?v=20260521"></script>
-  <script src="js/repair-order.js?v=20260606c"></script>
+  <script src="js/repair-order.js?v=20260929"></script>
 </body>
 </html>

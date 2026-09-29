@@ -1,7 +1,8 @@
     // ===== State =====
     let unavailableSlots = [];
     let selectedDays = [];
-    let photos = [];
+    let photos = [];        // 故障箇所の写真（最大3枚）
+    let serialPhoto = null; // シリアルナンバーの写真（必須1枚）
     let currentUser = null;
 
     // ===== Initialize =====
@@ -258,6 +259,57 @@
       container.innerHTML = html;
     }
 
+    // ===== シリアルナンバー写真（必須1枚） =====
+    function triggerSerialInput() {
+      document.getElementById('serialFileInput').click();
+    }
+
+    function handleSerialUpload(e) {
+      var files = e.target.files;
+      if (!files || files.length === 0) return;
+      var allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+      var file = files[0];
+      if (allowed.indexOf(file.type) < 0) { e.target.value = ''; return; }
+      downscaleImage(file, 2000, 0.85).then(function(out) {
+        if (serialPhoto) URL.revokeObjectURL(serialPhoto.url);
+        serialPhoto = { url: URL.createObjectURL(out), file: out };
+        renderSerialPhoto();
+        updateSubmitState();
+      });
+      e.target.value = '';
+    }
+
+    function removeSerialPhoto() {
+      if (serialPhoto) URL.revokeObjectURL(serialPhoto.url);
+      serialPhoto = null;
+      renderSerialPhoto();
+      updateSubmitState();
+    }
+
+    function renderSerialPhoto() {
+      var container = document.getElementById('serialPhotoPreview');
+      var area = document.getElementById('serialUploadArea');
+      var text = document.getElementById('serialUploadText');
+      var subtext = document.getElementById('serialUploadSubtext');
+
+      if (serialPhoto) {
+        area.classList.add('disabled');
+        if (text) text.textContent = 'シリアルナンバーの写真は添付済みです';
+        if (subtext) subtext.textContent = '差し替える場合は×ボタンで削除してください';
+        container.innerHTML = '<div class="photo-preview">' +
+          '<img src="' + serialPhoto.url + '" alt="シリアルナンバー写真">' +
+          '<button type="button" class="photo-remove" onclick="removeSerialPhoto()">' +
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>' +
+          '</button>' +
+        '</div>';
+      } else {
+        area.classList.remove('disabled');
+        if (text) text.textContent = 'タップしてシリアルナンバーの写真を選択';
+        if (subtext) subtext.textContent = 'シリアルナンバーが読める写真を1枚（必須）';
+        container.innerHTML = '';
+      }
+    }
+
     // ===== Submit State =====
     function updateSubmitState() {
       var category = document.getElementById('category').value;
@@ -265,7 +317,11 @@
       var issue = document.getElementById('issueDescription').value.trim();
       var submitBtn = document.getElementById('submitBtn');
 
-      submitBtn.disabled = !(category && equipment && issue);
+      var ok = category && equipment && issue && serialPhoto;
+      submitBtn.disabled = !ok;
+      submitBtn.title = (!serialPhoto && category && equipment && issue)
+        ? 'シリアルナンバーの写真が未添付のため送信できません'
+        : '';
     }
 
     // ===== Submit (API) =====
@@ -280,13 +336,17 @@
       formData.append('category', document.getElementById('category').value);
       formData.append('equipment_name', document.getElementById('equipmentName').value.trim());
       formData.append('issue', document.getElementById('issueDescription').value.trim());
+      formData.append('comment', document.getElementById('commentText').value.trim());
       formData.append('unavail_dates', JSON.stringify(unavailableSlots));
       formData.append('unavail_days', JSON.stringify(selectedDays));
 
-      // 写真を追加
+      // 写真を追加（故障箇所＋シリアルナンバー）
       photos.forEach(function(p) {
         formData.append('photos[]', p.file);
       });
+      if (serialPhoto) {
+        formData.append('serial_photo', serialPhoto.file);
+      }
 
       fetch('api/orders/create.php', {
         method: 'POST',
@@ -317,13 +377,16 @@
       document.getElementById('category').value = '';
       document.getElementById('equipmentName').value = '';
       document.getElementById('issueDescription').value = '';
+      document.getElementById('commentText').value = '';
       unavailableSlots = [];
       selectedDays = [];
       photos = [];
+      serialPhoto = null;
       renderSlots();
       renderDayButtons();
       document.getElementById('photoPreviews').innerHTML = '';
       renderPhotos(); // uploadArea のテキストを初期状態に戻す
+      renderSerialPhoto();
       updateSubmitState();
     }
 

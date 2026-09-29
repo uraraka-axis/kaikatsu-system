@@ -141,7 +141,7 @@ foreach ($orderIds as $i => $oid) {
 
 // --- 修理詳細 ---
 $repairDetails = [];
-$repairSql = "SELECT order_id, equipment_name, issue, repair_schedule_date, repair_completed_date
+$repairSql = "SELECT order_id, equipment_name, issue, comment, repair_schedule_date, repair_completed_date
               FROM order_repair_details
               WHERE order_id IN ({$placeholders})";
 $repairRows = query($repairSql, $idParams);
@@ -185,7 +185,7 @@ foreach ($unavailDayRows as $row) {
 // URL は相対パスで返す（テストサイト等ベースパスが変わる環境でもそのまま表示可能。
 // 備品画像 api/product-image.php と同じ相対指定に統一）。
 $photoData = [];
-$photoSql = "SELECT id, order_id, original_filename
+$photoSql = "SELECT id, order_id, photo_kind, original_filename
              FROM order_photos
              WHERE order_id IN ({$placeholders})
              ORDER BY sort_order, id";
@@ -194,6 +194,7 @@ foreach ($photoRows as $row) {
     $photoData[$row['order_id']][] = [
         'url'      => 'api/photo.php?id=' . (int)$row['id'],
         'filename' => $row['original_filename'],
+        'kind'     => $row['photo_kind'] ?: 'damage',
     ];
 }
 
@@ -269,6 +270,7 @@ foreach ($orders as $order) {
         $rd = $repairDetails[$id] ?? null;
         $item['equipment_name']        = $rd['equipment_name'] ?? '';
         $item['issue']                 = $rd['issue'] ?? '';
+        $item['comment']               = ($orderType === 'repair') ? ($rd['comment'] ?? '') : '';
         $item['repair_schedule_date']  = $rd['repair_schedule_date'] ?? null;
         $item['repair_completed_date'] = $rd['repair_completed_date'] ?? null;
         $item['unavail_dates']         = $unavailDates[$id] ?? [];
