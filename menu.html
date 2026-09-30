@@ -16,7 +16,7 @@
 </head>
 <body>
   <header class="header" data-title="メニュー"></header>
-  <script src="js/common-nav.js?v=20260608b"></script>
+  <script src="js/common-nav.js?v=20260929"></script>
 
   <main class="main">
     <div class="menu-container">
@@ -73,6 +73,17 @@
             <div class="menu-card-text">
               <div class="menu-card-title">シート交換</div>
               <div class="menu-card-desc">マシンのシート交換を依頼します</div>
+            </div>
+          </a>
+
+          <a href="chair-equipment-order.html" class="menu-card" id="chairEquipmentCard">
+            <div class="menu-card-icon">
+              <!-- マッサージチェア (背もたれ + 座面 + オットマン) -->
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4a2 2 0 0 1 2-2h5a2 2 0 0 1 2 2v8H6z"></path><path d="M6 12h11a2 2 0 0 1 2 2v3H6a2 2 0 0 1-2-2v-9"></path><line x1="6" y1="17" x2="6" y2="21"></line><line x1="17" y1="17" x2="17" y2="21"></line></svg>
+            </div>
+            <div class="menu-card-text">
+              <div class="menu-card-title">チェア備品発注</div>
+              <div class="menu-card-desc">マッサージチェアの備品を発注します</div>
             </div>
           </a>
         </div>
@@ -172,11 +183,13 @@
       } else {
         // 店舗ユーザー: 発注セクション表示
         document.getElementById('orderSection').style.display = '';
-        // シート交換はフィットネス取扱店舗のみ（ゴルフ専用店では非表示）
+        // シート交換・チェア備品はフィットネス取扱店舗のみ（ゴルフ専用店では非表示）
         var catCodes = (user.categories || []).map(function(c) { return c.code; });
         if (catCodes.indexOf('fitness') < 0) {
           var seatCard = document.getElementById('seatReplacementCard');
           if (seatCard) seatCard.style.display = 'none';
+          var chairCard = document.getElementById('chairEquipmentCard');
+          if (chairCard) chairCard.style.display = 'none';
         }
       }
     });

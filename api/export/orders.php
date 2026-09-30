@@ -63,7 +63,7 @@ if ($user['role'] === 'shop') {
 }
 
 // --- バリデーション ---
-if ($type !== '' && !in_array($type, ['repair', 'equipment', 'parts', 'seat-replacement'], true)) {
+if ($type !== '' && !in_array($type, ['repair', 'equipment', 'parts', 'seat-replacement', 'chair-equipment'], true)) {
     jsonError('不正な種別パラメータです');
 }
 if ($status !== '' && !in_array($status, ['0', '1', '2', '3', '4'], true)) {
@@ -74,6 +74,7 @@ if ($status !== '' && !in_array($status, ['0', '1', '2', '3', '4'], true)) {
 $typeLabels = [
     'repair'           => '修理',
     'equipment'        => '備品',
+    'chair-equipment'  => 'チェア備品',
     'parts'            => '部品',
     'seat-replacement' => 'シート交換',
 ];
@@ -348,7 +349,7 @@ $stOf   = fn($o) => $statusLabels[(int)$o['status']] ?? (string)$o['status'];
 $finOf  = fn($o) => $o['final_amount'] !== null ? (int)$o['final_amount'] : '';
 
 // 種別ごとに発注を仕分け（メインクエリの並び順を維持）
-$byType = ['equipment' => [], 'repair' => [], 'parts' => [], 'seat-replacement' => []];
+$byType = ['equipment' => [], 'chair-equipment' => [], 'repair' => [], 'parts' => [], 'seat-replacement' => []];
 foreach ($orders as $o) {
     if (isset($byType[$o['type']])) {
         $byType[$o['type']][] = $o;
@@ -377,6 +378,30 @@ foreach ($byType['equipment'] as $o) {
 }
 $sheetSpecs['equipment'] = [
     'title' => '備品',
+    'headers' => ['発注日','発注番号','店舗','カテゴリ','品名','会社商品コード','仕入先商品コード','仕入先','数量','単価','小計','納品予定日','納品実績日','確定金額','ステータス','登録日時'],
+    'rows' => $rows, 'money' => [9, 10, 13], 'center' => [8], 'wrap' => [],
+];
+
+// チェア備品（備品と同じ明細形式）
+$rows = [];
+foreach ($byType['chair-equipment'] as $o) {
+    $items = $equipItems[$o['id']] ?? [];
+    if (empty($items)) {
+        $rows[] = [$o['date'], $o['id'], $shopOf($o), $catOf($o), '', '', '', '', '', '', '',
+                   $o['delivery_date'] ?? '', $o['actual_delivery_date'] ?? '', $finOf($o), $stOf($o), $o['created_at']];
+    } else {
+        foreach ($items as $ei) {
+            $rows[] = [
+                $o['date'], $o['id'], $shopOf($o), $catOf($o),
+                $ei['product_name'], $ei['product_code'] ?? '', $ei['supplier_product_code'] ?? '', $ei['supplier'] ?? '',
+                (int)$ei['qty'], (int)$ei['price'], (int)$ei['price'] * (int)$ei['qty'],
+                $o['delivery_date'] ?? '', $o['actual_delivery_date'] ?? '', $finOf($o), $stOf($o), $o['created_at'],
+            ];
+        }
+    }
+}
+$sheetSpecs['chair-equipment'] = [
+    'title' => 'チェア備品',
     'headers' => ['発注日','発注番号','店舗','カテゴリ','品名','会社商品コード','仕入先商品コード','仕入先','数量','単価','小計','納品予定日','納品実績日','確定金額','ステータス','登録日時'],
     'rows' => $rows, 'money' => [9, 10, 13], 'center' => [8], 'wrap' => [],
 ];
@@ -439,7 +464,7 @@ $sheetSpecs['parts'] = [
 $spreadsheet = new Spreadsheet();
 $spreadsheet->getDefaultStyle()->getFont()->setName('Meiryo UI');
 
-$sheetOrder = ['equipment', 'repair', 'parts', 'seat-replacement'];
+$sheetOrder = ['equipment', 'chair-equipment', 'repair', 'parts', 'seat-replacement'];
 $created = 0;
 foreach ($sheetOrder as $t) {
     $spec = $sheetSpecs[$t];

@@ -508,3 +508,19 @@
   .cart-items { padding: 8px 16px 12px; }
   .cart-detail-header { padding: 16px 16px 8px; }
 }
+
+/* ===== チェア備品発注: 台数上限の注意書き (2026-09 改修) ===== */
+.chair-notice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background-color: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: 10px;
+  padding: 14px 18px;
+  margin-bottom: 16px;
+  color: #92400e;
+  font-size: 14px;
+}
+.chair-notice svg { width: 22px; height: 22px; flex-shrink: 0; color: #d97706; }
+.chair-notice strong { color: #b45309; }

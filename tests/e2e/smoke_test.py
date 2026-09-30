@@ -43,6 +43,7 @@ PAGES = [
     ("procurement-history.html", ["admin", "shop", "zone"]),
     ("repair-order.html",        ["shop"]),
     ("equipment-order.html",     ["shop"]),
+    ("chair-equipment-order.html", ["shop"]),  # チェア備品発注（fitness店のみ・30101はfitness）
     ("parts-order.html",         ["shop"]),
     ("seat-replacement.html",    ["shop"]),
     ("admin-menu.html",          ["admin"]),

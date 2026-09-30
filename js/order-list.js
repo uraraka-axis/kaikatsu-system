@@ -15,6 +15,7 @@ var STATUS = {
 // 種別ごとのステータスラベル
 var STATUS_LABELS_BY_TYPE = {
   equipment:          { 0: '依頼中', 1: '発注済', 2: '配達中', 3: '納品済', 4: '完了' },
+  'chair-equipment':  { 0: '依頼中', 1: '発注済', 2: '配達中', 3: '納品済', 4: '完了' },
   parts:              { 0: '依頼中', 1: '発注済', 2: '配達中', 3: '納品済', 4: '完了' },
   repair:             { 0: '依頼中', 1: '発注済', 2: '修理待ち', 3: '修理済', 4: '完了' },
   'seat-replacement': { 0: '依頼中', 1: '発注済', 2: '修理待ち', 3: '修理済', 4: '完了' }
@@ -23,6 +24,7 @@ var STATUS_LABELS_BY_TYPE = {
 // 種別ごとのCSSクラス
 var STATUS_CLASSES_BY_TYPE = {
   equipment:          { 0: 'status-requesting', 1: 'status-ordered', 2: 'status-delivering', 3: 'status-delivered', 4: 'status-completed' },
+  'chair-equipment':  { 0: 'status-requesting', 1: 'status-ordered', 2: 'status-delivering', 3: 'status-delivered', 4: 'status-completed' },
   parts:              { 0: 'status-requesting', 1: 'status-ordered', 2: 'status-delivering', 3: 'status-delivered', 4: 'status-completed' },
   repair:             { 0: 'status-requesting', 1: 'status-ordered', 2: 'status-waiting-repair', 3: 'status-repaired', 4: 'status-completed' },
   'seat-replacement': { 0: 'status-requesting', 1: 'status-ordered', 2: 'status-waiting-repair', 3: 'status-repaired', 4: 'status-completed' }
@@ -31,6 +33,11 @@ var STATUS_CLASSES_BY_TYPE = {
 // 修理ライク種別（修理と同じステータスフロー / UI を持つ）の判定
 function isRepairLikeType(type) {
   return type === 'repair' || type === 'seat-replacement';
+}
+
+// 備品ライク種別（備品と同じ明細/ステータスフローを持つ）の判定
+function isEquipmentLikeType(type) {
+  return type === 'equipment' || type === 'chair-equipment';
 }
 
 // フィルタ用の共通ラベル（種別横断）
@@ -533,6 +540,7 @@ function renderOrders() {
     var typeClass = 'type-' + o.type;
     var typeLabel = o.type === 'repair' ? '修理'
                   : o.type === 'equipment' ? '備品'
+                  : o.type === 'chair-equipment' ? 'チェア備品'
                   : o.type === 'parts' ? '部品'
                   : o.type === 'seat-replacement' ? '交換'
                   : o.type;
@@ -544,7 +552,7 @@ function renderOrders() {
 
     var orderCount = 1;
     var contentLabel = o.content_label || '';
-    if (o.type === 'equipment' && o.equip_items) {
+    if (isEquipmentLikeType(o.type) && o.equip_items) {
       orderCount = o.equip_items.length;
     }
 
@@ -684,7 +692,7 @@ function renderDetailContent(o) {
         html += renderPhotos(serialPhotos, 'シリアルナンバーの写真');
       }
     }
-  } else if (o.type === 'equipment') {
+  } else if (isEquipmentLikeType(o.type)) {
     if (o.equip_items && o.equip_items.length) {
       html += '<div class="equip-items-table"><table class="equip-table"><thead><tr><th>商品名</th><th>商品コード</th><th>仕入先</th><th>単価</th><th>数量</th><th>小計</th></tr></thead><tbody>';
       o.equip_items.forEach(function(d) {
@@ -721,7 +729,7 @@ function renderDetailContent(o) {
     html += '<div><div class="detail-label">' + scheduleLabel + '</div><div class="detail-value">' + (o.repair_schedule_date || '—') + '</div></div>';
     html += '<div><div class="detail-label">最終金額</div><div class="detail-value"' + (hasAmount(o.final_amount) ? ' style="font-weight:600;color:#065f46;"' : '') + '>' + yenOrDash(o.final_amount) + '</div></div>';
     html += '<div><div class="detail-label">' + completedLabel + '</div><div class="detail-value">' + (o.repair_completed_date || '—') + '</div></div>';
-  } else if (o.type === 'equipment') {
+  } else if (isEquipmentLikeType(o.type)) {
     var equipEstimate = o.estimate_amount ? '¥' + Number(o.estimate_amount).toLocaleString() : '—';
     html += '<div><div class="detail-label">見積金額</div><div class="detail-value">' + equipEstimate + '</div></div>';
     html += '<div><div class="detail-label">納品予定日</div><div class="detail-value">' + (o.delivery_date || '—') + '</div></div>';
@@ -932,7 +940,7 @@ function openStatusModal(orderId, action) {
   if (action === 'order') {
     title.textContent = '発注済にする';
     var isRepairLike = isRepairLikeType(order.type);
-    var isEquipment = order.type === 'equipment';
+    var isEquipment = isEquipmentLikeType(order.type);
     var hasItems = isEquipment && order.equip_items && order.equip_items.length > 0;
     var dateLabel = order.type === 'seat-replacement' ? '作業予定日'
                   : isRepairLike ? '修理予定日'
@@ -1052,7 +1060,7 @@ function openStatusModal(orderId, action) {
   } else if (action === 'complete') {
     title.textContent = '完了にする';
     var estAmt = Number(order.estimate_amount) || 0;
-    if (order.type === 'equipment') {
+    if (isEquipmentLikeType(order.type)) {
       // 備品: 明細単価を編集して最終金額(=Σ)を確定。未納品の商品は単価を0にする。
       var rowsHtml = '';
       (order.equip_items || []).forEach(function(it) {
@@ -1151,7 +1159,7 @@ function doOrder(orderId) {
   // 備品で明細単価テーブルがある場合は items を送る（見積金額はサーバ側で Σ(単価×数量) 再計算）。
   // それ以外は従来どおり見積金額（合計）を送る。
   var priceInputs = document.querySelectorAll('.edit-item-price');
-  if (order.type === 'equipment' && priceInputs.length > 0) {
+  if (isEquipmentLikeType(order.type) && priceInputs.length > 0) {
     var items = [];
     var total = 0;
     for (var i = 0; i < priceInputs.length; i++) {
@@ -1303,7 +1311,7 @@ function doComplete(orderId) {
     memo: memo
   };
 
-  if (order.type === 'equipment') {
+  if (isEquipmentLikeType(order.type)) {
     // 備品: 明細単価を編集して最終金額(=Σ)を確定。未納品の商品は単価0（合計0円も可）。
     var items = [];
     var bad = false;
@@ -1367,7 +1375,7 @@ function getEditableFields(o) {
         var schedLabel = o.type === 'seat-replacement' ? '作業予定日' : '修理予定日';
         fields.push({ key: 'estimate_amount', label: '見積金額', type: 'number', value: o.estimate_amount });
         fields.push({ key: 'repair_schedule_date', label: schedLabel, type: 'date', value: o.repair_schedule_date });
-      } else if (o.type === 'equipment') {
+      } else if (isEquipmentLikeType(o.type)) {
         // 備品は明細ごとに単価編集。estimate_amount は自動再計算なので入力欄なし
         fields.push({ key: 'equip_items', label: '明細単価', type: 'items', value: o.equip_items || [] });
         fields.push({ key: 'delivery_date', label: '納品予定日', type: 'date', value: o.delivery_date });
@@ -1378,7 +1386,7 @@ function getEditableFields(o) {
       fields.push({ key: 'final_amount', label: '最終金額', type: 'number', value: o.final_amount });
       fields.push({ key: 'memo', label: 'メモ', type: 'textarea', statusIndex: findHistoryIndex(o, o.status) });
     } else if (o.status === STATUS.COMPLETED) {
-      if (o.type === 'equipment') {
+      if (isEquipmentLikeType(o.type)) {
         // 完了後も明細単価で編集（最終金額＝明細合計を自動再計算）
         fields.push({ key: 'equip_items', label: '明細単価', type: 'items', value: o.equip_items || [] });
         fields.push({ key: 'actual_delivery_date', label: '納品日', type: 'date', value: o.actual_delivery_date });

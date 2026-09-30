@@ -35,7 +35,7 @@ if ($limit < 1)   $limit = 50;
 if ($limit > 200) $limit = 200;
 
 // バリデーション
-$validTypes = ['repair', 'equipment', 'parts', 'seat-replacement'];
+$validTypes = ['repair', 'equipment', 'parts', 'seat-replacement', 'chair-equipment'];
 if ($type !== '' && !in_array($type, $validTypes, true)) {
     jsonError('不正な種別指定です');
 }

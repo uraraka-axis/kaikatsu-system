@@ -47,12 +47,12 @@ $type = $_POST['type'] ?? '';
 $category = $_POST['category'] ?? '';
 
 // --- バリデーション ---
-if (!in_array($type, ['repair', 'equipment', 'parts', 'seat-replacement'], true)) {
+if (!in_array($type, ['repair', 'equipment', 'parts', 'seat-replacement', 'chair-equipment'], true)) {
     jsonError('不正な発注種別です');
 }
 
-// シート交換はカテゴリを fitness に強制（フロントからの値を信用しない）
-if ($type === 'seat-replacement') {
+// シート交換・チェア備品はカテゴリを fitness に強制（フロントからの値を信用しない）
+if ($type === 'seat-replacement' || $type === 'chair-equipment') {
     $category = 'fitness';
 }
 
@@ -111,6 +111,9 @@ try {
         case 'equipment':
             createEquipmentItems($orderId);
             break;
+        case 'chair-equipment':
+            createEquipmentItems($orderId, true); // チェア備品のみ発注可
+            break;
         case 'parts':
             createPartsDetail($orderId);
             break;
@@ -142,7 +145,7 @@ try {
     // ゾーン/エリアマネージャーへ【予算超過見込み】メールを送る。
     // 計上四半期は発注日（＝当日）基準。今回の発注は status=0 で既に DB に存在するため
     // getInflightPipelineTotal の集計に含まれる。
-    if ($type === 'equipment') {
+    if (isEquipmentLikeType($type)) {
         $amtRow = getOne('SELECT estimate_amount FROM orders WHERE id = :id', [':id' => $orderId]);
         $orderAmount = (int)($amtRow['estimate_amount'] ?? 0);
         if ($orderAmount > 0) {
@@ -291,7 +294,7 @@ function createSeatReplacementDetail(string $orderId): void
 // ========================================
 // 備品発注の明細登録
 // ========================================
-function createEquipmentItems(string $orderId): void
+function createEquipmentItems(string $orderId, bool $chairOnly = false): void
 {
     $items = json_decode($_POST['items'] ?? '[]', true);
     if (!is_array($items) || empty($items)) {
@@ -307,10 +310,12 @@ function createEquipmentItems(string $orderId): void
         if ($productId <= 0 || $qty <= 0) continue;
 
         // 商品マスタから情報取得
+        // チェア備品発注は is_chair_item=1 の商品のみ、通常の備品発注はそれ以外のみ発注可
         $product = getOne(
             'SELECT id, name, code, price,
                     (SELECT s.name FROM suppliers s WHERE s.id = p.supplier_id) AS supplier
-             FROM products p WHERE p.id = :id AND p.is_active = 1',
+             FROM products p WHERE p.id = :id AND p.is_active = 1
+               AND p.is_chair_item = ' . ($chairOnly ? '1' : '0'),
             [':id' => $productId]
         );
 
@@ -404,6 +409,7 @@ function notifyProductDeptNewOrder(string $orderId, string $type, string $shopCo
     $typeLabel = match ($type) {
         'repair'           => '修理発注',
         'equipment'        => '備品発注',
+        'chair-equipment'  => 'チェア備品発注',
         'parts'            => '部品発注',
         'seat-replacement' => 'シート交換',
         default            => $type,
@@ -428,6 +434,7 @@ function notifyProductDeptNewOrder(string $orderId, string $type, string $shopCo
             }
             break;
         case 'equipment':
+        case 'chair-equipment':
             $items = query(
                 'SELECT product_name, qty, price FROM order_equipment_items WHERE order_id = :id ORDER BY id',
                 [':id' => $orderId]

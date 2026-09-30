@@ -65,7 +65,7 @@ switch ($action) {
         // 備品は明細単価を編集できる。items 指定時は estimate_amount を
         // Σ(price × qty) でトランザクション内に再計算する（合計1欄だけの編集をやめ、
         // 発注済後の明細編集と同じ粒度を発注確定時にも提供する）。
-        if ($orderType === 'equipment' && isset($input['items']) && is_array($input['items'])) {
+        if (isEquipmentLikeType($orderType) && isset($input['items']) && is_array($input['items'])) {
             $orderItems = [];
             foreach ($input['items'] as $item) {
                 $itemId = filter_var($item['id'] ?? null, FILTER_VALIDATE_INT);
@@ -150,7 +150,7 @@ switch ($action) {
         if ($order['shop_code'] !== $user['shop_code']) {
             jsonError('自店の発注のみ変更できます', 403);
         }
-        if (!in_array($orderType, ['equipment', 'parts'], true)) {
+        if (!in_array($orderType, ['equipment', 'chair-equipment', 'parts'], true)) {
             jsonError('備品・部品発注のみ変更できます');
         }
         if ($currentStatus !== 2) {

@@ -88,7 +88,7 @@ if (isset($input['final_amount'])) {
 // items: [{ id: 123, price: 2800 }, ...]
 $itemsToUpdate = null;
 if (isset($input['items']) && is_array($input['items'])) {
-    if ($orderType !== 'equipment') {
+    if (!isEquipmentLikeType($orderType)) {
         jsonError('明細単価編集は備品発注のみ対応しています');
     }
     if (!in_array($user['role'], ['admin', 'system'], true)) {

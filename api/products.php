@@ -19,6 +19,7 @@ requireMethod('GET');
 $user = getCurrentUser();
 $category = $_GET['category'] ?? '';
 $search = $_GET['search'] ?? '';
+$chair = ($_GET['chair'] ?? '') === '1'; // チェア備品発注画面用
 
 $sql = 'SELECT p.id, p.name, p.code, p.price, p.category_code AS category,
                p.recommended, p.image_path, p.image_path2, p.image_path3,
@@ -28,6 +29,11 @@ $sql = 'SELECT p.id, p.name, p.code, p.price, p.category_code AS category,
         LEFT JOIN suppliers s ON p.supplier_id = s.id
         WHERE p.is_active = 1';
 $params = [];
+
+// チェア備品の切り分け:
+//   chair=1 … チェア備品発注画面（is_chair_item=1 のみ）
+//   それ以外 … 通常の備品発注画面（チェア備品は表示しない）
+$sql .= $chair ? ' AND p.is_chair_item = 1' : ' AND p.is_chair_item = 0';
 
 // 店舗ユーザー: 自店カテゴリの商品のみ
 if ($user['role'] !== 'admin') {

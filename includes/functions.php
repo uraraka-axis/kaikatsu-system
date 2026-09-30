@@ -172,6 +172,15 @@ function isRepairLikeType(string $type): bool
 }
 
 /**
+ * 備品ライク種別（備品と同じ明細テーブル/ステータスフロー/予算計上を持つ）の判定。
+ * chair-equipment = マッサージチェア備品発注（2026-09 改修で追加）
+ */
+function isEquipmentLikeType(string $type): bool
+{
+    return $type === 'equipment' || $type === 'chair-equipment';
+}
+
+/**
  * 修理ライク発注の詳細テーブル名を返す。それ以外は null。
  */
 function getRepairLikeDetailTable(string $type): ?string

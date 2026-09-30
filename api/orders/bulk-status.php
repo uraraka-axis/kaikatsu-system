@@ -91,8 +91,8 @@ try {
         $updateVals = [':new_status' => $newStatus, ':order_id' => $orderId];
 
         if ($action === 'order') {
-            // 備品の場合、明細から見積金額を自動計算
-            if ($orderType === 'equipment') {
+            // 備品（チェア備品含む）の場合、明細から見積金額を自動計算
+            if (isEquipmentLikeType($orderType)) {
                 $itemsTotal = getOne(
                     'SELECT SUM(price * qty) AS total FROM order_equipment_items WHERE order_id = :oid',
                     [':oid' => $orderId]

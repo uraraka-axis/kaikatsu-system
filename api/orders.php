@@ -46,7 +46,7 @@ if ($user['role'] === 'shop') {
 }
 
 // --- バリデーション ---
-if ($type !== '' && !in_array($type, ['repair', 'equipment', 'parts', 'seat-replacement'], true)) {
+if ($type !== '' && !in_array($type, ['repair', 'equipment', 'parts', 'seat-replacement', 'chair-equipment'], true)) {
     jsonError('不正な種別パラメータです');
 }
 if ($status !== '' && !in_array($status, ['0', '1', '2', '3', '4'], true)) {
@@ -287,7 +287,7 @@ foreach ($orders as $order) {
         $item['unavail_days']          = $unavailDays[$id] ?? [];
         $item['photos']                = $photoData[$id] ?? [];
         $item['content_label']         = $sd['equipment_name'] ?? '';
-    } elseif ($orderType === 'equipment') {
+    } elseif (isEquipmentLikeType($orderType)) {
         $items = $equipItems[$id] ?? [];
         $item['equip_items'] = $items;
         // Content label: 1商品なら「商品名 × qty」、複数なら「商品名 他N商品」

@@ -273,7 +273,7 @@ function getInflightPipelineTotal(string $shopCode, string $categoryCode, int $f
 {
     $rows = query(
         "SELECT COALESCE(o.estimate_amount,
-                         CASE WHEN o.type = 'equipment'
+                         CASE WHEN o.type IN ('equipment', 'chair-equipment')
                               THEN (SELECT COALESCE(SUM(price * qty), 0)
                                       FROM order_equipment_items i WHERE i.order_id = o.id)
                               ELSE 0 END,

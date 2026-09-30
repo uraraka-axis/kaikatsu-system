@@ -5,29 +5,28 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="icon" type="image/svg+xml" href="favicon.svg?v=20260629">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
-  <title>備品発注</title>
+  <title>チェア備品発注</title>
   <style>html.auth-pending body{visibility:hidden}</style>
   <script>document.documentElement.classList.add('auth-pending');</script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/common.css?v=20260602a">
-  <link rel="stylesheet" href="css/equipment-order.css?v=20260606">
+  <link rel="stylesheet" href="css/common.css?v=20260929">
+  <link rel="stylesheet" href="css/equipment-order.css?v=20260929">
 </head>
 <body>
-  <header class="header" data-title="備品発注"></header>
-  <nav class="nav" data-active="equipment-order.html"></nav>
+  <header class="header" data-title="チェア備品発注"></header>
+  <nav class="nav" data-active="chair-equipment-order.html"></nav>
   <script src="js/common-nav.js?v=20260929"></script>
   <main class="main">
+    <!-- 台数上限の注意書き（台数チェックは行わない・注意喚起のみ） -->
+    <div class="chair-notice">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+      <div>発注上限は<strong>店舗に設置されているマッサージチェアの台数まで</strong>としてください。</div>
+    </div>
+
     <!-- Filter -->
     <div class="filter-bar">
-      <div class="filter-group">
-        <span class="filter-label">カテゴリ</span>
-        <select id="category" class="form-select" onchange="filterProducts()">
-          <option value="">すべてのカテゴリ</option>
-          <!-- カテゴリは categoriesMap から JS で動的に追加 -->
-        </select>
-      </div>
       <div class="filter-group">
         <span class="filter-label">商品名検索</span>
         <input type="text" id="searchInput" class="form-input search-input" placeholder="商品名を入力してください">
@@ -40,7 +39,7 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
       </div>
       <div class="budget-alert-text" id="budgetAlertText">
-        <strong>予算超過の可能性があります。</strong> 現在の発注合計が月間予算残高を超えています。
+        <strong>予算超過の可能性があります。</strong> 現在の発注合計が予算残高を超えています。
       </div>
     </div>
 
@@ -86,6 +85,6 @@
   </div>
 
   <script src="js/notify-modal.js?v=20260521"></script>
-  <script src="js/equipment-order.js?v=20260601b"></script>
+  <script src="js/chair-equipment-order.js?v=20260929"></script>
 </body>
 </html>
