@@ -791,6 +791,15 @@ function renderStatusHistory(o) {
 function renderActionButton(o) {
   var html = '<div class="detail-actions">';
 
+  // 発注書PDF: チェア備品発注のみ（admin/system・どのステータスでも常設）
+  if (o.type === 'chair-equipment' && viewMode === 'admin' && window.__canOperate) {
+    html += '<a class="btn-sm" href="api/orders/order-sheet.php?id=' + encodeURIComponent(o.id) + '" ' +
+            'target="_blank" rel="noopener" ' +
+            'style="display:inline-flex;align-items:center;gap:4px;text-decoration:none;color:#0891b2;border-color:#0891b2;background:#fff">' +
+            '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>' +
+            '発注書PDF</a>';
+  }
+
   // 取消ボタン: admin/system のみ、status=0 (依頼中) のみ
   if (viewMode === 'admin' && window.__canOperate && o.status === STATUS.REQUESTING) {
     html += '<button class="btn-sm btn-sm-danger" onclick="openCancelOrderModal(\'' + o.id + '\')" ' +
