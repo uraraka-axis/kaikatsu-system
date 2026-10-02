@@ -147,6 +147,11 @@ function validateAndNormalize(array $rows, array $columns, array $extraRules = [
                 $rawVal = trim($rawVal);
             }
 
+            // 列個別の正規化（columns 側の 'normalize' コールバック。trim後・必須チェック前に適用）
+            if (isset($col['normalize']) && is_callable($col['normalize'])) {
+                $rawVal = $col['normalize']($rawVal);
+            }
+
             // 必須チェック
             $isEmpty = ($rawVal === null || $rawVal === '');
             if ($required && $isEmpty) {

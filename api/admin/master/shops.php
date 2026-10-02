@@ -69,6 +69,14 @@ $columns = [
         'max_length'  => 20,
         'pattern'     => '/^[0-9\-]{10,13}$/',
         'pattern_msg' => '半角数字とハイフンで指定してください（例: 029-860-1088）',
+        // ダッシュ類のみの記入（「ー」等）は「店舗電話なし」の意＝未登録として取り込む
+        // （2026-10-01受領の記入済みマスタでゴルフ13店舗が「ー」記入だった実績対応）
+        'normalize'   => static function ($val) {
+            if (is_string($val) && $val !== '' && preg_match('/^[ー－−‐\-]+$/u', $val)) {
+                return '';
+            }
+            return $val;
+        },
     ],
     [
         'field'       => 'postal_code',
