@@ -30,7 +30,7 @@ try {
 
     // 写真情報＋発注の店舗コードを取得
     $row = getOne(
-        'SELECT p.file_path, p.original_filename, p.mime_type, o.shop_code
+        'SELECT p.order_id, p.photo_kind, p.sort_order, p.file_path, p.original_filename, p.mime_type, o.shop_code
            FROM order_photos p
            JOIN orders o ON p.order_id = o.id
           WHERE p.id = :id',
@@ -121,6 +121,40 @@ try {
             exit;
         }
         // 失敗時は原寸にフォールバック
+    }
+
+    // dl=1: 添付用ダウンロード。ファイル名は「発注番号_写真種別_連番.拡張子」をサーバ側で付与
+    // （メール下書きの添付運用: 発注番号・写真種別によるファイル名の自動付与）
+    if (($_GET['dl'] ?? '') === '1') {
+        $ext = strtolower(pathinfo((string)$row['original_filename'], PATHINFO_EXTENSION));
+        if ($ext === '') {
+            $ext = strtolower(pathinfo($candidate, PATHINFO_EXTENSION)) ?: 'jpg';
+        }
+        $kind = $row['photo_kind'] ?: 'damage';
+        if ($kind === 'serial') {
+            $dlName = sprintf('%s_シリアル.%s', $row['order_id'], $ext);
+        } else {
+            // 同一発注内の damage 写真での並び順（sort_order, id）から連番を算出
+            $seqRow = getOne(
+                "SELECT COUNT(*) AS seq FROM order_photos
+                  WHERE order_id = :oid AND COALESCE(photo_kind, 'damage') <> 'serial'
+                    AND (sort_order < :so OR (sort_order = :so2 AND id <= :pid))",
+                [':oid' => $row['order_id'], ':so' => $row['sort_order'], ':so2' => $row['sort_order'], ':pid' => $photoId]
+            );
+            $dlName = sprintf('%s_故障箇所_%d.%s', $row['order_id'], (int)($seqRow['seq'] ?? 1), $ext);
+        }
+        $asciiFallback = sprintf('%s_%s.%s', $row['order_id'], $kind, $ext);
+        header('Content-Type: ' . $mimeType);
+        header('Content-Length: ' . filesize($candidate));
+        header(sprintf(
+            "Content-Disposition: attachment; filename=\"%s\"; filename*=UTF-8''%s",
+            $asciiFallback,
+            rawurlencode($dlName)
+        ));
+        header('Cache-Control: private, no-store');
+        header('X-Content-Type-Options: nosniff');
+        readfile($candidate);
+        exit;
     }
 
     // キャッシュ制御（同一ユーザー内ではキャッシュ可）

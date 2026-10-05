@@ -2054,9 +2054,12 @@ function openDraftMails() {
       draftMailsState.chairSuppliers = (res.data && res.data.chair_suppliers) || [];
       draftMailsState.club = (res.data && res.data.club) || null;
       draftMailsState.repairs = (res.data && res.data.repairs) || [];
+      draftMailsState.parts = (res.data && res.data.parts) || [];
+      draftMailsState.seats = (res.data && res.data.seats) || [];
       draftMailsState.signature = (res.data && res.data.signature) || '';
       draftMailsState.ccEmail = (res.data && res.data.cc_email) || '';
       draftMailsState.requester = (res.data && res.data.requester) || '';
+      draftMailsState.mergeRepairs = {}; // shop_code -> まとめ有効（未設定はtrue=まとめる）
       draftMailsState.entries = buildDraftEntries();
       draftMailsState.activeIndex = 0;
       renderDraftMails();
@@ -2091,7 +2094,10 @@ function formatYen(n) {
   return '¥' + (Number(n) || 0).toLocaleString();
 }
 
-// 下書きエントリ（備品・チェア備品＝仕入先別／代替ゴルフ＝全店舗まとめて1通／修理＝1発注1通）を1つのリストにまとめる
+// 下書きエントリを1つのリストにまとめる
+//   備品・チェア備品 = 仕入先別1通 / 代替ゴルフ = 全店舗まとめて1通
+//   修理 = 1発注1通。ただし同一店舗に複数件ある場合は1通にまとめ可（mergeRepairs・既定ON）
+//   チェア修理 = 1発注1通（まとめ対象外） / 部品 = 1発注1通 / シート交換 = 1発注1通
 function buildDraftEntries() {
   var entries = [];
   (draftMailsState.suppliers || []).forEach(function(s) {
@@ -2104,10 +2110,72 @@ function buildDraftEntries() {
     var c = draftMailsState.club;
     entries.push({ kind: 'club', label: '代替クラブ発送依頼', to: c.email || '', order_ids: c.order_ids || [], data: c });
   }
+
+  // 修理: 同一店舗（type=repair のみ）でグループ化
+  var repairsByShop = {};
+  var shopOrder = [];
   (draftMailsState.repairs || []).forEach(function(r) {
-    entries.push({ kind: 'repair', label: '修理：' + (r.equipment_name || '') + '（' + (r.shop_name || '') + '）', to: '', order_ids: [r.order_id], data: r });
+    if (r.order_type === 'chair-repair') return; // チェア修理はまとめ対象外（下で個別追加）
+    var sc = r.shop_code || r.shop_name || '';
+    if (!repairsByShop[sc]) { repairsByShop[sc] = []; shopOrder.push(sc); }
+    repairsByShop[sc].push(r);
   });
+  shopOrder.forEach(function(sc) {
+    var list = repairsByShop[sc];
+    var merged = draftMailsState.mergeRepairs[sc] !== false; // 既定=まとめる
+    if (list.length >= 2 && merged) {
+      entries.push({
+        kind: 'repair-merged',
+        label: '修理：' + (list[0].shop_name || '') + '（' + list.length + '件）',
+        to: '', order_ids: list.map(function(r) { return r.order_id; }),
+        data: { shop_code: sc, shop_name: list[0].shop_name || '', items: list },
+        mergeable: true
+      });
+    } else {
+      list.forEach(function(r) {
+        entries.push({
+          kind: 'repair',
+          label: '修理：' + (r.equipment_name || '') + '（' + (r.shop_name || '') + '）',
+          to: '', order_ids: [r.order_id], data: r,
+          mergeable: list.length >= 2
+        });
+      });
+    }
+  });
+
+  // チェア修理（1発注1通・依頼書ひな形なし）
+  (draftMailsState.repairs || []).forEach(function(r) {
+    if (r.order_type !== 'chair-repair') return;
+    entries.push({ kind: 'repair', label: 'チェア修理：' + (r.shop_name || ''), to: '', order_ids: [r.order_id], data: r });
+  });
+
+  // 部品（1発注1通・宛先は手入力＝メーカー宛）
+  (draftMailsState.parts || []).forEach(function(p) {
+    entries.push({ kind: 'parts', label: '部品：' + (p.parts_name || '') + '（' + (p.shop_name || '') + '）', to: '', order_ids: [p.order_id], data: p });
+  });
+
+  // シート交換（1発注1通・宛先=仕入先マスタのポップサイクル補完）
+  (draftMailsState.seats || []).forEach(function(s) {
+    entries.push({ kind: 'seat', label: 'シート交換：' + (s.equipment_name || '') + '（' + (s.shop_name || '') + '）', to: s.email || '', order_ids: [s.order_id], data: s });
+  });
+
   return entries;
+}
+
+// 修理まとめトグル（カード上部のチェックボックス）
+function toggleRepairMerge(shopCode, checked) {
+  draftMailsState.mergeRepairs[shopCode] = !!checked;
+  var entries = buildDraftEntries();
+  draftMailsState.entries = entries;
+  // トグルした店舗の先頭カードをアクティブに（再描画で編集中テキストは初期化される）
+  var idx = 0;
+  for (var i = 0; i < entries.length; i++) {
+    var e = entries[i];
+    var sc = e.kind === 'repair-merged' ? e.data.shop_code : (e.data && e.data.shop_code);
+    if ((e.kind === 'repair' || e.kind === 'repair-merged') && sc === shopCode) { idx = i; break; }
+  }
+  draftMailsState.activeIndex = idx;
+  renderDraftMails();
 }
 
 function withSignature(body) {
@@ -2123,6 +2191,15 @@ function buildMailSubject(entry) {
   if (entry.kind === 'repair') {
     return '【修理・メンテナンスのご相談】' + ymd + '_' + (entry.data.equipment_name || '');
   }
+  if (entry.kind === 'repair-merged') {
+    return '【修理・メンテナンスのご相談】' + ymd + '_' + (entry.data.shop_name || '') + '（' + entry.order_ids.length + '件）';
+  }
+  if (entry.kind === 'parts') {
+    return '【部品発注のご依頼】' + ymd + '_' + (entry.data.parts_name || '');
+  }
+  if (entry.kind === 'seat') {
+    return '【マシンシート交換のご依頼】' + ymd + '_' + (entry.data.equipment_name || '');
+  }
   if (entry.kind === 'club') {
     return '【代替クラブ発送依頼】の件';
   }
@@ -2131,6 +2208,9 @@ function buildMailSubject(entry) {
 
 function buildMailBody(entry) {
   if (entry.kind === 'repair') return buildRepairBody(entry.data);
+  if (entry.kind === 'repair-merged') return buildMergedRepairBody(entry.data);
+  if (entry.kind === 'parts') return buildPartsBody(entry.data);
+  if (entry.kind === 'seat') return buildSeatBody(entry.data);
   if (entry.kind === 'club') return buildClubBody(entry.data);
   return buildEquipmentBody(entry.data); // equipment / chair-equipment 共通
 }
@@ -2182,6 +2262,76 @@ function buildRepairBody(r) {
   return withSignature(L.join('\n'));
 }
 
+// 修理まとめ（同一店舗の複数件を1通に。本文へ台ごとの明細を列挙＝モック04）
+function buildMergedRepairBody(d) {
+  var L = [];
+  L.push('〇〇〇〇');
+  L.push('〇〇様');
+  L.push('');
+  L.push('いつもお世話になっております。');
+  L.push('株式会社快活フロンティアの〇〇です。');
+  L.push('');
+  L.push('FiT24 ' + (d.shop_name || '') + ' の下記機材の修理を依頼いたします。');
+  L.push('詳細は添付の修理依頼書・写真をご確認ください。');
+  L.push('');
+  L.push('【修理依頼内容】');
+  (d.items || []).forEach(function(r, i) {
+    L.push((i + 1) + '. ' + (r.shop_name || '') + '　' + (r.equipment_name || '') + '（' + r.order_id + '）');
+    L.push('   症状：' + (r.issue || ''));
+  });
+  L.push('');
+  L.push('つきましては、修理に要する概算のお見積りと、今後のご対応の流れ（現地調査の有無など）についてご教示いただけますでしょうか。');
+  L.push('');
+  L.push('お手数をおかけしますが、ご確認のほどよろしくお願いいたします。');
+  return withSignature(L.join('\n'));
+}
+
+// 部品発注（1発注1通・宛先は手入力＝メーカー宛）
+function buildPartsBody(p) {
+  var L = [];
+  L.push('〇〇〇〇');
+  L.push('〇〇様');
+  L.push('');
+  L.push('いつもお世話になっております。');
+  L.push('株式会社快活フロンティアの〇〇です。');
+  L.push('');
+  L.push('弊社にて使用しております御社製品の部品を発注したくご連絡いたしました。');
+  L.push('内容は以下の通りです。詳細は添付の部品発注依頼書・写真をご確認ください。');
+  L.push('');
+  L.push('【発注内容】');
+  L.push('部品名：' + (p.parts_name || ''));
+  L.push('数量：' + (p.quantity || 1) + '個');
+  L.push('対象機材：' + (p.target_equipment || ''));
+  L.push('設置場所：FiT24 ' + (p.shop_name || ''));
+  L.push('発注理由：' + (p.reason || ''));
+  L.push('');
+  L.push('つきましては、お見積書と納期のご連絡をいただけますでしょうか。');
+  L.push('');
+  L.push('お手数をおかけしますが、ご確認のほどよろしくお願いいたします。');
+  return withSignature(L.join('\n'));
+}
+
+// シート交換（1発注1通・宛先=仕入先マスタのポップサイクル補完）
+function buildSeatBody(s) {
+  var L = [];
+  L.push(s.supplier || '〇〇〇〇');
+  L.push((s.contact ? s.contact : 'ご担当者') + ' 様');
+  L.push('');
+  L.push('いつもお世話になっております。');
+  L.push('株式会社快活フロンティアの〇〇です。');
+  L.push('');
+  L.push('FiT24 ' + (s.shop_name || '') + ' のマシンシート交換をお願いしたくご連絡いたしました。');
+  L.push('対象のマシンは以下の通りです。詳細は添付のシート発注依頼書・写真をご確認ください。');
+  L.push('');
+  L.push('【対象マシン】');
+  L.push('・' + (s.equipment_name || '') + '（' + (s.order_id || '') + '）');
+  L.push('');
+  L.push('つきましては、お見積書と納期のご連絡をいただけますでしょうか。');
+  L.push('');
+  L.push('お手数をおかけしますが、ご確認のほどよろしくお願いいたします。');
+  return withSignature(L.join('\n'));
+}
+
 // 代替ゴルフ（複数店舗をまとめて1通・宛先=ランシステム・依頼書PDFはDLして添付）
 function buildClubBody(c) {
   var L = [];
@@ -2209,7 +2359,7 @@ function renderDraftMails() {
   var entries = draftMailsState.entries || [];
 
   if (entries.length === 0) {
-    body.innerHTML = '<div class="draft-mails-empty">対象となる「依頼中」の発注（備品・チェア備品・代替クラブ・修理）がありません。<br>発注一覧のフィルタ条件をご確認ください。</div>';
+    body.innerHTML = '<div class="draft-mails-empty">対象となる「依頼中」の発注（備品・チェア備品・代替クラブ・修理・チェア修理・部品・シート交換）がありません。<br>発注一覧のフィルタ条件をご確認ください。</div>';
     return;
   }
 
@@ -2217,7 +2367,11 @@ function renderDraftMails() {
   var tabsHtml = '<div class="draft-mails-tabs">';
   entries.forEach(function(e, i) {
     var active = (i === draftMailsState.activeIndex) ? ' active' : '';
-    var badge = e.kind === 'repair' ? '<span class="badge-count">修理</span>' : '<span class="badge-count">' + e.order_ids.length + '</span>';
+    var badge = e.kind === 'repair' ? '<span class="badge-count">修理</span>'
+              : e.kind === 'repair-merged' ? '<span class="badge-count">修理 ' + e.order_ids.length + '</span>'
+              : e.kind === 'parts' ? '<span class="badge-count">部品</span>'
+              : e.kind === 'seat' ? '<span class="badge-count">交換</span>'
+              : '<span class="badge-count">' + e.order_ids.length + '</span>';
     tabsHtml += '<button type="button" class="draft-mails-tab' + active + '" onclick="switchDraftTab(' + i + ')">' +
       escapeHtml(e.label) + badge +
     '</button>';
@@ -2232,6 +2386,17 @@ function renderDraftMails() {
     var bodyText = buildMailBody(e);
     cardsHtml += '<div class="draft-mail-card' + active + '" id="draftMailCard-' + i + '">';
 
+    // 修理まとめトグル（同一店舗に複数件ある修理のみ・モック04）
+    if ((e.kind === 'repair-merged' || e.kind === 'repair') && e.mergeable) {
+      var mtShop = e.data.shop_code || '';
+      var mtOn = e.kind === 'repair-merged';
+      cardsHtml += '<label class="merge-toggle">' +
+        '<input type="checkbox"' + (mtOn ? ' checked' : '') + ' onchange="toggleRepairMerge(\'' + escapeHtml(mtShop) + '\', this.checked)">' +
+        '<div>同一店舗の修理依頼を1通にまとめる（' + escapeHtml(e.data.shop_name || '') + '）' +
+        (mtOn ? '<div class="merge-list">' + e.order_ids.map(function(id) { return '<span class="merge-chip">' + escapeHtml(id) + '</span>'; }).join('') + '</div>' : '') +
+        '</div></label>';
+    }
+
     cardsHtml +=   '<div class="draft-mail-summary">';
     if (e.kind === 'equipment' || e.kind === 'chair-equipment') {
       var sup = e.data;
@@ -2245,9 +2410,26 @@ function renderDraftMails() {
       cardsHtml += '<div><span class="draft-mail-summary-label">区分:</span><span class="draft-mail-summary-value">代替ゴルフ（' + c.order_ids.length + ' 件）</span></div>';
       cardsHtml += '<div><span class="draft-mail-summary-label">宛先:</span><span class="draft-mail-summary-value">' + escapeHtml(c.supplier || '') + '</span></div>';
       cardsHtml += '<div style="grid-column:1/-1"><span class="draft-mail-summary-label">対象店舗:</span><span class="draft-mail-summary-value">' + escapeHtml((c.shops || []).join(' / ')) + '</span></div>';
+    } else if (e.kind === 'repair-merged') {
+      var md = e.data;
+      cardsHtml += '<div><span class="draft-mail-summary-label">区分:</span><span class="draft-mail-summary-value">修理（' + e.order_ids.length + '件）</span></div>';
+      cardsHtml += '<div><span class="draft-mail-summary-label">対象機材:</span><span class="draft-mail-summary-value">' + escapeHtml((md.items || []).map(function(r) { return r.equipment_name || ''; }).join('、')) + '</span></div>';
+      cardsHtml += '<div style="grid-column:1/-1"><span class="draft-mail-summary-label">設置場所:</span><span class="draft-mail-summary-value">' + escapeHtml(md.shop_name || '') + '</span></div>';
+    } else if (e.kind === 'parts') {
+      var pd = e.data;
+      cardsHtml += '<div><span class="draft-mail-summary-label">区分:</span><span class="draft-mail-summary-value">部品（1件）</span></div>';
+      cardsHtml += '<div><span class="draft-mail-summary-label">部品名:</span><span class="draft-mail-summary-value">' + escapeHtml(pd.parts_name || '') + ' × ' + (pd.quantity || 1) + '</span></div>';
+      cardsHtml += '<div><span class="draft-mail-summary-label">対象機材:</span><span class="draft-mail-summary-value">' + escapeHtml(pd.target_equipment || '') + '</span></div>';
+      cardsHtml += '<div style="grid-column:1/-1"><span class="draft-mail-summary-label">設置場所:</span><span class="draft-mail-summary-value">' + escapeHtml(pd.shop_name || '') + '</span></div>';
+    } else if (e.kind === 'seat') {
+      var sd = e.data;
+      cardsHtml += '<div><span class="draft-mail-summary-label">区分:</span><span class="draft-mail-summary-value">シート交換（1件）</span></div>';
+      cardsHtml += '<div><span class="draft-mail-summary-label">対象マシン:</span><span class="draft-mail-summary-value">' + escapeHtml(sd.equipment_name || '') + '</span></div>';
+      cardsHtml += '<div style="grid-column:1/-1"><span class="draft-mail-summary-label">設置場所:</span><span class="draft-mail-summary-value">' + escapeHtml(sd.shop_name || '') + '</span></div>';
     } else {
       var r = e.data;
-      cardsHtml += '<div><span class="draft-mail-summary-label">区分:</span><span class="draft-mail-summary-value">修理（1件）</span></div>';
+      var kubun = (r.order_type === 'chair-repair') ? 'チェア修理（1件）' : '修理（1件）';
+      cardsHtml += '<div><span class="draft-mail-summary-label">区分:</span><span class="draft-mail-summary-value">' + kubun + '</span></div>';
       cardsHtml += '<div><span class="draft-mail-summary-label">対象商品:</span><span class="draft-mail-summary-value">' + escapeHtml(r.equipment_name || '') + '</span></div>';
       cardsHtml += '<div style="grid-column:1/-1"><span class="draft-mail-summary-label">設置場所:</span><span class="draft-mail-summary-value">' + escapeHtml(r.shop_name || '') + '</span></div>';
     }
@@ -2280,7 +2462,68 @@ function renderDraftMails() {
       cardsHtml += '</div>';
     }
 
-    var toPlaceholder = e.kind === 'repair' ? '例: maker@example.co.jp（メーカー）' : '例: contact@supplier.co.jp';
+    // 添付ファイル（修理・修理まとめ・チェア修理・部品・シート交換: 依頼書Excel＋写真＋一式zip）
+    // 依頼書はテンプレ差し込み生成（チェア修理はひな形なしのため写真のみ）。ファイル名は自動付与
+    if (e.kind === 'repair' || e.kind === 'repair-merged' || e.kind === 'parts' || e.kind === 'seat') {
+      var atdNow = new Date();
+      var atdYmd = atdNow.getFullYear() + ('0' + (atdNow.getMonth() + 1)).slice(-2) + ('0' + atdNow.getDate()).slice(-2);
+      var atItems = e.kind === 'repair-merged' ? (e.data.items || []) : [e.data];
+      var isChairRepair = (e.kind === 'repair' && e.data.order_type === 'chair-repair');
+      var atShopName = e.data.shop_name || '';
+      var idsParam = encodeURIComponent(e.order_ids.join(','));
+      var dlIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>';
+
+      var itemsHtml = '';
+      var attachCount = 0;
+
+      // 依頼書Excel（修理=修理依頼書 / シート交換=シート発注依頼書。1発注=1シート）
+      if (!isChairRepair) {
+        var sheetLabel = e.kind === 'seat' ? 'シート発注依頼書'
+                       : e.kind === 'parts' ? '部品発注依頼書'
+                       : '修理依頼書';
+        var sheetFname = sheetLabel + '_' + atdYmd + '_' + atShopName + '.xlsx';
+        var sheetUrl = 'api/orders/request-sheet.php/' + encodeURIComponent(sheetFname) + '?ids=' + idsParam;
+        itemsHtml += '<div class="attach-group">依頼書</div>';
+        itemsHtml += '<div class="attach-item">' +
+          '<span class="attach-icon xlsx">XLS</span>' +
+          '<span class="attach-name">' + escapeHtml(sheetFname) + '</span>' +
+          '<span class="attach-meta">' + e.order_ids.length + '件分</span>' +
+          '<a class="attach-dl" href="' + sheetUrl + '">' + dlIcon + 'DL</a>' +
+          '</div>';
+        attachCount++;
+      }
+
+      // 写真（発注番号・写真種別によるファイル名の自動付与）
+      atItems.forEach(function(it) {
+        var photos = it.photos || [];
+        if (photos.length === 0) return;
+        itemsHtml += '<div class="attach-group">写真：' + escapeHtml(it.order_id) + '（' + escapeHtml(it.shop_name || '') + '）</div>';
+        photos.forEach(function(p) {
+          itemsHtml += '<div class="attach-item">' +
+            '<span class="attach-icon img">IMG</span>' +
+            '<span class="attach-name">' + escapeHtml(p.dl_name || '') + '</span>' +
+            '<span class="attach-meta">' + (p.kind === 'serial' ? 'シリアル' : '故障箇所') + '</span>' +
+            '<a class="attach-dl" href="api/photo.php?id=' + p.id + '&dl=1">' + dlIcon + 'DL</a>' +
+            '</div>';
+          attachCount++;
+        });
+      });
+
+      if (attachCount > 0) {
+        var zipFname = '添付一式_' + atdYmd + '_' + atShopName + '.zip';
+        var zipUrl = 'api/orders/draft-mail-zip.php/' + encodeURIComponent(zipFname) + '?ids=' + idsParam;
+        cardsHtml += '<div class="attach-section">';
+        cardsHtml +=   '<div class="attach-header"><div class="attach-title">添付ファイル<span class="attach-count">' + attachCount + '件</span></div>';
+        cardsHtml +=   '<span class="attach-note">※ DLしてメールに添付してください</span></div>';
+        cardsHtml +=   '<div class="attach-list">' + itemsHtml + '</div>';
+        cardsHtml +=   '<div class="attach-all">' +
+          '<a class="btn-action btn-primary" style="padding:8px 16px;font-size:13px;text-decoration:none;" href="' + zipUrl + '">添付ファイルを一式ダウンロード（zip）</a>' +
+          '</div>';
+        cardsHtml += '</div>';
+      }
+    }
+
+    var toPlaceholder = (e.kind === 'repair' || e.kind === 'repair-merged' || e.kind === 'parts') ? '例: maker@example.co.jp（メーカー）' : '例: contact@supplier.co.jp';
     cardsHtml +=   '<div class="draft-mail-field">';
     cardsHtml +=     '<label>To（送信先メールアドレス）</label>';
     cardsHtml +=     '<input type="text" class="draft-mail-input" id="draftMailTo-' + i + '" value="' + escapeHtml(e.to || '') + '" placeholder="' + toPlaceholder + '">';
@@ -2312,6 +2555,9 @@ function renderDraftMails() {
     cardsHtml +=     '<div class="spacer"></div>';
     cardsHtml +=     '<button type="button" class="btn-action btn-primary" onclick="markSupplierOrdered(' + i + ')">';
     cardsHtml +=       (e.kind === 'repair' ? 'この修理を発注済にする'
+                         : e.kind === 'repair-merged' ? 'この修理（' + e.order_ids.length + '件）を発注済にする'
+                         : e.kind === 'parts' ? 'この部品発注を発注済にする'
+                         : e.kind === 'seat' ? 'このシート交換を発注済にする'
                          : e.kind === 'club' ? 'この依頼分を発注済にする'
                          : 'この仕入先分を発注済にする') + '</button>';
     cardsHtml +=   '</div>';

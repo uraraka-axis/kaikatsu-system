@@ -10,7 +10,10 @@
  *   - suppliers:       備品（type=equipment）を仕入先単位に集計
  *   - chair_suppliers: チェア備品（type=chair-equipment）を仕入先単位に集計（発注書PDFのDL用に orders[] 付き）
  *   - club:            代替ゴルフ（type=club-replacement）を全店舗まとめて1通（宛先=仕入先マスタのランシステム）
- *   - repairs:         修理（type=repair）1発注=1通（宛先は手入力）
+ *   - repairs:         修理（type=repair）・チェア修理（type=chair-repair）1発注=1通（宛先は手入力。
+ *                      同一店舗の修理はフロント側で1通にまとめ可）。添付写真一覧（photos）つき
+ *   - parts:           部品（type=parts）1発注=1通（宛先は手入力）。添付写真一覧つき
+ *   - seats:           シート交換（type=seat-replacement）1発注=1通（宛先=仕入先マスタ「ポップサイクル」補完）。添付写真一覧つき
  * 仕入先マスタ（suppliers）と仕入先名を突合し、To アドレスを補完する。
  *
  * レスポンス:
@@ -321,8 +324,52 @@ if (!empty($clubOrders)) {
     ];
 }
 
-// --- 修理(status=0) の下書き（1発注=1通。宛先は手入力） ---
-$rsql = "SELECT o.id AS order_id, o.shop_code, s.name AS shop_name,
+// --- 添付写真の一覧を作るヘルパー ---
+// 発注ごとの写真を「発注番号_写真種別_連番.拡張子」のダウンロード名つきで返す。
+// 個別DLは api/photo.php?id=...&dl=1（サーバ側でも同じ命名規則でファイル名を付与）。
+$photosForOrders = static function (array $orderIds): array {
+    if (empty($orderIds)) {
+        return [];
+    }
+    $ph = [];
+    $ps = [];
+    foreach (array_values($orderIds) as $i => $oid) {
+        $ph[] = ':pid' . $i;
+        $ps[':pid' . $i] = $oid;
+    }
+    $rows = query(
+        "SELECT id, order_id, photo_kind, original_filename
+           FROM order_photos
+          WHERE order_id IN (" . implode(',', $ph) . ")
+          ORDER BY order_id, (COALESCE(photo_kind, 'damage') = 'serial'), sort_order, id",
+        $ps
+    );
+    $result = [];
+    $damageSeq = [];
+    foreach ($rows as $p) {
+        $oid  = $p['order_id'];
+        $kind = $p['photo_kind'] ?: 'damage';
+        $ext  = strtolower(pathinfo((string)$p['original_filename'], PATHINFO_EXTENSION));
+        if ($ext === '') {
+            $ext = 'jpg';
+        }
+        if ($kind === 'serial') {
+            $dlName = sprintf('%s_シリアル.%s', $oid, $ext);
+        } else {
+            $damageSeq[$oid] = ($damageSeq[$oid] ?? 0) + 1;
+            $dlName = sprintf('%s_故障箇所_%d.%s', $oid, $damageSeq[$oid], $ext);
+        }
+        $result[$oid][] = [
+            'id'      => (int)$p['id'],
+            'kind'    => $kind,
+            'dl_name' => $dlName,
+        ];
+    }
+    return $result;
+};
+
+// --- 修理(status=0) の下書き（1発注=1通。宛先は手入力。同一店舗はフロント側で1通にまとめ可） ---
+$rsql = "SELECT o.id AS order_id, o.shop_code, o.date AS order_date, s.name AS shop_name,
                 rd.equipment_name, rd.issue
          FROM orders o
          JOIN shops s ON o.shop_code = s.code";
@@ -340,11 +387,127 @@ $repairs = [];
 foreach (query($rsql, $params) as $r) {
     $repairs[] = [
         'order_id'       => $r['order_id'],
+        'order_type'     => 'repair',
+        'shop_code'      => $r['shop_code'],
         'shop_name'      => $r['shop_name'],
+        'order_date'     => $r['order_date'],
         'equipment_name' => $r['equipment_name'],
         'issue'          => $r['issue'],
     ];
 }
+
+// --- チェア修理(status=0) の下書き（修理と同様 1発注=1通。機材は「マッサージチェア」固定） ---
+$crsql = "SELECT o.id AS order_id, o.shop_code, o.date AS order_date, s.name AS shop_name,
+                 cr.serial_no, cr.issue
+          FROM orders o
+          JOIN shops s ON o.shop_code = s.code";
+if ($zoneCode !== '') {
+    $crsql .= ' JOIN areas a ON s.area_code = a.code';
+}
+$crsql .= " JOIN order_chair_repair_details cr ON cr.order_id = o.id
+            WHERE o.status = 0 AND o.type = 'chair-repair' AND o.cancelled_at IS NULL";
+if (!empty($where)) {
+    $crsql .= ' AND ' . implode(' AND ', $where);
+}
+$crsql .= ' ORDER BY o.shop_code, o.date, o.id';
+
+foreach (query($crsql, $params) as $r) {
+    $repairs[] = [
+        'order_id'       => $r['order_id'],
+        'order_type'     => 'chair-repair',
+        'shop_code'      => $r['shop_code'],
+        'shop_name'      => $r['shop_name'],
+        'order_date'     => $r['order_date'],
+        'equipment_name' => 'マッサージチェア'
+                            . (($r['serial_no'] ?? '') !== '' ? '（製造番号: ' . $r['serial_no'] . '）' : ''),
+        'issue'          => $r['issue'],
+    ];
+}
+
+// --- シート交換(status=0) の下書き（1発注=1通。宛先は仕入先マスタの「ポップサイクル」で補完・なければ手入力） ---
+$ssql = "SELECT o.id AS order_id, o.shop_code, o.date AS order_date, s.name AS shop_name,
+                sd.equipment_name
+         FROM orders o
+         JOIN shops s ON o.shop_code = s.code";
+if ($zoneCode !== '') {
+    $ssql .= ' JOIN areas a ON s.area_code = a.code';
+}
+$ssql .= " JOIN order_seat_replacement_details sd ON sd.order_id = o.id
+           WHERE o.status = 0 AND o.type = 'seat-replacement' AND o.cancelled_at IS NULL";
+if (!empty($where)) {
+    $ssql .= ' AND ' . implode(' AND ', $where);
+}
+$ssql .= ' ORDER BY o.shop_code, o.date, o.id';
+
+$seatSupplier = ['name' => '', 'email' => '', 'contact' => ''];
+foreach ($supplierMaster as $name => $m) {
+    if (mb_strpos($name, 'ポップサイクル') !== false) {
+        $seatSupplier = ['name' => $name, 'email' => $m['email'] ?? '', 'contact' => $m['contact'] ?? ''];
+        break;
+    }
+}
+$seats = [];
+foreach (query($ssql, $params) as $r) {
+    $seats[] = [
+        'order_id'       => $r['order_id'],
+        'shop_code'      => $r['shop_code'],
+        'shop_name'      => $r['shop_name'],
+        'order_date'     => $r['order_date'],
+        'equipment_name' => $r['equipment_name'],
+        'supplier'       => $seatSupplier['name'],
+        'email'          => $seatSupplier['email'],
+        'contact'        => $seatSupplier['contact'],
+    ];
+}
+
+// --- 部品(status=0) の下書き（1発注=1通。宛先は手入力＝メーカー宛） ---
+$psql = "SELECT o.id AS order_id, o.shop_code, o.date AS order_date, s.name AS shop_name,
+                pd.parts_name, pd.target_equipment, pd.quantity, pd.reason
+         FROM orders o
+         JOIN shops s ON o.shop_code = s.code";
+if ($zoneCode !== '') {
+    $psql .= ' JOIN areas a ON s.area_code = a.code';
+}
+$psql .= " JOIN order_parts_details pd ON pd.order_id = o.id
+           WHERE o.status = 0 AND o.type = 'parts' AND o.cancelled_at IS NULL";
+if (!empty($where)) {
+    $psql .= ' AND ' . implode(' AND ', $where);
+}
+$psql .= ' ORDER BY o.shop_code, o.date, o.id';
+
+$parts = [];
+foreach (query($psql, $params) as $r) {
+    $parts[] = [
+        'order_id'         => $r['order_id'],
+        'shop_code'        => $r['shop_code'],
+        'shop_name'        => $r['shop_name'],
+        'order_date'       => $r['order_date'],
+        'parts_name'       => $r['parts_name'],
+        'target_equipment' => $r['target_equipment'],
+        'quantity'         => (int)$r['quantity'],
+        'reason'           => $r['reason'],
+    ];
+}
+
+// --- 修理・チェア修理・部品・シート交換の添付写真（個別DL・zip 用） ---
+$attachOrderIds = array_merge(
+    array_column($repairs, 'order_id'),
+    array_column($parts, 'order_id'),
+    array_column($seats, 'order_id')
+);
+$photoMap = $photosForOrders($attachOrderIds);
+foreach ($repairs as &$rp) {
+    $rp['photos'] = $photoMap[$rp['order_id']] ?? [];
+}
+unset($rp);
+foreach ($parts as &$pp) {
+    $pp['photos'] = $photoMap[$pp['order_id']] ?? [];
+}
+unset($pp);
+foreach ($seats as &$sp) {
+    $sp['photos'] = $photoMap[$sp['order_id']] ?? [];
+}
+unset($sp);
 
 // CC 用: 商品部メアド (system_settings.product_dept_email)
 $ccRow = getOne(
@@ -365,6 +528,8 @@ jsonResponse([
         'chair_suppliers' => $chairSuppliers,
         'club'            => $club,
         'repairs'         => $repairs,
+        'parts'           => $parts,
+        'seats'           => $seats,
         'cc_email'     => $ccEmail,
         'signature'    => $signature,
         'fetched_at'   => date('Y-m-d H:i:s'),
