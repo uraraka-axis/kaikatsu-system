@@ -6,11 +6,15 @@
  * GET /api/orders/draft-mails.php
  *   ?zone=&area=&shop=&category=&date_from=&date_to=
  *
- * 「依頼中（status=0）」の備品発注を仕入先単位に集計してメール下書きを返却する。
- * 仕入先マスタ（suppliers）と仕入先名で LEFT JOIN し、To アドレスを補完する。
+ * 「依頼中（status=0）」の発注を集計してメール下書きを返却する。
+ *   - suppliers:       備品（type=equipment）を仕入先単位に集計
+ *   - chair_suppliers: チェア備品（type=chair-equipment）を仕入先単位に集計（発注書PDFのDL用に orders[] 付き）
+ *   - club:            代替ゴルフ（type=club-replacement）を全店舗まとめて1通（宛先=仕入先マスタのランシステム）
+ *   - repairs:         修理（type=repair）1発注=1通（宛先は手入力）
+ * 仕入先マスタ（suppliers）と仕入先名を突合し、To アドレスを補完する。
  *
  * レスポンス:
- *   { success: true, data: { suppliers: [ {supplier, email, contact, items[], order_ids[], total_qty, total_amount, shops[]}, ... ] } }
+ *   { success: true, data: { suppliers: [...], chair_suppliers: [...], club: {...}|null, repairs: [...] } }
  */
 
 require_once __DIR__ . '/../../includes/auth.php';
@@ -187,6 +191,136 @@ foreach ($rows as $r) {
 // 連想配列 → リスト化（フロントが扱いやすいよう）
 $suppliers = array_values($grouped);
 
+// --- チェア備品(status=0) の下書き（備品と同様に仕入先単位・発注書PDFのDL付き） ---
+$csql = "SELECT
+            o.id              AS order_id,
+            o.shop_code,
+            o.date            AS order_date,
+            s.name            AS shop_name,
+            i.id              AS item_id,
+            i.product_name,
+            i.product_code,
+            p.supplier_product_code,
+            i.price,
+            i.qty,
+            i.supplier        AS supplier_name
+        FROM orders o
+        JOIN shops s ON o.shop_code = s.code";
+if ($zoneCode !== '') {
+    $csql .= ' JOIN areas a ON s.area_code = a.code';
+}
+$csql .= " JOIN order_equipment_items i ON i.order_id = o.id
+        LEFT JOIN products p ON i.product_id = p.id
+        WHERE o.status = 0
+          AND o.type = 'chair-equipment'
+          AND o.cancelled_at IS NULL";
+if (!empty($where)) {
+    $csql .= ' AND ' . implode(' AND ', $where);
+}
+$csql .= ' ORDER BY i.supplier, o.shop_code, o.date, i.id';
+
+$chairGrouped = [];
+foreach (query($csql, $params) as $r) {
+    $supplierName = ($r['supplier_name'] !== null && $r['supplier_name'] !== '')
+        ? $r['supplier_name']
+        : '(仕入先未設定)';
+
+    if (!isset($chairGrouped[$supplierName])) {
+        $master = $supplierMaster[$supplierName] ?? ['email' => '', 'contact' => ''];
+        $chairGrouped[$supplierName] = [
+            'supplier'      => $supplierName,
+            'email'         => $master['email'] ?? '',
+            'contact'       => $master['contact'] ?? '',
+            'items'         => [],
+            'order_ids'     => [],
+            'orders'        => [], // 発注書PDFダウンロードリンク用（1発注=1PDF）
+            'shops'         => [],
+            'total_qty'     => 0,
+            'total_amount'  => 0,
+        ];
+    }
+
+    $price    = (int)$r['price'];
+    $qty      = (int)$r['qty'];
+    $subtotal = $price * $qty;
+
+    $chairGrouped[$supplierName]['items'][] = [
+        'order_id'     => $r['order_id'],
+        'shop_code'    => $r['shop_code'],
+        'shop_name'    => $r['shop_name'],
+        'order_date'   => $r['order_date'],
+        'product_name' => $r['product_name'],
+        'product_code' => $r['product_code'],
+        'supplier_product_code' => $r['supplier_product_code'],
+        'price'        => $price,
+        'qty'          => $qty,
+        'subtotal'     => $subtotal,
+    ];
+
+    if (!in_array($r['order_id'], $chairGrouped[$supplierName]['order_ids'], true)) {
+        $chairGrouped[$supplierName]['order_ids'][] = $r['order_id'];
+        $chairGrouped[$supplierName]['orders'][] = [
+            'order_id'   => $r['order_id'],
+            'shop_code'  => $r['shop_code'],
+            'shop_name'  => $r['shop_name'],
+            'order_date' => $r['order_date'],
+        ];
+    }
+    if (!in_array($r['shop_name'], $chairGrouped[$supplierName]['shops'], true)) {
+        $chairGrouped[$supplierName]['shops'][] = $r['shop_name'];
+    }
+    $chairGrouped[$supplierName]['total_qty']    += $qty;
+    $chairGrouped[$supplierName]['total_amount'] += $subtotal;
+}
+$chairSuppliers = array_values($chairGrouped);
+
+// --- 代替ゴルフ(status=0) の下書き（複数店舗をまとめて1通。宛先=仕入先マスタのランシステム） ---
+$gsql = "SELECT o.id AS order_id, o.shop_code, o.date AS order_date, s.name AS shop_name,
+                cd.club, cd.shaft
+         FROM orders o
+         JOIN shops s ON o.shop_code = s.code";
+if ($zoneCode !== '') {
+    $gsql .= ' JOIN areas a ON s.area_code = a.code';
+}
+$gsql .= " JOIN order_club_replacement_details cd ON cd.order_id = o.id
+           WHERE o.status = 0 AND o.type = 'club-replacement' AND o.cancelled_at IS NULL";
+if (!empty($where)) {
+    $gsql .= ' AND ' . implode(' AND ', $where);
+}
+$gsql .= ' ORDER BY o.shop_code, o.date, o.id';
+
+$clubOrders = [];
+foreach (query($gsql, $params) as $r) {
+    $clubOrders[] = [
+        'order_id'   => $r['order_id'],
+        'shop_code'  => $r['shop_code'],
+        'shop_name'  => $r['shop_name'],
+        'order_date' => $r['order_date'],
+        'club'       => $r['club'],
+        'shaft'      => $r['shaft'],
+    ];
+}
+
+// 宛先: 仕入先マスタの「ランシステム」（名称部分一致）
+$club = null;
+if (!empty($clubOrders)) {
+    $runsystem = ['name' => '', 'email' => '', 'contact' => ''];
+    foreach ($supplierMaster as $name => $m) {
+        if (mb_strpos($name, 'ランシステム') !== false) {
+            $runsystem = ['name' => $name, 'email' => $m['email'] ?? '', 'contact' => $m['contact'] ?? ''];
+            break;
+        }
+    }
+    $club = [
+        'supplier' => $runsystem['name'] !== '' ? $runsystem['name'] : '株式会社ランシステム',
+        'email'    => $runsystem['email'],
+        'contact'  => $runsystem['contact'],
+        'orders'   => $clubOrders,
+        'order_ids' => array_column($clubOrders, 'order_id'),
+        'shops'    => array_values(array_unique(array_column($clubOrders, 'shop_name'))),
+    ];
+}
+
 // --- 修理(status=0) の下書き（1発注=1通。宛先は手入力） ---
 $rsql = "SELECT o.id AS order_id, o.shop_code, s.name AS shop_name,
                 rd.equipment_name, rd.issue
@@ -227,8 +361,10 @@ $signature = $sigRow['value'] ?? '';
 jsonResponse([
     'success' => true,
     'data'    => [
-        'suppliers'    => $suppliers,
-        'repairs'      => $repairs,
+        'suppliers'       => $suppliers,
+        'chair_suppliers' => $chairSuppliers,
+        'club'            => $club,
+        'repairs'         => $repairs,
         'cc_email'     => $ccEmail,
         'signature'    => $signature,
         'fetched_at'   => date('Y-m-d H:i:s'),

@@ -1994,8 +1994,11 @@ if (window.__currentUser) {
   bootOrderList(window.__currentUser);
 }
 
-// ===== Draft Mails (Phase 1) =====
-// 「依頼中」の備品発注を仕入先単位に集計し、メーラー起動 / 本文コピー / 発注済化を提供する
+// ===== Draft Mails (Phase 1 / 改修202609でチェア備品・代替ゴルフ対応) =====
+// 「依頼中」の発注を集計し、本文コピー / 添付PDFのDL / 発注済化を提供する
+//   備品・チェア備品 = 仕入先別1通（チェア備品は発注書PDFのDL付き）
+//   代替ゴルフ       = 全店舗まとめて1通（宛先=ランシステム・依頼書PDFのDL付き）
+//   修理             = 1発注1通（宛先は手入力）
 var draftMailsState = {
   suppliers: [],
   ccEmail: '',
@@ -2036,9 +2039,12 @@ function openDraftMails() {
         return;
       }
       draftMailsState.suppliers = (res.data && res.data.suppliers) || [];
+      draftMailsState.chairSuppliers = (res.data && res.data.chair_suppliers) || [];
+      draftMailsState.club = (res.data && res.data.club) || null;
       draftMailsState.repairs = (res.data && res.data.repairs) || [];
       draftMailsState.signature = (res.data && res.data.signature) || '';
       draftMailsState.ccEmail = (res.data && res.data.cc_email) || '';
+      draftMailsState.requester = (res.data && res.data.requester) || '';
       draftMailsState.entries = buildDraftEntries();
       draftMailsState.activeIndex = 0;
       renderDraftMails();
@@ -2073,12 +2079,19 @@ function formatYen(n) {
   return '¥' + (Number(n) || 0).toLocaleString();
 }
 
-// 下書きエントリ（備品＝仕入先別／修理＝1発注1通）を1つのリストにまとめる
+// 下書きエントリ（備品・チェア備品＝仕入先別／代替ゴルフ＝全店舗まとめて1通／修理＝1発注1通）を1つのリストにまとめる
 function buildDraftEntries() {
   var entries = [];
   (draftMailsState.suppliers || []).forEach(function(s) {
     entries.push({ kind: 'equipment', label: s.supplier, to: s.email || '', order_ids: s.order_ids || [], data: s });
   });
+  (draftMailsState.chairSuppliers || []).forEach(function(s) {
+    entries.push({ kind: 'chair-equipment', label: s.supplier + '（チェア備品）', to: s.email || '', order_ids: s.order_ids || [], data: s });
+  });
+  if (draftMailsState.club) {
+    var c = draftMailsState.club;
+    entries.push({ kind: 'club', label: '代替クラブ発送依頼', to: c.email || '', order_ids: c.order_ids || [], data: c });
+  }
   (draftMailsState.repairs || []).forEach(function(r) {
     entries.push({ kind: 'repair', label: '修理：' + (r.equipment_name || '') + '（' + (r.shop_name || '') + '）', to: '', order_ids: [r.order_id], data: r });
   });
@@ -2098,11 +2111,16 @@ function buildMailSubject(entry) {
   if (entry.kind === 'repair') {
     return '【修理・メンテナンスのご相談】' + ymd + '_' + (entry.data.equipment_name || '');
   }
+  if (entry.kind === 'club') {
+    return '【代替クラブ発送依頼】の件';
+  }
   return '【発注依頼】' + ymd + '_' + entry.data.supplier;
 }
 
 function buildMailBody(entry) {
-  return entry.kind === 'repair' ? buildRepairBody(entry.data) : buildEquipmentBody(entry.data);
+  if (entry.kind === 'repair') return buildRepairBody(entry.data);
+  if (entry.kind === 'club') return buildClubBody(entry.data);
+  return buildEquipmentBody(entry.data); // equipment / chair-equipment 共通
 }
 
 // 備品（仕入先別に集約・店舗名は記載しない）
@@ -2152,6 +2170,26 @@ function buildRepairBody(r) {
   return withSignature(L.join('\n'));
 }
 
+// 代替ゴルフ（複数店舗をまとめて1通・宛先=ランシステム・依頼書PDFはDLして添付）
+function buildClubBody(c) {
+  var L = [];
+  L.push(c.supplier || '株式会社ランシステム');
+  L.push((c.contact ? c.contact : 'ご担当者') + ' 様');
+  L.push('');
+  L.push('いつも大変お世話になっております。');
+  L.push('快活フロンティアの' + (draftMailsState.requester || '〇〇') + 'です。');
+  L.push('');
+  L.push('下記対象店舗の代替クラブ発送依頼書を添付いたします。');
+  L.push('');
+  L.push('【対象店舗】');
+  (c.shops || []).forEach(function(name) {
+    L.push('・' + name);
+  });
+  L.push('');
+  L.push('ご確認、ご手配の程よろしくお願いいたします。');
+  return withSignature(L.join('\n'));
+}
+
 function renderDraftMails() {
   var body = document.getElementById('draftMailsBody');
   if (!body) return;
@@ -2159,7 +2197,7 @@ function renderDraftMails() {
   var entries = draftMailsState.entries || [];
 
   if (entries.length === 0) {
-    body.innerHTML = '<div class="draft-mails-empty">対象となる「依頼中」の発注（備品・修理）がありません。<br>発注一覧のフィルタ条件をご確認ください。</div>';
+    body.innerHTML = '<div class="draft-mails-empty">対象となる「依頼中」の発注（備品・チェア備品・代替クラブ・修理）がありません。<br>発注一覧のフィルタ条件をご確認ください。</div>';
     return;
   }
 
@@ -2167,7 +2205,7 @@ function renderDraftMails() {
   var tabsHtml = '<div class="draft-mails-tabs">';
   entries.forEach(function(e, i) {
     var active = (i === draftMailsState.activeIndex) ? ' active' : '';
-    var badge = e.kind === 'equipment' ? '<span class="badge-count">' + e.order_ids.length + '</span>' : '<span class="badge-count">修理</span>';
+    var badge = e.kind === 'repair' ? '<span class="badge-count">修理</span>' : '<span class="badge-count">' + e.order_ids.length + '</span>';
     tabsHtml += '<button type="button" class="draft-mails-tab' + active + '" onclick="switchDraftTab(' + i + ')">' +
       escapeHtml(e.label) + badge +
     '</button>';
@@ -2183,13 +2221,18 @@ function renderDraftMails() {
     cardsHtml += '<div class="draft-mail-card' + active + '" id="draftMailCard-' + i + '">';
 
     cardsHtml +=   '<div class="draft-mail-summary">';
-    if (e.kind === 'equipment') {
+    if (e.kind === 'equipment' || e.kind === 'chair-equipment') {
       var sup = e.data;
-      cardsHtml += '<div><span class="draft-mail-summary-label">仕入先:</span><span class="draft-mail-summary-value">' + escapeHtml(sup.supplier) + '</span></div>';
+      cardsHtml += '<div><span class="draft-mail-summary-label">仕入先:</span><span class="draft-mail-summary-value">' + escapeHtml(sup.supplier) + (e.kind === 'chair-equipment' ? '（チェア備品）' : '') + '</span></div>';
       cardsHtml += '<div><span class="draft-mail-summary-label">対象発注数:</span><span class="draft-mail-summary-value">' + sup.order_ids.length + ' 件</span></div>';
       cardsHtml += '<div><span class="draft-mail-summary-label">合計数量:</span><span class="draft-mail-summary-value">' + sup.total_qty + ' 点</span></div>';
       cardsHtml += '<div><span class="draft-mail-summary-label">合計金額:</span><span class="draft-mail-summary-value">' + formatYen(sup.total_amount) + '</span></div>';
       cardsHtml += '<div style="grid-column:1/-1"><span class="draft-mail-summary-label">対象店舗:</span><span class="draft-mail-summary-value">' + escapeHtml((sup.shops || []).join(' / ')) + '</span></div>';
+    } else if (e.kind === 'club') {
+      var c = e.data;
+      cardsHtml += '<div><span class="draft-mail-summary-label">区分:</span><span class="draft-mail-summary-value">代替ゴルフ（' + c.order_ids.length + ' 件）</span></div>';
+      cardsHtml += '<div><span class="draft-mail-summary-label">宛先:</span><span class="draft-mail-summary-value">' + escapeHtml(c.supplier || '') + '</span></div>';
+      cardsHtml += '<div style="grid-column:1/-1"><span class="draft-mail-summary-label">対象店舗:</span><span class="draft-mail-summary-value">' + escapeHtml((c.shops || []).join(' / ')) + '</span></div>';
     } else {
       var r = e.data;
       cardsHtml += '<div><span class="draft-mail-summary-label">区分:</span><span class="draft-mail-summary-value">修理（1件）</span></div>';
@@ -2197,6 +2240,33 @@ function renderDraftMails() {
       cardsHtml += '<div style="grid-column:1/-1"><span class="draft-mail-summary-label">設置場所:</span><span class="draft-mail-summary-value">' + escapeHtml(r.shop_name || '') + '</span></div>';
     }
     cardsHtml +=   '</div>';
+
+    // 添付ファイル（チェア備品=発注書PDF／代替ゴルフ=依頼書PDF。DLしてメールに手動添付する運用＝モック04）
+    if (e.kind === 'chair-equipment' || e.kind === 'club') {
+      var attachOrders = e.data.orders || [];
+      var docLabel   = e.kind === 'club' ? '代替クラブ発送依頼書' : 'マッサージチェア備品発注書';
+      var endpoint   = e.kind === 'club' ? 'api/orders/club-report.php' : 'api/orders/order-sheet.php';
+      var groupLabel = e.kind === 'club' ? '代替クラブ発送依頼書（発注ごとに1枚）' : '発注書（店舗ごとに1枚）';
+      cardsHtml += '<div class="attach-section">';
+      cardsHtml +=   '<div class="attach-header"><div class="attach-title">添付ファイル<span class="attach-count">' + attachOrders.length + '件</span></div>';
+      cardsHtml +=   '<span class="attach-note">※ DLしてメールに添付してください</span></div>';
+      cardsHtml +=   '<div class="attach-list">';
+      cardsHtml +=     '<div class="attach-group">' + escapeHtml(groupLabel) + '</div>';
+      attachOrders.forEach(function(od) {
+        var ymd = String(od.order_date || '').replace(/-/g, '');
+        var fname = docLabel + '_' + od.shop_code + '_' + (od.shop_name || '') + '_' + ymd + '.pdf';
+        var url = pdfUrlWithName(endpoint, { id: od.order_id, shop_code: od.shop_code, shop_name: od.shop_name, date: od.order_date }, docLabel) + '&dl=1';
+        cardsHtml += '<div class="attach-item">' +
+          '<span class="attach-icon pdf">PDF</span>' +
+          '<span class="attach-name">' + escapeHtml(fname) + '</span>' +
+          '<span class="attach-meta">' + escapeHtml(od.order_id) + '</span>' +
+          '<a class="attach-dl" href="' + url + '">' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>DL</a>' +
+          '</div>';
+      });
+      cardsHtml +=   '</div>';
+      cardsHtml += '</div>';
+    }
 
     var toPlaceholder = e.kind === 'repair' ? '例: maker@example.co.jp（メーカー）' : '例: contact@supplier.co.jp';
     cardsHtml +=   '<div class="draft-mail-field">';
@@ -2229,7 +2299,9 @@ function renderDraftMails() {
     cardsHtml +=     '<span class="copy-feedback" id="copyFeedback-' + i + '">コピーしました</span>';
     cardsHtml +=     '<div class="spacer"></div>';
     cardsHtml +=     '<button type="button" class="btn-action btn-primary" onclick="markSupplierOrdered(' + i + ')">';
-    cardsHtml +=       (e.kind === 'repair' ? 'この修理を発注済にする' : 'この仕入先分を発注済にする') + '</button>';
+    cardsHtml +=       (e.kind === 'repair' ? 'この修理を発注済にする'
+                         : e.kind === 'club' ? 'この依頼分を発注済にする'
+                         : 'この仕入先分を発注済にする') + '</button>';
     cardsHtml +=   '</div>';
     cardsHtml += '</div>';
   });
