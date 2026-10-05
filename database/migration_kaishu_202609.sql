@@ -69,6 +69,7 @@ CREATE TABLE IF NOT EXISTS order_club_replacement_details (
   shaft         VARCHAR(5)  NOT NULL COMMENT 'シャフト（S/R/L）',
   damage        TEXT        NOT NULL COMMENT '破損状況',
   returned_date DATE        DEFAULT NULL COMMENT '破損クラブ返送日（完了報告時に入力）',
+  report_printed_at DATETIME DEFAULT NULL COMMENT '報告書PDFを最初に出力した日時（完了報告の未印刷警告に使用）',
   created_at    DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at    DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (order_id),

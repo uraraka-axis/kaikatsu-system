@@ -16,7 +16,7 @@
 </head>
 <body>
   <header class="header" data-title="メニュー"></header>
-  <script src="js/common-nav.js?v=20260929"></script>
+  <script src="js/common-nav.js?v=20261002"></script>
 
   <main class="main">
     <div class="menu-container">
@@ -84,6 +84,17 @@
             <div class="menu-card-text">
               <div class="menu-card-title">チェア備品発注</div>
               <div class="menu-card-desc">マッサージチェアの備品を発注します</div>
+            </div>
+          </a>
+
+          <a href="club-replacement.html" class="menu-card" id="clubReplacementCard">
+            <div class="menu-card-icon">
+              <!-- ゴルフクラブ (シャフト + ヘッド + ボール) -->
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="14" y1="2" x2="6" y2="17"></line><path d="M6 17a3 2.5 0 1 0 5 2.2"></path><circle cx="17" cy="19" r="2"></circle></svg>
+            </div>
+            <div class="menu-card-text">
+              <div class="menu-card-title">代替ゴルフクラブ発送依頼</div>
+              <div class="menu-card-desc">破損したクラブの代替品発送を依頼します</div>
             </div>
           </a>
         </div>
@@ -190,6 +201,11 @@
           if (seatCard) seatCard.style.display = 'none';
           var chairCard = document.getElementById('chairEquipmentCard');
           if (chairCard) chairCard.style.display = 'none';
+        }
+        // 代替ゴルフクラブ発送依頼はゴルフ取扱店舗のみ
+        if (catCodes.indexOf('golf') < 0) {
+          var clubCard = document.getElementById('clubReplacementCard');
+          if (clubCard) clubCard.style.display = 'none';
         }
       }
     });

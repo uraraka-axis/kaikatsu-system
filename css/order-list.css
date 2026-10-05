@@ -110,6 +110,7 @@
 .type-parts { background-color: #f0fdf4; color: #16a34a; }
 .type-seat-replacement { background-color: #faf5ff; color: #9333ea; }
 .type-chair-equipment { background-color: #ecfeff; color: #0891b2; }
+.type-club-replacement { background-color: #f0fdf4; color: #15803d; }
 
 /* ===== Detail Panel ===== */
 .detail-panel {
@@ -652,7 +653,7 @@
     -webkit-overflow-scrolling: touch;
   }
   .order-table {
-    min-width: 995px;       /* admin 11 列 + 固定幅で全列見える（合計幅一定→詳細列の位置は不変） */
+    min-width: 1029px;      /* admin 11 列 + 固定幅で全列見える（種別列96px化で+34px。合計幅一定→詳細列の位置は不変） */
   }
   /* iPad時のみ内容列の幅を固定（PCは可変のまま）。2行に収め2行目末尾で…省略 */
   .order-table th.col-content { width: 130px; }

@@ -18,7 +18,8 @@ var STATUS_LABELS_BY_TYPE = {
   'chair-equipment':  { 0: '依頼中', 1: '発注済', 2: '配達中', 3: '納品済', 4: '完了' },
   parts:              { 0: '依頼中', 1: '発注済', 2: '配達中', 3: '納品済', 4: '完了' },
   repair:             { 0: '依頼中', 1: '発注済', 2: '修理待ち', 3: '修理済', 4: '完了' },
-  'seat-replacement': { 0: '依頼中', 1: '発注済', 2: '修理待ち', 3: '修理済', 4: '完了' }
+  'seat-replacement': { 0: '依頼中', 1: '発注済', 2: '修理待ち', 3: '修理済', 4: '完了' },
+  'club-replacement': { 0: '依頼中', 1: '発注済', 2: '配達中', 3: '納品済', 4: '完了' }
 };
 
 // 種別ごとのCSSクラス
@@ -27,7 +28,8 @@ var STATUS_CLASSES_BY_TYPE = {
   'chair-equipment':  { 0: 'status-requesting', 1: 'status-ordered', 2: 'status-delivering', 3: 'status-delivered', 4: 'status-completed' },
   parts:              { 0: 'status-requesting', 1: 'status-ordered', 2: 'status-delivering', 3: 'status-delivered', 4: 'status-completed' },
   repair:             { 0: 'status-requesting', 1: 'status-ordered', 2: 'status-waiting-repair', 3: 'status-repaired', 4: 'status-completed' },
-  'seat-replacement': { 0: 'status-requesting', 1: 'status-ordered', 2: 'status-waiting-repair', 3: 'status-repaired', 4: 'status-completed' }
+  'seat-replacement': { 0: 'status-requesting', 1: 'status-ordered', 2: 'status-waiting-repair', 3: 'status-repaired', 4: 'status-completed' },
+  'club-replacement': { 0: 'status-requesting', 1: 'status-ordered', 2: 'status-delivering', 3: 'status-delivered', 4: 'status-completed' }
 };
 
 // 修理ライク種別（修理と同じステータスフロー / UI を持つ）の判定
@@ -423,13 +425,13 @@ function renderTableHeader() {
     // 発注日=nowrap1行ぶんの幅 / 発注番号=折返し前提で細め / 詳細=余裕を確保
     thead.innerHTML = '<tr>' +
       '<th style="width:40px"><input type="checkbox" id="selectAll" onchange="toggleAll(this)"></th>' +
-      '<th style="width:76px">発注日</th><th style="width:62px">種別</th><th style="width:150px">発注番号</th><th style="width:116px">店舗</th><th style="width:88px">カテゴリ</th><th class="col-content">内容</th>' +
+      '<th style="width:76px">発注日</th><th style="width:96px">種別</th><th style="width:150px">発注番号</th><th style="width:116px">店舗</th><th style="width:88px">カテゴリ</th><th class="col-content">内容</th>' +
       '<th class="col-count">発注数</th><th class="col-amount">金額</th><th class="col-status">ステータス</th>' +
       '<th style="width:64px">詳細</th></tr>';
   } else {
     thead.innerHTML = '<tr>' +
       '<th style="width:40px"><input type="checkbox" id="selectAll" onchange="toggleAll(this)"></th>' +
-      '<th style="width:76px">発注日</th><th style="width:62px">種別</th><th style="width:150px">発注番号</th><th style="width:88px">カテゴリ</th><th class="col-content">内容</th>' +
+      '<th style="width:76px">発注日</th><th style="width:96px">種別</th><th style="width:150px">発注番号</th><th style="width:88px">カテゴリ</th><th class="col-content">内容</th>' +
       '<th class="col-count">発注数</th><th class="col-amount">金額</th><th class="col-status">ステータス</th>' +
       '<th style="width:64px">詳細</th></tr>';
   }
@@ -543,6 +545,7 @@ function renderOrders() {
                   : o.type === 'chair-equipment' ? 'チェア備品'
                   : o.type === 'parts' ? '部品'
                   : o.type === 'seat-replacement' ? '交換'
+                  : o.type === 'club-replacement' ? '代替ゴルフ'
                   : o.type;
     var statusClass = getStatusClass(o.status, o.type);
     var statusLabel = getStatusLabel(o.status, o.type);
@@ -700,6 +703,12 @@ function renderDetailContent(o) {
       });
       html += '</tbody></table></div>';
     }
+  } else if (o.type === 'club-replacement') {
+    html += '<div class="detail-grid">' +
+      '<div><div class="detail-label">破損クラブ</div><div class="detail-value">' + escapeHtml(o.club || '') + '</div></div>' +
+      '<div><div class="detail-label">シャフト</div><div class="detail-value">' + escapeHtml(o.shaft || '') + '</div></div>' +
+      '<div style="grid-column:1/-1;"><div class="detail-label">破損状況</div><div class="detail-value" style="white-space:pre-wrap;">' + escapeHtml(o.damage || '') + '</div></div>' +
+    '</div>';
   } else {
     html += '<div class="detail-grid">' +
       '<div><div class="detail-label">部品名・品番</div><div class="detail-value">' + escapeHtml(o.parts_name || '') + '</div></div>' +
@@ -735,6 +744,12 @@ function renderDetailContent(o) {
     html += '<div><div class="detail-label">納品予定日</div><div class="detail-value">' + (o.delivery_date || '—') + '</div></div>';
     html += '<div><div class="detail-label">最終金額</div><div class="detail-value"' + (hasAmount(o.final_amount) ? ' style="font-weight:600;color:#065f46;"' : '') + '>' + yenOrDash(o.final_amount) + '</div></div>';
     html += '<div><div class="detail-label">納品日</div><div class="detail-value">' + (o.actual_delivery_date || '—') + '</div></div>';
+  } else if (o.type === 'club-replacement') {
+    // 代替ゴルフは金額の概念なし（納品予定日・納品日・返送日のみ）
+    html += '<div><div class="detail-label">納品予定日</div><div class="detail-value">' + (o.delivery_date || '—') + '</div></div>';
+    html += '<div><div class="detail-label">納品日</div><div class="detail-value">' + (o.actual_delivery_date || '—') + '</div></div>';
+    html += '<div><div class="detail-label">返送日</div><div class="detail-value"' + (o.returned_date ? ' style="font-weight:600;color:#065f46;"' : '') + '>' + (o.returned_date || '—') + '</div></div>';
+    html += '<div><div class="detail-label">報告書（店舗印刷）</div><div class="detail-value">' + (o.report_printed_at ? '印刷済み' : '未印刷') + '</div></div>';
   } else {
     html += '<div><div class="detail-label">見積金額</div><div class="detail-value">' + (o.estimate_amount ? '¥' + Number(o.estimate_amount).toLocaleString() : '—') + '</div></div>';
     html += '<div><div class="detail-label">納品予定日</div><div class="detail-value">' + (o.delivery_date || '—') + '</div></div>';
@@ -788,12 +803,32 @@ function renderStatusHistory(o) {
 }
 
 // ===== Action Button =====
+// PDF系リンクのURLを「ファイル名入り」で作る。
+// URL末尾にファイル名セグメントを入れる（PATH_INFO・サーバ側では無視される）ことで、
+// ブラウザのPDFビューアから保存したときのデフォルト名を適切にする（ランダム文字列対策）。
+function pdfUrlWithName(endpoint, o, docLabel) {
+  var ymd = String(o.date || '').replace(/-/g, '');
+  var fname = docLabel + '_' + o.shop_code + '_' + (o.shop_name || '') + '_' + ymd + '.pdf';
+  return endpoint + '/' + encodeURIComponent(fname) + '?id=' + encodeURIComponent(o.id);
+}
+
 function renderActionButton(o) {
   var html = '<div class="detail-actions">';
 
+  // 報告書を印刷: 代替ゴルフのみ（店舗=自店 / admin・どのステータスでも常設）
+  // 店舗自身が印刷したときだけサーバ側で report_printed_at が記録されるため、少し待って一覧を再取得する
+  if (o.type === 'club-replacement' && (viewMode === 'store' || (viewMode === 'admin' && window.__canOperate))) {
+    // モック06と同配置: 印刷ボタンのみ左寄せ（margin-right:auto）、他のアクションは右寄せのまま
+    html += '<a class="btn-sm" href="' + pdfUrlWithName('api/orders/club-report.php', o, '代替クラブ発送依頼書') + '" ' +
+            'target="_blank" rel="noopener" onclick="onClubReportPrint()" ' +
+            'style="display:inline-flex;align-items:center;gap:4px;text-decoration:none;margin-right:auto;color:#0f766e;border-color:#0f766e;background:#fff">' +
+            '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>' +
+            '報告書を印刷</a>';
+  }
+
   // 発注書PDF: チェア備品発注のみ（admin/system・どのステータスでも常設）
   if (o.type === 'chair-equipment' && viewMode === 'admin' && window.__canOperate) {
-    html += '<a class="btn-sm" href="api/orders/order-sheet.php?id=' + encodeURIComponent(o.id) + '" ' +
+    html += '<a class="btn-sm" href="' + pdfUrlWithName('api/orders/order-sheet.php', o, 'マッサージチェア備品発注書') + '" ' +
             'target="_blank" rel="noopener" ' +
             'style="display:inline-flex;align-items:center;gap:4px;text-decoration:none;color:#0891b2;border-color:#0891b2;background:#fff">' +
             '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>' +
@@ -896,6 +931,13 @@ function getAvailableAction(o) {
     return { key: 'delivery-done', label: '納品済にする', btnClass: 'btn-sm-pink' };
   }
 
+  // ④納品済 → ⑤完了（代替ゴルフ）: 店舗が破損クラブ返送の完了報告を行う
+  if (o.status === STATUS.DELIVERED && o.type === 'club-replacement') {
+    return viewMode === 'store'
+      ? { key: 'club-complete', label: '完了報告', btnClass: 'btn-sm-success' }
+      : null;
+  }
+
   // ④納品済/修理済 → ⑤完了: 商品部が手動
   if (o.status === STATUS.DELIVERED && viewMode === 'admin') {
     return { key: 'complete', label: '完了にする', btnClass: 'btn-sm-success' };
@@ -907,6 +949,7 @@ function getAvailableAction(o) {
 function getWaitingMessage(o) {
   if (o.status === STATUS.COMPLETED) {
     if (o.type === 'seat-replacement') return '作業完了';
+    if (o.type === 'club-replacement') return '返送完了';
     return o.type === 'repair' ? '修理完了' : '納品完了';
   }
   if (o.status === STATUS.REQUESTING && viewMode === 'store') {
@@ -926,6 +969,10 @@ function getWaitingMessage(o) {
     return viewMode === 'admin' ? '店舗の納品確認待ち' : '—';
   }
   if (o.status === STATUS.DELIVERED) {
+    if (o.type === 'club-replacement') {
+      // 完了は店舗の返送報告（admin側は待ち表示）
+      return viewMode === 'admin' ? '店舗の返送完了報告待ち' : '—';
+    }
     return viewMode === 'store' ? '商品部の最終確認待ち' : '—';
   }
   return '—';
@@ -988,6 +1035,9 @@ function openStatusModal(orderId, action) {
         '<td colspan="3" style="padding:6px 10px;text-align:right;border:1px solid #e2e8f0">見積金額（再計算）</td>' +
         '<td id="editItemsTotal" style="padding:6px 10px;text-align:right;border:1px solid #e2e8f0;font-variant-numeric:tabular-nums">¥0</td>' +
         '</tr></tfoot></table></div>';
+    } else if (order.type === 'club-replacement') {
+      // 代替ゴルフクラブは金額の概念なし（レンタル代替品のため見積不要）
+      amountBlock = '';
     } else {
       amountBlock =
         '<div class="modal-row"><span class="modal-label">見積金額 <span class="required">*</span></span><input class="modal-input" id="modalAmount" type="text" inputmode="numeric" placeholder="金額を入力"></div>';
@@ -1116,6 +1166,30 @@ function openStatusModal(orderId, action) {
     footer.innerHTML =
       '<button class="btn-modal btn-modal-cancel" onclick="closeModal()">キャンセル</button>' +
       '<button class="btn-modal btn-modal-success" onclick="doComplete(\'' + orderId + '\')">完了にする</button>';
+
+  } else if (action === 'club-complete') {
+    // 代替ゴルフ: 店舗の完了報告（返送日 + 返送チェック必須。報告書未印刷なら警告を出す）
+    title.textContent = '完了報告（代替クラブの返送）';
+    var todayStr2 = (new Date()).toISOString().slice(0, 10);
+    var printedWarn = order.report_printed_at ? '' :
+      '<div style="display:flex;gap:8px;align-items:flex-start;background:#fff7ed;border:1px solid #fdba74;border-radius:8px;padding:10px 12px;font-size:13px;color:#9a3412;margin-top:12px;">' +
+        '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>' +
+        '<div>この申請の報告書はまだ印刷されていません。返送前に「報告書を印刷」から印刷して同封してください。</div>' +
+      '</div>';
+    body.innerHTML =
+      '<div style="font-size:13px;color:#475569;margin-bottom:14px;">' + escapeHtml(order.id) + '　' + escapeHtml(order.content_label || '') + '</div>' +
+      '<div class="modal-row"><span class="modal-label">返送日 <span class="required">*</span></span><input class="modal-input" id="modalReturnedDate" type="date" value="' + todayStr2 + '"></div>' +
+      '<div class="modal-row" style="flex-direction:column;align-items:stretch;">' +
+        '<label style="display:flex;align-items:flex-start;gap:10px;font-size:14px;color:#1e293b;line-height:1.6;padding:12px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;cursor:pointer;">' +
+          '<input type="checkbox" id="modalReturnConfirm" style="width:18px;height:18px;margin-top:3px;flex-shrink:0;" onchange="document.getElementById(\'clubCompleteBtn\').disabled = !this.checked">' +
+          '<span>破損したクラブ（ヘッドとシャフトセット）と、印刷した「ゴルフクラブ破損状況報告書 兼 代替クラブ発送依頼書」を同封して返送しました</span>' +
+        '</label>' +
+      '</div>' +
+      printedWarn +
+      '<div class="modal-row" style="margin-top:12px;"><span class="modal-label">メモ</span><textarea class="modal-textarea" id="modalMemo" placeholder="任意入力"></textarea></div>';
+    footer.innerHTML =
+      '<button class="btn-modal btn-modal-cancel" onclick="closeModal()">キャンセル</button>' +
+      '<button class="btn-modal btn-modal-success" id="clubCompleteBtn" disabled style="opacity:.9" onclick="doClubComplete(\'' + orderId + '\')">完了にする</button>';
   }
 
   modal.classList.add('open');
@@ -1188,6 +1262,8 @@ function doOrder(orderId) {
       return;
     }
     body.items = items;
+  } else if (order.type === 'club-replacement') {
+    // 代替ゴルフクラブは金額なし（見積入力不要）
   } else {
     var amountInput = document.getElementById('modalAmount');
     var amount = parseInt(String(amountInput.value).replace(/,/g, ''), 10);
@@ -1308,6 +1384,48 @@ function doDeliveryDone(orderId) {
     });
 }
 
+// ④→⑤ 完了報告（代替ゴルフ・店舗）
+function doClubComplete(orderId) {
+  var memo = (document.getElementById('modalMemo') || {}).value || '';
+  var returnedDate = (document.getElementById('modalReturnedDate') || {}).value || '';
+  var confirmed = (document.getElementById('modalReturnConfirm') || {}).checked;
+  if (!returnedDate) {
+    alert('返送日を入力してください');
+    return;
+  }
+  if (!confirmed) {
+    alert('返送した旨のチェックを入れてください');
+    return;
+  }
+
+  apiPost('api/orders/status.php', {
+    order_id: orderId,
+    action: 'complete',
+    returned_date: returnedDate,
+    return_confirmed: true,
+    memo: memo
+  })
+    .then(function(data) {
+      if (!data.success) {
+        alert(data.message || 'エラーが発生しました');
+        return;
+      }
+      closeModal();
+      fetchOrders(function() { renderOrders(); });
+    })
+    .catch(function(e) {
+      console.error('doClubComplete failed:', e);
+      alert('通信エラーが発生しました');
+    });
+}
+
+// 代替ゴルフ: 報告書印刷リンククリック後、report_printed_at の反映を一覧に取り込む
+function onClubReportPrint() {
+  setTimeout(function() {
+    fetchOrders(function() { renderOrders(); });
+  }, 1500);
+}
+
 // ④→⑤ 完了
 function doComplete(orderId) {
   var order = findOrder(orderId);
@@ -1369,6 +1487,8 @@ function doComplete(orderId) {
 
 // ===== Edit Response Info =====
 function canEditResponseInfo(o) {
+  // 代替ゴルフは金額なし・日付はステータス変更時に設定するため対応情報の編集対象外
+  if (o.type === 'club-replacement') return false;
   if (o.status === STATUS.REQUESTING) return false;
   if (viewMode === 'admin') {
     return o.status >= STATUS.ORDERED;

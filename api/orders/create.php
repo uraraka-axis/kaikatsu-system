@@ -47,13 +47,28 @@ $type = $_POST['type'] ?? '';
 $category = $_POST['category'] ?? '';
 
 // --- バリデーション ---
-if (!in_array($type, ['repair', 'equipment', 'parts', 'seat-replacement', 'chair-equipment'], true)) {
+if (!in_array($type, ['repair', 'equipment', 'parts', 'seat-replacement', 'chair-equipment', 'club-replacement'], true)) {
     jsonError('不正な発注種別です');
 }
 
 // シート交換・チェア備品はカテゴリを fitness に強制（フロントからの値を信用しない）
 if ($type === 'seat-replacement' || $type === 'chair-equipment') {
     $category = 'fitness';
+}
+// 代替ゴルフクラブはカテゴリを golf に強制
+if ($type === 'club-replacement') {
+    $category = 'golf';
+}
+
+// チェア備品・代替ゴルフは対象カテゴリを取り扱う店舗のみ発注可（フロントの出し分けを信用しない）
+if (in_array($type, ['chair-equipment', 'club-replacement'], true)) {
+    $catCheck = getOne(
+        'SELECT 1 FROM shop_categories WHERE shop_code = :sc AND category_code = :cc',
+        [':sc' => $shopCode, ':cc' => $category]
+    );
+    if ($catCheck === null) {
+        jsonError('この店舗では当該カテゴリの発注はできません', 403);
+    }
 }
 
 // カテゴリ存在チェック
@@ -116,6 +131,9 @@ try {
             break;
         case 'parts':
             createPartsDetail($orderId);
+            break;
+        case 'club-replacement':
+            createClubReplacementDetail($orderId);
             break;
     }
 
@@ -382,6 +400,48 @@ function createPartsDetail(string $orderId): void
 }
 
 // ========================================
+// 代替ゴルフクラブ発送依頼の詳細登録
+// ========================================
+function createClubReplacementDetail(string $orderId): void
+{
+    // 選択肢はフロントの値を信用せずサーバ側でも固定リストで検証する
+    $validClubs = [
+        '1W（ドライバー）', '3W', '5UT', '7UT',
+        '6AI（6I）', '7AI（7I）', '8AI（8I）', '9AI（9I）',
+        'PW（P）', 'SW（S）', 'AW（A）', 'PT（パター）',
+    ];
+    $validShafts = ['S', 'R', 'L'];
+
+    $club   = trim($_POST['club'] ?? '');
+    $shaft  = trim($_POST['shaft'] ?? '');
+    $damage = trim($_POST['damage'] ?? '');
+
+    if ($club === '' || $shaft === '' || $damage === '') {
+        throw new InvalidArgumentException('破損クラブ、シャフト、破損状況は必須です');
+    }
+    if (!in_array($club, $validClubs, true)) {
+        throw new InvalidArgumentException('破損クラブの選択値が不正です');
+    }
+    if (!in_array($shaft, $validShafts, true)) {
+        throw new InvalidArgumentException('シャフトの選択値が不正です');
+    }
+    if (mb_strlen($damage) > 1000) {
+        throw new InvalidArgumentException('破損状況は1000文字以内で入力してください');
+    }
+
+    execute(
+        'INSERT INTO order_club_replacement_details (order_id, club, shaft, damage)
+         VALUES (:order_id, :club, :shaft, :damage)',
+        [
+            ':order_id' => $orderId,
+            ':club'     => $club,
+            ':shaft'    => $shaft,
+            ':damage'   => $damage,
+        ]
+    );
+}
+
+// ========================================
 // 商品部への発注通知メール
 // ========================================
 /**
@@ -412,6 +472,7 @@ function notifyProductDeptNewOrder(string $orderId, string $type, string $shopCo
         'chair-equipment'  => 'チェア備品発注',
         'parts'            => '部品発注',
         'seat-replacement' => 'シート交換',
+        'club-replacement' => '代替ゴルフクラブ発送依頼',
         default            => $type,
     };
 
@@ -454,6 +515,12 @@ function notifyProductDeptNewOrder(string $orderId, string $type, string $shopCo
             $p = getOne('SELECT parts_name, target_equipment, quantity, reason FROM order_parts_details WHERE order_id = :id', [':id' => $orderId]);
             if ($p) {
                 $detail = "部品名: {$p['parts_name']}\n対象機材: {$p['target_equipment']}\n数量: {$p['quantity']}\n発注理由: {$p['reason']}";
+            }
+            break;
+        case 'club-replacement':
+            $c = getOne('SELECT club, shaft, damage FROM order_club_replacement_details WHERE order_id = :id', [':id' => $orderId]);
+            if ($c) {
+                $detail = "破損クラブ: {$c['club']}\nシャフト: {$c['shaft']}\n破損状況: {$c['damage']}";
             }
             break;
     }

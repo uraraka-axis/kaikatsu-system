@@ -31,7 +31,8 @@ BASE = os.environ.get("KAIKATSU_BASE_URL", "http://localhost/kaikatsu-system/")
 # 検証用アクセス情報.txt の「全員 password」は旧DB時代の記載）
 ACCOUNTS = {
     "admin": ("admin",  "admin"),   # 商品部 管理者
-    "shop":  ("30101",  "30101"),   # 札幌西岡店（構造化テストデータ投入店）
+    "shop":  ("30101",  "30101"),   # 札幌西岡店（構造化テストデータ投入店・fitness）
+    "golf":  ("50101",  "50101"),   # 松戸20世紀ヶ丘店（golf店・代替クラブ画面用）
     "zone":  ("100004", "100004"),  # FiT東日本ゾーン（閲覧専用）
 }
 
@@ -44,6 +45,9 @@ PAGES = [
     ("repair-order.html",        ["shop"]),
     ("equipment-order.html",     ["shop"]),
     ("chair-equipment-order.html", ["shop"]),  # チェア備品発注（fitness店のみ・30101はfitness）
+    ("club-replacement.html",    ["golf"]),    # 代替ゴルフクラブ発送依頼（golf店のみ）
+    ("menu.html",                ["golf"]),
+    ("order-list.html",          ["golf"]),
     ("parts-order.html",         ["shop"]),
     ("seat-replacement.html",    ["shop"]),
     ("admin-menu.html",          ["admin"]),

@@ -12,14 +12,14 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/common.css?v=20260929">
-  <link rel="stylesheet" href="css/repair-order.css?v=20260606">
+  <link rel="stylesheet" href="css/repair-order.css?v=20261002">
 </head>
 <body>
   <!-- Header -->
   <header class="header" data-title="修理発注"></header>
 
   <nav class="nav" data-active="repair-order.html"></nav>
-  <script src="js/common-nav.js?v=20260929"></script>
+  <script src="js/common-nav.js?v=20261002"></script>
 
   <!-- Main Content -->
   <main class="main">
@@ -150,7 +150,7 @@
 
           <!-- Photo Upload: シリアルナンバー（必須1枚） -->
           <div class="form-group">
-            <label class="form-label">シリアルナンバーの写真<span class="required">*</span>（1枚）</label>
+            <label class="form-label" style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;"><span>シリアルナンバーの写真<span class="required">*</span>（1枚）</span><span class="upload-required-note" style="margin:0;">※ シリアルナンバーの写真が無いと依頼できません</span></label>
             <div class="photo-upload-area" id="serialUploadArea" onclick="triggerSerialInput()">
               <div class="upload-icon">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
@@ -160,7 +160,6 @@
             </div>
             <input type="file" id="serialFileInput" accept="image/jpeg,image/png,image/gif,image/webp" style="display:none;" onchange="handleSerialUpload(event)">
             <div class="photo-previews" id="serialPhotoPreview"></div>
-            <p class="upload-required-note">※ シリアルナンバーの写真が無いと依頼できません（添付漏れ防止のため必須にしています）</p>
             <p class="upload-hint">※ iPadのカメラロールから写真を選択してアップロードしてください</p>
           </div>
         </div>

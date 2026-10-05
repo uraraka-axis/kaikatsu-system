@@ -171,3 +171,12 @@
   .days-grid { gap: 6px; }
   .day-btn { padding: 8px 14px; min-width: 70px; font-size: 13px; }
 }
+
+/* ===== 入力・アップロード領域のコンパクト化（2026-10-02 検証フィードバック） ===== */
+/* 不具合内容はコメント欄(90px)より少し広い程度に */
+#issueDescription { min-height: 110px; }
+/* 写真アップロード枠（故障箇所・シリアルとも）を低く */
+.photo-upload-area { padding: 16px 16px; }
+.upload-icon { margin-bottom: 4px; }
+.upload-icon svg { width: 26px; height: 26px; }
+.upload-hint { margin-top: 8px; }

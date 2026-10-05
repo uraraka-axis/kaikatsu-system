@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=20260629">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <title>代替ゴルフクラブ発送依頼</title>
+  <style>html.auth-pending body{visibility:hidden}</style>
+  <script>document.documentElement.classList.add('auth-pending');</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/common.css?v=20261002">
+  <link rel="stylesheet" href="css/repair-order.css?v=20260606">
+  <style>
+    .shop-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px 16px; }
+    .shop-grid .full { grid-column:1/-1; }
+    .shop-grid .form-input[readonly] { background:#f8fafc; color:#475569; }
+    .field-note { font-size:12px; color:#64748b; margin:0 0 4px; }
+    .ref-panel { background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:14px 16px; }
+    .ref-title { font-size:13px; font-weight:600; color:#1e293b; margin-bottom:8px; }
+    .heads { display:grid; grid-template-columns:repeat(5,1fr); gap:8px; }
+    .heads img { width:100%; border-radius:6px; display:block; background:#fff; }
+    .heads .lbl { font-size:12px; color:#334155; text-align:center; margin-top:4px; font-weight:600; line-height:1.4; }
+    .shaft-row { display:flex; gap:14px; align-items:center; }
+    .shaft-row img { width:150px; border-radius:6px; display:block; flex-shrink:0; }
+    .ref-caption { font-size:12px; color:#475569; line-height:1.7; }
+  </style>
+</head>
+<body>
+  <header class="header" data-title="代替ゴルフクラブ発送依頼"></header>
+  <nav class="nav" data-active="club-replacement.html"></nav>
+  <script src="js/common-nav.js?v=20261002"></script>
+
+  <main class="main">
+    <form id="clubForm" onsubmit="return false;">
+      <div class="form-grid">
+        <!-- Left Column -->
+        <div class="form-left">
+          <div class="form-group">
+            <label class="form-label">カテゴリ（部門）</label>
+            <select class="form-select" disabled><option>ゴルフ</option></select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">店舗情報</label>
+            <div class="shop-grid">
+              <div><div class="field-note">店舗番号</div><input type="text" id="shopCode" class="form-input" readonly></div>
+              <div><div class="field-note">店舗名</div><input type="text" id="shopName" class="form-input" readonly></div>
+              <div><div class="field-note">電話番号</div><input type="text" id="shopPhone" class="form-input" readonly></div>
+              <div><div class="field-note">日付</div><input type="text" id="todayDate" class="form-input" readonly></div>
+              <div><div class="field-note">郵便番号</div><input type="text" id="shopPostal" class="form-input" readonly></div>
+              <div class="full"><div class="field-note">住所</div><input type="text" id="shopAddress" class="form-input" readonly></div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">破損クラブ<span class="required">*</span></label>
+            <select id="clubSelect" class="form-select" onchange="updateSubmitState()">
+              <option value="">選択してください</option>
+              <option>1W（ドライバー）</option><option>3W</option><option>5UT</option><option>7UT</option>
+              <option>6AI（6I）</option><option>7AI（7I）</option><option>8AI（8I）</option><option>9AI（9I）</option>
+              <option>PW（P）</option><option>SW（S）</option><option>AW（A）</option><option>PT（パター）</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">シャフト<span class="required">*</span></label>
+            <select id="shaftSelect" class="form-select" onchange="updateSubmitState()">
+              <option value="">選択してください</option>
+              <option>S</option><option>R</option><option>L</option>
+            </select>
+          </div>
+
+          <!-- 参考：ヘッドの見分け方／シャフトの判断方法 -->
+          <div class="form-group">
+            <div class="ref-panel">
+              <div class="ref-title">【参考】ヘッドの見分け方</div>
+              <div class="heads">
+                <div><img src="img/club-guide/wood.jpg" alt="ウッド（1W/3W）"><div class="lbl">ウッド<br>（1W/3W）</div></div>
+                <div><img src="img/club-guide/utility.jpg" alt="ユーティリティー（5UT/7UT）"><div class="lbl">ユーティリティー<br>（5UT/7UT）</div></div>
+                <div><img src="img/club-guide/iron.jpg" alt="アイアン（6AI〜9AI）"><div class="lbl">アイアン<br>（6AI〜9AI）</div></div>
+                <div><img src="img/club-guide/wedge.jpg" alt="ウェッジ（PW/SW）"><div class="lbl">ウェッジ<br>（PW/SW）</div></div>
+                <div><img src="img/club-guide/putter.jpg" alt="パター（PT）"><div class="lbl">パター<br>（PT）</div></div>
+              </div>
+              <div class="ref-title" style="margin-top:14px;">【参考】シャフトの判断方法（S/R/L）</div>
+              <div class="shaft-row">
+                <img src="img/club-guide/shaft.jpg" alt="シャフトの判断方法">
+                <div class="ref-caption">シャフト部分に <strong>S / R / L</strong> の記載があります。<br>記載を確認して「シャフト」を選択してください。</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column -->
+        <div class="form-right">
+          <div class="form-group">
+            <label class="form-label">破損状況<span class="required">*</span></label>
+            <textarea id="damageText" class="form-textarea" style="min-height:180px;" maxlength="1000" placeholder="例：ヘッドにヒビが入っている、シャフトが曲がっている、グリップが擦れていてすべる、等" oninput="updateSubmitState()"></textarea>
+            <div class="field-note" style="margin-top:6px;">※ どこが、どのように破損したかわかるように記載をお願い致します。</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Submit -->
+      <div class="submit-section">
+        <button type="submit" class="btn-submit" id="submitBtn" disabled onclick="submitForm()">発送を依頼する</button>
+      </div>
+    </form>
+  </main>
+
+  <script src="js/notify-modal.js?v=20260521"></script>
+  <script src="js/club-replacement.js?v=20261002"></script>
+</body>
+</html>

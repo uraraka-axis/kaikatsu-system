@@ -46,7 +46,7 @@ if ($user['role'] === 'shop') {
 }
 
 // --- バリデーション ---
-if ($type !== '' && !in_array($type, ['repair', 'equipment', 'parts', 'seat-replacement', 'chair-equipment'], true)) {
+if ($type !== '' && !in_array($type, ['repair', 'equipment', 'parts', 'seat-replacement', 'chair-equipment', 'club-replacement'], true)) {
     jsonError('不正な種別パラメータです');
 }
 if ($status !== '' && !in_array($status, ['0', '1', '2', '3', '4'], true)) {
@@ -227,6 +227,16 @@ foreach ($partsRows as $row) {
     $partsDetails[$row['order_id']] = $row;
 }
 
+// --- 代替ゴルフクラブ詳細 ---
+$clubDetails = [];
+$clubSql = "SELECT order_id, club, shaft, damage, returned_date, report_printed_at
+            FROM order_club_replacement_details
+            WHERE order_id IN ({$placeholders})";
+$clubRows = query($clubSql, $idParams);
+foreach ($clubRows as $row) {
+    $clubDetails[$row['order_id']] = $row;
+}
+
 // --- ステータス履歴 ---
 $statusHistories = [];
 $historySql = "SELECT order_id, status, changed_at, changed_by, memo
@@ -307,6 +317,14 @@ foreach ($orders as $order) {
         $item['quantity']          = $pd['quantity'] !== null ? (int)$pd['quantity'] : 1;
         $item['photos']            = $photoData[$id] ?? [];
         $item['content_label']     = $pd['parts_name'] ?? '';
+    } elseif ($orderType === 'club-replacement') {
+        $cd = $clubDetails[$id] ?? null;
+        $item['club']              = $cd['club'] ?? '';
+        $item['shaft']             = $cd['shaft'] ?? '';
+        $item['damage']            = $cd['damage'] ?? '';
+        $item['returned_date']     = $cd['returned_date'] ?? null;
+        $item['report_printed_at'] = $cd['report_printed_at'] ?? null;
+        $item['content_label']     = trim(($cd['club'] ?? '') . '／' . ($cd['shaft'] ?? ''), '／');
     }
 
     $data[] = $item;

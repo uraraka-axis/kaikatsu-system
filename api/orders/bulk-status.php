@@ -102,6 +102,11 @@ try {
                 $updateVals[':estimate_amount'] = $estimateAmount;
             }
         } elseif ($action === 'complete') {
+            // 代替ゴルフは店舗の完了報告（返送日・返送チェック）が必須のため一括完了の対象外
+            if ($orderType === 'club-replacement') {
+                $skipped[] = $orderId;
+                continue;
+            }
             // 最終金額未設定の場合、見積金額を適用
             if ($order['final_amount'] === null) {
                 if (isRepairLikeType($orderType) || $orderType === 'parts') {

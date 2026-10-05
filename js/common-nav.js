@@ -197,6 +197,7 @@ window.downscaleImage = function(file, maxEdge, quality) {
       // シート交換はフィットネス専用機能のため、フィットネスを扱う店舗のみ表示する
       var shopCatCodes = (user.categories || []).map(function(c) { return c.code; });
       var hasFitness = shopCatCodes.indexOf('fitness') >= 0;
+      var hasGolf = shopCatCodes.indexOf('golf') >= 0;
       var storeNav = [
         { href: 'menu.html', label: 'メニュー' },
         { href: 'repair-order.html', label: '修理発注' },
@@ -206,6 +207,9 @@ window.downscaleImage = function(file, maxEdge, quality) {
       if (hasFitness) {
         storeNav.push({ href: 'seat-replacement.html', label: 'シート交換' });
         storeNav.push({ href: 'chair-equipment-order.html', label: 'チェア備品' });
+      }
+      if (hasGolf) {
+        storeNav.push({ href: 'club-replacement.html', label: '代替クラブ' });
       }
       storeNav.push(
         { href: 'order-list.html', label: '発注一覧' },

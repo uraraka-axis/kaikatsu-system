@@ -65,7 +65,9 @@ switch ($action) {
         // 備品は明細単価を編集できる。items 指定時は estimate_amount を
         // Σ(price × qty) でトランザクション内に再計算する（合計1欄だけの編集をやめ、
         // 発注済後の明細編集と同じ粒度を発注確定時にも提供する）。
-        if (isEquipmentLikeType($orderType) && isset($input['items']) && is_array($input['items'])) {
+        if ($orderType === 'club-replacement') {
+            // 代替ゴルフクラブは金額の概念なし（レンタル代替品のため見積不要・予算計上なし）
+        } elseif (isEquipmentLikeType($orderType) && isset($input['items']) && is_array($input['items'])) {
             $orderItems = [];
             foreach ($input['items'] as $item) {
                 $itemId = filter_var($item['id'] ?? null, FILTER_VALIDATE_INT);
@@ -150,14 +152,14 @@ switch ($action) {
         if ($order['shop_code'] !== $user['shop_code']) {
             jsonError('自店の発注のみ変更できます', 403);
         }
-        if (!in_array($orderType, ['equipment', 'chair-equipment', 'parts'], true)) {
-            jsonError('備品・部品発注のみ変更できます');
+        if (!in_array($orderType, ['equipment', 'chair-equipment', 'parts', 'club-replacement'], true)) {
+            jsonError('備品・部品・代替ゴルフ発注のみ変更できます');
         }
         if ($currentStatus !== 2) {
             jsonError('配達中の発注のみ変更できます');
         }
         $newStatus = 3;
-        // actual_delivery_date は必須（予算計上月の決定キー）
+        // actual_delivery_date は必須（予算計上月の決定キー。代替ゴルフは金額なしだが納品日として記録）
         $actualDeliveryDate = $input['actual_delivery_date'] ?? null;
         if ($actualDeliveryDate === null || $actualDeliveryDate === '') {
             jsonError('納品実績日は必須です');
@@ -167,7 +169,30 @@ switch ($action) {
         break;
 
     case 'complete':
-        // 3→4: admin only
+        // 3→4
+        //   通常種別: admin only
+        //   代替ゴルフ: 店舗の完了報告（破損クラブ＋報告書を返送した旨 + 返送日）
+        if ($orderType === 'club-replacement') {
+            if ($user['role'] !== 'shop') {
+                jsonError('店舗ユーザーのみ実行できます', 403);
+            }
+            if ($order['shop_code'] !== $user['shop_code']) {
+                jsonError('自店の発注のみ変更できます', 403);
+            }
+            if ($currentStatus !== 3) {
+                jsonError('納品済の発注のみ完了にできます');
+            }
+            $returnedDate = $input['returned_date'] ?? null;
+            if ($returnedDate === null || $returnedDate === '') {
+                jsonError('返送日は必須です');
+            }
+            // 返送確認チェック（フロントの制御を信用しない）
+            if (($input['return_confirmed'] ?? false) !== true) {
+                jsonError('破損クラブと報告書を返送した旨のチェックが必要です');
+            }
+            $newStatus = 4;
+            break; // 金額の更新は行わない（代替ゴルフは金額なし）
+        }
         if ($user['role'] !== 'admin') {
             jsonError('権限がありません', 403);
         }
@@ -333,6 +358,14 @@ try {
                 [':rcd' => $input['repair_completed_date'], ':oid' => $orderId]
             );
         }
+    }
+
+    // 2b. 代替ゴルフクラブ: 完了報告で返送日を詳細テーブルに記録
+    if ($orderType === 'club-replacement' && $action === 'complete') {
+        execute(
+            'UPDATE order_club_replacement_details SET returned_date = :rd WHERE order_id = :oid',
+            [':rd' => $input['returned_date'], ':oid' => $orderId]
+        );
     }
 
     // 3. ステータス履歴追加

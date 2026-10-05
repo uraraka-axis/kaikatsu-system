@@ -29,6 +29,9 @@ try {
             'SELECT u.id, u.login_id, u.name, u.role,
                     u.shop_code, u.zone_code, u.area_code,
                     s.name AS shop_name,
+                    s.phone AS shop_phone,
+                    s.postal_code AS shop_postal_code,
+                    s.address AS shop_address,
                     z.name AS zone_name,
                     a.name AS area_name,
                     u.is_active
@@ -51,6 +54,10 @@ try {
         $user['role']      = $fresh['role'];
         $user['shop_code'] = $fresh['shop_code'];
         $user['shop_name'] = $fresh['shop_name'];
+        // 店舗連絡先（代替ゴルフクラブ発送依頼フォームの店舗情報表示に使用）
+        $user['shop_phone']       = $fresh['shop_phone'];
+        $user['shop_postal_code'] = $fresh['shop_postal_code'];
+        $user['shop_address']     = $fresh['shop_address'];
         $user['zone_code'] = $fresh['zone_code'];
         $user['zone_name'] = $fresh['zone_name'];
         $user['area_code'] = $fresh['area_code'];
