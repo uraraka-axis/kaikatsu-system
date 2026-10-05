@@ -128,10 +128,11 @@ function resolveBudgetKeyByDelivery(array $order): ?array
 {
     $type = $order['type'] ?? '';
 
-    // 修理ライク (repair / seat-replacement) は完了日を詳細テーブルから取得
+    // 修理ライク (repair / seat-replacement / chair-repair) は完了日を詳細テーブルから取得
     $detailTable = match ($type) {
         'repair'           => 'order_repair_details',
         'seat-replacement' => 'order_seat_replacement_details',
+        'chair-repair'     => 'order_chair_repair_details',
         default            => null,
     };
 

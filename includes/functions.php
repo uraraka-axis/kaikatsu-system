@@ -164,11 +164,11 @@ function generateOrderNumber(string $type, string $shopCode, ?string $date = nul
 
 /**
  * 修理ライク発注（同じステータスフロー: 0→1→2→3→4 + 同UI）の判定。
- * 'repair' (修理) と 'seat-replacement' (シート交換) が該当。
+ * 'repair' (修理)・'seat-replacement' (シート交換)・'chair-repair' (チェア修理) が該当。
  */
 function isRepairLikeType(string $type): bool
 {
-    return $type === 'repair' || $type === 'seat-replacement';
+    return $type === 'repair' || $type === 'seat-replacement' || $type === 'chair-repair';
 }
 
 /**
@@ -188,6 +188,7 @@ function getRepairLikeDetailTable(string $type): ?string
     return match ($type) {
         'repair'           => 'order_repair_details',
         'seat-replacement' => 'order_seat_replacement_details',
+        'chair-repair'     => 'order_chair_repair_details',
         default            => null,
     };
 }

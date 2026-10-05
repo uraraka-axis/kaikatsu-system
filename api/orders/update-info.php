@@ -58,7 +58,7 @@ if (in_array($user['role'], ['admin', 'system'], true)) {
         jsonError('自店の発注のみ編集できます', 403);
     }
     if (!isRepairLikeType($orderType)) {
-        jsonError('修理・シート交換発注のみ編集できます', 403);
+        jsonError('修理・シート交換・チェア修理発注のみ編集できます', 403);
     }
     if ($currentStatus !== 3) {
         jsonError('修理済ステータスの発注のみ編集できます');

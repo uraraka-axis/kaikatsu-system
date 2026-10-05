@@ -132,7 +132,7 @@ switch ($action) {
             jsonError('自店の発注のみ変更できます', 403);
         }
         if (!isRepairLikeType($orderType)) {
-            jsonError('修理・シート交換発注のみ変更できます');
+            jsonError('修理・シート交換・チェア修理発注のみ変更できます');
         }
         if ($currentStatus !== 2) {
             jsonError('修理待ちの発注のみ変更できます');
@@ -210,6 +210,7 @@ switch ($action) {
                 $typeLabel = match ($orderType) {
                     'seat-replacement' => 'シート交換',
                     'parts'            => '部品',
+                    'chair-repair'     => 'チェア修理',
                     default            => '修理',
                 };
                 jsonError($typeLabel . '発注の最終金額は必須です');

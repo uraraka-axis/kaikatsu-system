@@ -63,7 +63,7 @@ if ($user['role'] === 'shop') {
 }
 
 // --- バリデーション ---
-if ($type !== '' && !in_array($type, ['repair', 'equipment', 'parts', 'seat-replacement', 'chair-equipment', 'club-replacement'], true)) {
+if ($type !== '' && !in_array($type, ['repair', 'equipment', 'parts', 'seat-replacement', 'chair-equipment', 'club-replacement', 'chair-repair'], true)) {
     jsonError('不正な種別パラメータです');
 }
 if ($status !== '' && !in_array($status, ['0', '1', '2', '3', '4'], true)) {
@@ -78,6 +78,7 @@ $typeLabels = [
     'parts'            => '部品',
     'seat-replacement' => 'シート交換',
     'club-replacement' => '代替ゴルフ',
+    'chair-repair'     => 'チェア修理',
 ];
 
 $statusLabels = [
@@ -166,6 +167,7 @@ $orders = query($sql, $params);
 // --- 関連データ取得 ---
 $repairDetails          = [];
 $seatReplacementDetails = [];
+$chairRepairDetails     = [];
 $partsDetails           = [];
 $clubDetails            = [];
 $equipItems             = [];
@@ -193,6 +195,13 @@ if (!empty($orders)) {
                 WHERE order_id IN ({$placeholders})";
     foreach (query($seatSql, $idParams) as $row) {
         $seatReplacementDetails[$row['order_id']] = $row;
+    }
+
+    $chairRepairSql = "SELECT order_id, serial_no, applicant, issue, repair_schedule_date, repair_completed_date
+                       FROM order_chair_repair_details
+                       WHERE order_id IN ({$placeholders})";
+    foreach (query($chairRepairSql, $idParams) as $row) {
+        $chairRepairDetails[$row['order_id']] = $row;
     }
 
     $partsSql = "SELECT order_id, parts_name, target_equipment, reason, quantity
@@ -358,7 +367,7 @@ $stOf   = fn($o) => $statusLabels[(int)$o['status']] ?? (string)$o['status'];
 $finOf  = fn($o) => $o['final_amount'] !== null ? (int)$o['final_amount'] : '';
 
 // 種別ごとに発注を仕分け（メインクエリの並び順を維持）
-$byType = ['equipment' => [], 'chair-equipment' => [], 'repair' => [], 'parts' => [], 'seat-replacement' => [], 'club-replacement' => []];
+$byType = ['equipment' => [], 'chair-equipment' => [], 'repair' => [], 'chair-repair' => [], 'parts' => [], 'seat-replacement' => [], 'club-replacement' => []];
 foreach ($orders as $o) {
     if (isset($byType[$o['type']])) {
         $byType[$o['type']][] = $o;
@@ -433,6 +442,24 @@ $sheetSpecs['repair'] = [
     'rows' => $rows, 'money' => [11], 'center' => [12], 'wrap' => [5, 6, 7, 8],
 ];
 
+// チェア修理（修理と同形式。機材列の代わりに製造番号＋申請者）
+$rows = [];
+foreach ($byType['chair-repair'] as $o) {
+    $cr = $chairRepairDetails[$o['id']] ?? [];
+    $rows[] = [
+        $o['date'], $o['id'], $shopOf($o), $catOf($o),
+        $cr['serial_no'] ?? '', $cr['applicant'] ?? '', $cr['issue'] ?? '',
+        fmtUnavailDates($unavailDates[$o['id']] ?? null), fmtUnavailDays($unavailDays[$o['id']] ?? null),
+        $cr['repair_schedule_date'] ?? '', $cr['repair_completed_date'] ?? '',
+        $finOf($o), $photoCounts[$o['id']] ?? 0, $stOf($o), $o['created_at'],
+    ];
+}
+$sheetSpecs['chair-repair'] = [
+    'title' => 'チェア修理',
+    'headers' => ['発注日','発注番号','店舗','カテゴリ','製造番号','申請者','不具合内容','対応不可日時','対応不可曜日','修理予定日','修理完了日','確定金額','写真枚数','ステータス','登録日時'],
+    'rows' => $rows, 'money' => [11], 'center' => [12], 'wrap' => [6, 7, 8],
+];
+
 // シート交換
 $rows = [];
 foreach ($byType['seat-replacement'] as $o) {
@@ -490,7 +517,7 @@ $sheetSpecs['club-replacement'] = [
 $spreadsheet = new Spreadsheet();
 $spreadsheet->getDefaultStyle()->getFont()->setName('Meiryo UI');
 
-$sheetOrder = ['equipment', 'chair-equipment', 'repair', 'parts', 'seat-replacement', 'club-replacement'];
+$sheetOrder = ['equipment', 'chair-equipment', 'repair', 'chair-repair', 'parts', 'seat-replacement', 'club-replacement'];
 $created = 0;
 foreach ($sheetOrder as $t) {
     $spec = $sheetSpecs[$t];

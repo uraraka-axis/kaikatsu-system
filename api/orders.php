@@ -46,7 +46,7 @@ if ($user['role'] === 'shop') {
 }
 
 // --- バリデーション ---
-if ($type !== '' && !in_array($type, ['repair', 'equipment', 'parts', 'seat-replacement', 'chair-equipment', 'club-replacement'], true)) {
+if ($type !== '' && !in_array($type, ['repair', 'equipment', 'parts', 'seat-replacement', 'chair-equipment', 'club-replacement', 'chair-repair'], true)) {
     jsonError('不正な種別パラメータです');
 }
 if ($status !== '' && !in_array($status, ['0', '1', '2', '3', '4'], true)) {
@@ -157,6 +157,16 @@ $seatSql = "SELECT order_id, equipment_name, issue, repair_schedule_date, repair
 $seatRows = query($seatSql, $idParams);
 foreach ($seatRows as $row) {
     $seatReplacementDetails[$row['order_id']] = $row;
+}
+
+// --- チェア修理詳細 ---
+$chairRepairDetails = [];
+$chairRepairSql = "SELECT order_id, serial_no, applicant, issue, repair_schedule_date, repair_completed_date
+                   FROM order_chair_repair_details
+                   WHERE order_id IN ({$placeholders})";
+$chairRepairRows = query($chairRepairSql, $idParams);
+foreach ($chairRepairRows as $row) {
+    $chairRepairDetails[$row['order_id']] = $row;
 }
 
 // --- 修理不可日 ---
@@ -297,6 +307,18 @@ foreach ($orders as $order) {
         $item['unavail_days']          = $unavailDays[$id] ?? [];
         $item['photos']                = $photoData[$id] ?? [];
         $item['content_label']         = $sd['equipment_name'] ?? '';
+    } elseif ($orderType === 'chair-repair') {
+        $cr = $chairRepairDetails[$id] ?? null;
+        $item['serial_no']             = $cr['serial_no'] ?? '';
+        $item['applicant']             = $cr['applicant'] ?? '';
+        $item['issue']                 = $cr['issue'] ?? '';
+        $item['repair_schedule_date']  = $cr['repair_schedule_date'] ?? null;
+        $item['repair_completed_date'] = $cr['repair_completed_date'] ?? null;
+        $item['unavail_dates']         = $unavailDates[$id] ?? [];
+        $item['unavail_days']          = $unavailDays[$id] ?? [];
+        $item['photos']                = $photoData[$id] ?? [];
+        // モック06の一覧表記: マッサージチェア（製造番号）
+        $item['content_label']         = 'マッサージチェア' . (($cr['serial_no'] ?? '') !== '' ? '（' . $cr['serial_no'] . '）' : '');
     } elseif (isEquipmentLikeType($orderType)) {
         $items = $equipItems[$id] ?? [];
         $item['equip_items'] = $items;

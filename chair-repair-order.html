@@ -5,40 +5,51 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="icon" type="image/svg+xml" href="favicon.svg?v=20260629">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
-  <title>マシンシート交換依頼</title>
+  <title>マッサージチェア修理依頼</title>
   <style>html.auth-pending body{visibility:hidden}</style>
   <script>document.documentElement.classList.add('auth-pending');</script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/common.css?v=20260602a">
-  <link rel="stylesheet" href="css/repair-order.css?v=20260606">
+  <link rel="stylesheet" href="css/common.css?v=20260929">
+  <link rel="stylesheet" href="css/repair-order.css?v=20261002">
 </head>
 <body>
   <!-- Header -->
-  <header class="header" data-title="マシンシート交換依頼"></header>
+  <header class="header" data-title="マッサージチェア修理依頼"></header>
 
-  <nav class="nav" data-active="seat-replacement.html"></nav>
+  <nav class="nav" data-active="chair-repair-order.html"></nav>
   <script src="js/common-nav.js?v=20261005"></script>
 
   <!-- Main Content -->
   <main class="main">
-    <form id="seatReplacementForm" onsubmit="return false;">
+    <form id="chairRepairForm" onsubmit="return false;">
       <div class="form-grid">
         <!-- Left Column -->
         <div class="form-left">
-          <!-- Category (フィットネス固定) -->
+          <!-- Category (fitness 固定・表示のみ) -->
           <div class="form-group">
             <label class="form-label">カテゴリ（部門）</label>
-            <select id="category" class="form-select" disabled style="background-color:#f1f5f9;color:#475569;cursor:not-allowed;">
-              <option value="fitness" selected>フィットネス</option>
-            </select>
+            <select class="form-select" disabled><option>フィットネス</option></select>
           </div>
 
-          <!-- Machine Name (was 故障機材名・品番) -->
+          <!-- Equipment (マッサージチェア固定) -->
           <div class="form-group">
-            <label class="form-label">マシン名・品番など<span class="required">*</span></label>
-            <input type="text" id="equipmentName" class="form-input" maxlength="100" placeholder="ランニングマシン・XT-3000" oninput="updateSubmitState()">
+            <label class="form-label">機材</label>
+            <input type="text" class="form-input" value="マッサージチェア" readonly>
+          </div>
+
+          <!-- Applicant -->
+          <div class="form-group">
+            <label class="form-label">申請者<span class="required">*</span></label>
+            <input type="text" id="applicantName" class="form-input" maxlength="50" placeholder="山田　太郎" oninput="updateSubmitState()">
+          </div>
+
+          <!-- Serial No -->
+          <div class="form-group">
+            <label class="form-label">製造番号<span class="required">*</span></label>
+            <input type="text" id="serialNo" class="form-input" maxlength="50" placeholder="4-23-5638" oninput="updateSubmitState()">
+            <div style="font-size:12px;color:#dc2626;margin-top:6px;">※ 背面下部のシールに記載されています</div>
           </div>
 
           <!-- Unavailable DateTime -->
@@ -120,15 +131,15 @@
 
         <!-- Right Column -->
         <div class="form-right">
-          <!-- Fixed Issue (read-only display) -->
+          <!-- Issue Description（症状例をプレースホルダー表示＝モック05） -->
           <div class="form-group">
-            <label class="form-label">依頼内容</label>
-            <input type="text" class="form-input" value="マシンのシート交換" readonly style="background-color:#f1f5f9;color:#475569;cursor:not-allowed;">
+            <label class="form-label">不具合内容（詳細記述欄）<span class="required">*</span></label>
+            <textarea id="issueDescription" class="form-textarea" style="min-height:250px;" oninput="updateSubmitState()" placeholder="【症状例】&#10;・リクライニングがしない&#10;・背のモミ玉が外れている・折れている&#10;・エアー動作時のコンプレッサーの動作音並びにエアーの排気音がしない&#10;・エアーバックが膨らまない&#10;・リクライニング時の背もたれ部や座部のこすれ音（キュー音）が大きい&#10;・マッサージ動作時のギア・モーターの異音がする&#10;・電源が入らない&#10;　※電源が入らない場合の確認&#10;　「電源コード」がコンセントに刺さっているか？&#10;　電源スイッチ（本体背面の足元）がONになっているか？"></textarea>
           </div>
 
-          <!-- Photo Upload -->
+          <!-- Photo Upload: 故障箇所 -->
           <div class="form-group">
-            <label class="form-label">シート・マシンの写真（最大3枚）</label>
+            <label class="form-label">故障箇所の写真（全体の写真・故障箇所の写真）最大3枚</label>
             <div class="photo-upload-area" id="uploadArea" onclick="triggerFileInput()">
               <div class="upload-icon">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
@@ -138,6 +149,20 @@
             </div>
             <input type="file" id="fileInput" accept="image/jpeg,image/png,image/gif,image/webp" multiple style="display:none;" onchange="handlePhotoUpload(event)">
             <div class="photo-previews" id="photoPreviews"></div>
+          </div>
+
+          <!-- Photo Upload: シリアルナンバー（必須1枚） -->
+          <div class="form-group">
+            <label class="form-label" style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;"><span>シリアルナンバーの写真<span class="required">*</span>（1枚）</span><span class="upload-required-note" style="margin:0;">※ シリアルナンバーの写真が無いと依頼できません</span></label>
+            <div class="photo-upload-area" id="serialUploadArea" onclick="triggerSerialInput()">
+              <div class="upload-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+              </div>
+              <div class="upload-text" id="serialUploadText">タップしてシリアルナンバーの写真を選択</div>
+              <div class="upload-subtext" id="serialUploadSubtext">本体背面下部のシールを撮影してください（必須）</div>
+            </div>
+            <input type="file" id="serialFileInput" accept="image/jpeg,image/png,image/gif,image/webp" style="display:none;" onchange="handleSerialUpload(event)">
+            <div class="photo-previews" id="serialPhotoPreview"></div>
             <p class="upload-hint">※ iPadのカメラロールから写真を選択してアップロードしてください</p>
           </div>
         </div>
@@ -145,12 +170,12 @@
 
       <!-- Submit -->
       <div class="submit-section">
-        <button type="submit" class="btn-submit" id="submitBtn" disabled onclick="submitForm()">交換を依頼する</button>
+        <button type="submit" class="btn-submit" id="submitBtn" disabled onclick="submitForm()">修理を依頼する</button>
       </div>
     </form>
   </main>
 
   <script src="js/notify-modal.js?v=20260521"></script>
-  <script src="js/seat-replacement.js?v=20260606c"></script>
+  <script src="js/chair-repair-order.js?v=20261005"></script>
 </body>
 </html>

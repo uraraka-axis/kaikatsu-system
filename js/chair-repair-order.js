@@ -1,0 +1,394 @@
+// ===== マッサージチェア修理依頼（チェア修理） =====
+// repair-order.js をベースにした fitness 店限定フォーム。
+// カテゴリ=フィットネス固定・機材=マッサージチェア固定で、申請者＋製造番号を入力する（モック05）。
+// 登録は type=chair-repair で api/orders/create.php へ POST（カテゴリはサーバ側で fitness に強制）。
+
+// ===== State =====
+let unavailableSlots = [];
+let selectedDays = [];
+let photos = [];        // 故障箇所の写真（最大3枚）
+let serialPhoto = null; // シリアルナンバーの写真（必須1枚）
+let currentUser = null;
+
+// ===== Initialize =====
+document.addEventListener('DOMContentLoaded', function() {
+  initHourSelects();
+});
+
+function initHourSelects() {
+  const startHour = document.getElementById('startHour');
+  const endHour = document.getElementById('endHour');
+  for (let h = 0; h < 24; h++) {
+    const val = String(h).padStart(2, '0');
+    startHour.innerHTML += '<option value="' + val + '">' + val + '</option>';
+    endHour.innerHTML += '<option value="' + val + '">' + val + '</option>';
+  }
+}
+
+// ===== Time Selection Toggle =====
+function toggleTimeSelection() {
+  var timeType = document.querySelector('input[name="timeType"]:checked').value;
+  var timeSelection = document.getElementById('timeSelection');
+  if (timeType === 'timerange') {
+    timeSelection.classList.add('visible');
+  } else {
+    timeSelection.classList.remove('visible');
+  }
+  updateAddBtnState();
+}
+
+// ===== Add Button State =====
+function updateAddBtnState() {
+  var dateVal = document.getElementById('slotDate').value;
+  var timeType = document.querySelector('input[name="timeType"]:checked').value;
+  var addBtn = document.getElementById('addSlotBtn');
+  var canAdd = false;
+
+  if (dateVal) {
+    if (timeType === 'allday') {
+      canAdd = true;
+    } else {
+      var sh = document.getElementById('startHour').value;
+      var sm = document.getElementById('startMinute').value;
+      var eh = document.getElementById('endHour').value;
+      var em = document.getElementById('endMinute').value;
+      canAdd = sh !== '' && sm !== '' && eh !== '' && em !== '';
+    }
+  }
+
+  addBtn.disabled = !canAdd;
+}
+
+// ===== Add Slot =====
+function addSlot() {
+  var dateVal = document.getElementById('slotDate').value;
+  var timeType = document.querySelector('input[name="timeType"]:checked').value;
+
+  var slot = {
+    id: Date.now().toString(),
+    date: dateVal,
+    isAllDay: timeType === 'allday'
+  };
+
+  if (!slot.isAllDay) {
+    var sh = document.getElementById('startHour').value;
+    var sm = document.getElementById('startMinute').value;
+    var eh = document.getElementById('endHour').value;
+    var em = document.getElementById('endMinute').value;
+    slot.timeStart = sh + ':' + sm;
+    slot.timeEnd = eh + ':' + em;
+  }
+
+  unavailableSlots.push(slot);
+  unavailableSlots.sort(function(a, b) { return a.date.localeCompare(b.date); });
+  renderSlots();
+  resetSlotForm();
+}
+
+function resetSlotForm() {
+  document.getElementById('slotDate').value = '';
+  document.getElementById('startHour').value = '';
+  document.getElementById('startMinute').value = '';
+  document.getElementById('endHour').value = '';
+  document.getElementById('endMinute').value = '';
+  document.querySelector('input[name="timeType"][value="allday"]').checked = true;
+  document.getElementById('timeSelection').classList.remove('visible');
+  document.getElementById('addSlotBtn').disabled = true;
+}
+
+function removeSlot(id) {
+  unavailableSlots = unavailableSlots.filter(function(s) { return s.id !== id; });
+  renderSlots();
+}
+
+function renderSlots() {
+  var container = document.getElementById('slotsList');
+  if (unavailableSlots.length === 0) {
+    container.innerHTML = '';
+    return;
+  }
+  var html = '';
+  unavailableSlots.forEach(function(slot) {
+    var dateParts = slot.date.split('-');
+    var displayDate = dateParts[0] + '/' + dateParts[1] + '/' + dateParts[2];
+    var timeText = slot.isAllDay ? '終日' : slot.timeStart + ' 〜 ' + slot.timeEnd;
+
+    html += '<div class="slot-item">' +
+      '<div class="slot-item-info">' +
+        '<span class="slot-date">' + displayDate + '</span>' +
+        '<span class="slot-time">' + timeText + '</span>' +
+      '</div>' +
+      '<button type="button" class="slot-remove" onclick="removeSlot(\'' + slot.id + '\')">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>' +
+      '</button>' +
+    '</div>';
+  });
+  container.innerHTML = html;
+}
+
+// ===== Day Toggle =====
+function renderDayButtons() {
+  document.querySelectorAll('.day-btn').forEach(function(btn) { btn.classList.remove('selected'); });
+}
+
+function toggleDay(btn) {
+  var day = btn.getAttribute('data-day');
+  var idx = selectedDays.indexOf(day);
+  if (idx >= 0) {
+    selectedDays.splice(idx, 1);
+    btn.classList.remove('selected');
+  } else {
+    selectedDays.push(day);
+    btn.classList.add('selected');
+  }
+}
+
+// ===== Photo Upload =====
+function triggerFileInput() {
+  if (photos.length >= 3) return;
+  document.getElementById('fileInput').click();
+}
+
+function handlePhotoUpload(e) {
+  var files = e.target.files;
+  if (!files) return;
+  addPhotoFiles(files);
+  e.target.value = '';
+}
+
+function addPhotoFiles(files) {
+  var allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+  var remaining = 3 - photos.length;
+  var picked = [];
+  for (var i = 0; i < files.length && picked.length < remaining; i++) {
+    if (allowed.indexOf(files[i].type) >= 0) picked.push(files[i]);
+  }
+  // 送信前に縮小（大きい写真がサーバ上限で無言スキップされるのを防ぐ）
+  picked.forEach(function(file) {
+    downscaleImage(file, 2000, 0.85).then(function(out) {
+      if (photos.length >= 3) return; // 並行処理中に上限到達した場合の保険
+      photos.push({ id: 'p' + Date.now() + '-' + Math.round(Math.random() * 1e6), url: URL.createObjectURL(out), file: out });
+      renderPhotos();
+    });
+  });
+}
+
+// ===== ドラッグ＆ドロップ対応 =====
+document.addEventListener('DOMContentLoaded', function() {
+  var area = document.getElementById('uploadArea');
+  if (!area) return;
+  ['dragenter', 'dragover'].forEach(function(ev) {
+    area.addEventListener(ev, function(e) {
+      e.preventDefault(); e.stopPropagation();
+      if (photos.length >= 3) return;
+      area.classList.add('dragover');
+    });
+  });
+  ['dragleave', 'drop'].forEach(function(ev) {
+    area.addEventListener(ev, function(e) {
+      e.preventDefault(); e.stopPropagation();
+      area.classList.remove('dragover');
+    });
+  });
+  area.addEventListener('drop', function(e) {
+    if (photos.length >= 3) return;
+    var files = e.dataTransfer && e.dataTransfer.files;
+    if (files && files.length > 0) addPhotoFiles(files);
+  });
+});
+
+function removePhoto(id) {
+  photos = photos.filter(function(p) {
+    if (p.id === id) {
+      URL.revokeObjectURL(p.url);
+      return false;
+    }
+    return true;
+  });
+  renderPhotos();
+}
+
+function renderPhotos() {
+  var container = document.getElementById('photoPreviews');
+  var uploadArea = document.getElementById('uploadArea');
+  var uploadText = document.getElementById('uploadText');
+  var uploadSubtext = document.getElementById('uploadSubtext');
+
+  // 3枚到達時は領域を残しつつ無効化（突然消えるのを防ぐ）
+  if (photos.length >= 3) {
+    uploadArea.classList.add('disabled');
+    if (uploadText) uploadText.textContent = '写真は最大3枚まで';
+    if (uploadSubtext) uploadSubtext.textContent = '×ボタンで削除すると追加できます';
+  } else {
+    uploadArea.classList.remove('disabled');
+    if (uploadText) uploadText.textContent = 'タップして写真を選択';
+    if (uploadSubtext) uploadSubtext.textContent = '残り' + (3 - photos.length) + '枚 追加可能（JPEG / PNG / GIF / WebP）';
+  }
+
+  if (photos.length === 0) {
+    container.innerHTML = '';
+    return;
+  }
+
+  var html = '';
+  photos.forEach(function(photo) {
+    html += '<div class="photo-preview">' +
+      '<img src="' + photo.url + '" alt="故障箇所写真">' +
+      '<button type="button" class="photo-remove" onclick="removePhoto(\'' + photo.id + '\')">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>' +
+      '</button>' +
+    '</div>';
+  });
+  container.innerHTML = html;
+}
+
+// ===== シリアルナンバー写真（必須1枚） =====
+function triggerSerialInput() {
+  document.getElementById('serialFileInput').click();
+}
+
+function handleSerialUpload(e) {
+  var files = e.target.files;
+  if (!files || files.length === 0) return;
+  var allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+  var file = files[0];
+  if (allowed.indexOf(file.type) < 0) { e.target.value = ''; return; }
+  downscaleImage(file, 2000, 0.85).then(function(out) {
+    if (serialPhoto) URL.revokeObjectURL(serialPhoto.url);
+    serialPhoto = { url: URL.createObjectURL(out), file: out };
+    renderSerialPhoto();
+    updateSubmitState();
+  });
+  e.target.value = '';
+}
+
+function removeSerialPhoto() {
+  if (serialPhoto) URL.revokeObjectURL(serialPhoto.url);
+  serialPhoto = null;
+  renderSerialPhoto();
+  updateSubmitState();
+}
+
+function renderSerialPhoto() {
+  var container = document.getElementById('serialPhotoPreview');
+  var area = document.getElementById('serialUploadArea');
+  var text = document.getElementById('serialUploadText');
+  var subtext = document.getElementById('serialUploadSubtext');
+
+  if (serialPhoto) {
+    area.classList.add('disabled');
+    if (text) text.textContent = 'シリアルナンバーの写真は添付済みです';
+    if (subtext) subtext.textContent = '差し替える場合は×ボタンで削除してください';
+    container.innerHTML = '<div class="photo-preview">' +
+      '<img src="' + serialPhoto.url + '" alt="シリアルナンバー写真">' +
+      '<button type="button" class="photo-remove" onclick="removeSerialPhoto()">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>' +
+      '</button>' +
+    '</div>';
+  } else {
+    area.classList.remove('disabled');
+    if (text) text.textContent = 'タップしてシリアルナンバーの写真を選択';
+    if (subtext) subtext.textContent = '本体背面下部のシールを撮影してください（必須）';
+    container.innerHTML = '';
+  }
+}
+
+// ===== Submit State =====
+function updateSubmitState() {
+  var applicant = document.getElementById('applicantName').value.trim();
+  var serialNo = document.getElementById('serialNo').value.trim();
+  var issue = document.getElementById('issueDescription').value.trim();
+  var submitBtn = document.getElementById('submitBtn');
+
+  var ok = applicant && serialNo && issue && serialPhoto;
+  submitBtn.disabled = !ok;
+  submitBtn.title = (!serialPhoto && applicant && serialNo && issue)
+    ? 'シリアルナンバーの写真が未添付のため送信できません'
+    : '';
+}
+
+// ===== Submit (API) =====
+function submitForm() {
+  var submitBtn = document.getElementById('submitBtn');
+  var endBusy = beginBusy(submitBtn, '送信中...');
+
+  var formData = new FormData();
+  formData.append('type', 'chair-repair');
+  formData.append('category', 'fitness'); // サーバ側でも fitness に強制される
+  formData.append('applicant', document.getElementById('applicantName').value.trim());
+  formData.append('serial_no', document.getElementById('serialNo').value.trim());
+  formData.append('issue', document.getElementById('issueDescription').value.trim());
+  formData.append('unavail_dates', JSON.stringify(unavailableSlots));
+  formData.append('unavail_days', JSON.stringify(selectedDays));
+
+  // 写真を追加（故障箇所＋シリアルナンバー）
+  photos.forEach(function(p) {
+    formData.append('photos[]', p.file);
+  });
+  if (serialPhoto) {
+    formData.append('serial_photo', serialPhoto.file);
+  }
+
+  fetch('api/orders/create.php', {
+    method: 'POST',
+    credentials: 'same-origin',
+    body: formData
+  })
+  .then(function(r) {
+    if (r.status === 401) { window.location.href = 'login.html'; return null; }
+    return r.json();
+  })
+  .then(function(data) {
+    if (!data) return;
+    if (data.success) {
+      showNotify('success', '修理依頼を送信しました',
+        '発注番号: <span class="notify-order-id">' + data.order_id + '</span>');
+      resetForm();
+    } else {
+      showNotify('error', '送信エラー', data.error || '送信に失敗しました');
+    }
+  })
+  .catch(function(e) {
+    console.error('Submit error:', e);
+    showNotify('error', '通信エラー', 'サーバーとの通信に失敗しました。<br>ネットワーク接続を確認してください。');
+  })
+  .finally(function() {
+    endBusy();          // 元のラベルに復元＋クリック遮断解除
+    updateSubmitState(); // 入力状態に応じて活性/非活性を再評価
+  });
+}
+
+function resetForm() {
+  document.getElementById('applicantName').value = '';
+  document.getElementById('serialNo').value = '';
+  document.getElementById('issueDescription').value = '';
+  unavailableSlots = [];
+  selectedDays = [];
+  photos = [];
+  serialPhoto = null;
+  renderSlots();
+  renderDayButtons();
+  document.getElementById('photoPreviews').innerHTML = '';
+  renderPhotos(); // uploadArea のテキストを初期状態に戻す
+  renderSerialPhoto();
+  updateSubmitState();
+}
+
+// ===== Boot =====
+function bootChairRepairOrder(user) {
+  if (currentUser) return;
+  currentUser = user;
+  // フィットネスを扱わない店舗・店舗以外のロールはメニューへ戻す（URL直打ち対策）
+  var cats = (user.categories || []).map(function(c) { return c.code; });
+  if (user.role !== 'shop' || cats.indexOf('fitness') < 0) {
+    window.location.href = 'menu.html';
+  }
+}
+
+window.addEventListener('userLoaded', function(e) {
+  bootChairRepairOrder(e.detail);
+});
+
+if (window.__currentUser) {
+  bootChairRepairOrder(window.__currentUser);
+}

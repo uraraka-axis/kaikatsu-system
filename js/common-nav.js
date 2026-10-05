@@ -207,6 +207,7 @@ window.downscaleImage = function(file, maxEdge, quality) {
       if (hasFitness) {
         storeNav.push({ href: 'seat-replacement.html', label: 'シート交換' });
         storeNav.push({ href: 'chair-equipment-order.html', label: 'チェア備品' });
+        storeNav.push({ href: 'chair-repair-order.html', label: 'チェア修理' });
       }
       if (hasGolf) {
         storeNav.push({ href: 'club-replacement.html', label: '代替クラブ' });

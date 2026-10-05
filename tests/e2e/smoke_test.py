@@ -45,6 +45,7 @@ PAGES = [
     ("repair-order.html",        ["shop"]),
     ("equipment-order.html",     ["shop"]),
     ("chair-equipment-order.html", ["shop"]),  # チェア備品発注（fitness店のみ・30101はfitness）
+    ("chair-repair-order.html",  ["shop"]),    # チェア修理依頼（fitness店のみ・30101はfitness）
     ("club-replacement.html",    ["golf"]),    # 代替ゴルフクラブ発送依頼（golf店のみ）
     ("menu.html",                ["golf"]),
     ("order-list.html",          ["golf"]),

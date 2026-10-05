@@ -7,7 +7,7 @@
  * Content-Type: multipart/form-data
  *
  * 共通パラメータ:
- *   type: repair | equipment | parts | seat-replacement
+ *   type: repair | equipment | parts | seat-replacement | chair-equipment | club-replacement | chair-repair
  *   category: fitness | golf
  *
  * 修理(repair)追加パラメータ:
@@ -23,6 +23,11 @@
  *
  * 部品(parts)追加パラメータ:
  *   parts_name, target_equipment, quantity, reason, photos[]
+ *
+ * チェア修理(chair-repair)追加パラメータ:
+ *   applicant(申請者), serial_no(製造番号), issue, unavail_dates(JSON), unavail_days(JSON),
+ *   photos[](故障箇所・最大3枚), serial_photo(シリアルナンバー・必須1枚)
+ *   ※ category は "fitness" 固定・フィットネス取扱店のみ
  */
 
 require_once __DIR__ . '/../../includes/auth.php';
@@ -47,12 +52,12 @@ $type = $_POST['type'] ?? '';
 $category = $_POST['category'] ?? '';
 
 // --- バリデーション ---
-if (!in_array($type, ['repair', 'equipment', 'parts', 'seat-replacement', 'chair-equipment', 'club-replacement'], true)) {
+if (!in_array($type, ['repair', 'equipment', 'parts', 'seat-replacement', 'chair-equipment', 'club-replacement', 'chair-repair'], true)) {
     jsonError('不正な発注種別です');
 }
 
-// シート交換・チェア備品はカテゴリを fitness に強制（フロントからの値を信用しない）
-if ($type === 'seat-replacement' || $type === 'chair-equipment') {
+// シート交換・チェア備品・チェア修理はカテゴリを fitness に強制（フロントからの値を信用しない）
+if (in_array($type, ['seat-replacement', 'chair-equipment', 'chair-repair'], true)) {
     $category = 'fitness';
 }
 // 代替ゴルフクラブはカテゴリを golf に強制
@@ -60,8 +65,8 @@ if ($type === 'club-replacement') {
     $category = 'golf';
 }
 
-// チェア備品・代替ゴルフは対象カテゴリを取り扱う店舗のみ発注可（フロントの出し分けを信用しない）
-if (in_array($type, ['chair-equipment', 'club-replacement'], true)) {
+// チェア備品・代替ゴルフ・チェア修理は対象カテゴリを取り扱う店舗のみ発注可（フロントの出し分けを信用しない）
+if (in_array($type, ['chair-equipment', 'club-replacement', 'chair-repair'], true)) {
     $catCheck = getOne(
         'SELECT 1 FROM shop_categories WHERE shop_code = :sc AND category_code = :cc',
         [':sc' => $shopCode, ':cc' => $category]
@@ -77,8 +82,8 @@ if (!$cat) {
     jsonError('不正なカテゴリです');
 }
 
-// 修理はシリアルナンバー写真が必須（添付漏れ防止。フロントの制御を信用しない）
-if ($type === 'repair' && !isValidSerialPhotoUpload()) {
+// 修理・チェア修理はシリアルナンバー写真が必須（添付漏れ防止。フロントの制御を信用しない）
+if (in_array($type, ['repair', 'chair-repair'], true) && !isValidSerialPhotoUpload()) {
     jsonError('シリアルナンバーの写真を添付してください');
 }
 
@@ -135,15 +140,18 @@ try {
         case 'club-replacement':
             createClubReplacementDetail($orderId);
             break;
+        case 'chair-repair':
+            createChairRepairDetail($orderId);
+            break;
     }
 
-    // --- 写真アップロード（修理・部品・シート交換） ---
-    if (in_array($type, ['repair', 'parts', 'seat-replacement'], true) && !empty($_FILES['photos'])) {
+    // --- 写真アップロード（修理・部品・シート交換・チェア修理） ---
+    if (in_array($type, ['repair', 'parts', 'seat-replacement', 'chair-repair'], true) && !empty($_FILES['photos'])) {
         uploadPhotos($orderId);
     }
 
-    // --- シリアルナンバー写真（修理のみ・必須1枚） ---
-    if ($type === 'repair') {
+    // --- シリアルナンバー写真（修理・チェア修理・必須1枚） ---
+    if (in_array($type, ['repair', 'chair-repair'], true)) {
         uploadSerialPhoto($orderId);
     }
 
@@ -442,6 +450,73 @@ function createClubReplacementDetail(string $orderId): void
 }
 
 // ========================================
+// チェア修理依頼の詳細登録
+// ========================================
+// 修理発注と同じステータスフロー/UI を持つ（isRepairLikeType 対象）。
+// 機材は「マッサージチェア」固定のため機材名は持たず、申請者＋製造番号を記録する。
+// 対応不可日時/曜日は order_repair_unavail_* テーブルを流用（order_id 参照のため type 非依存）。
+function createChairRepairDetail(string $orderId): void
+{
+    $applicant = trim($_POST['applicant'] ?? '');
+    $serialNo  = trim($_POST['serial_no'] ?? '');
+    $issue     = trim($_POST['issue'] ?? '');
+
+    if ($applicant === '' || $serialNo === '' || $issue === '') {
+        throw new InvalidArgumentException('申請者、製造番号、不具合内容は必須です');
+    }
+    if (mb_strlen($applicant) > 50) {
+        throw new InvalidArgumentException('申請者は50文字以内で入力してください');
+    }
+    if (mb_strlen($serialNo) > 50) {
+        throw new InvalidArgumentException('製造番号は50文字以内で入力してください');
+    }
+
+    execute(
+        'INSERT INTO order_chair_repair_details (order_id, serial_no, applicant, issue)
+         VALUES (:order_id, :serial_no, :applicant, :issue)',
+        [
+            ':order_id'  => $orderId,
+            ':serial_no' => $serialNo,
+            ':applicant' => $applicant,
+            ':issue'     => $issue,
+        ]
+    );
+
+    // 対応不可日時（修理と同じテーブル・同じ形式）
+    $unavailDates = json_decode($_POST['unavail_dates'] ?? '[]', true);
+    if (is_array($unavailDates)) {
+        foreach ($unavailDates as $ud) {
+            if (empty($ud['date'])) continue;
+            $isAllDay = !empty($ud['isAllDay']) ? 1 : 0;
+            execute(
+                'INSERT INTO order_repair_unavail_dates (order_id, date, is_all_day, time_start, time_end)
+                 VALUES (:order_id, :date, :is_all_day, :time_start, :time_end)',
+                [
+                    ':order_id'   => $orderId,
+                    ':date'       => $ud['date'],
+                    ':is_all_day' => $isAllDay,
+                    ':time_start' => $isAllDay ? null : ($ud['timeStart'] ?? null),
+                    ':time_end'   => $isAllDay ? null : ($ud['timeEnd'] ?? null),
+                ]
+            );
+        }
+    }
+
+    // 対応不可曜日
+    $unavailDays = json_decode($_POST['unavail_days'] ?? '[]', true);
+    if (is_array($unavailDays)) {
+        foreach ($unavailDays as $day) {
+            if (empty($day)) continue;
+            execute(
+                'INSERT INTO order_repair_unavail_days (order_id, day_of_week)
+                 VALUES (:order_id, :day)',
+                [':order_id' => $orderId, ':day' => $day]
+            );
+        }
+    }
+}
+
+// ========================================
 // 商品部への発注通知メール
 // ========================================
 /**
@@ -473,6 +548,7 @@ function notifyProductDeptNewOrder(string $orderId, string $type, string $shopCo
         'parts'            => '部品発注',
         'seat-replacement' => 'シート交換',
         'club-replacement' => '代替ゴルフクラブ発送依頼',
+        'chair-repair'     => 'チェア修理依頼',
         default            => $type,
     };
 
@@ -521,6 +597,12 @@ function notifyProductDeptNewOrder(string $orderId, string $type, string $shopCo
             $c = getOne('SELECT club, shaft, damage FROM order_club_replacement_details WHERE order_id = :id', [':id' => $orderId]);
             if ($c) {
                 $detail = "破損クラブ: {$c['club']}\nシャフト: {$c['shaft']}\n破損状況: {$c['damage']}";
+            }
+            break;
+        case 'chair-repair':
+            $cr = getOne('SELECT serial_no, applicant, issue FROM order_chair_repair_details WHERE order_id = :id', [':id' => $orderId]);
+            if ($cr) {
+                $detail = "対象機材: マッサージチェア\n製造番号: {$cr['serial_no']}\n申請者: {$cr['applicant']}\n不具合内容: {$cr['issue']}";
             }
             break;
     }

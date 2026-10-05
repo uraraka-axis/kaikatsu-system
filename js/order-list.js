@@ -19,6 +19,7 @@ var STATUS_LABELS_BY_TYPE = {
   parts:              { 0: '依頼中', 1: '発注済', 2: '配達中', 3: '納品済', 4: '完了' },
   repair:             { 0: '依頼中', 1: '発注済', 2: '修理待ち', 3: '修理済', 4: '完了' },
   'seat-replacement': { 0: '依頼中', 1: '発注済', 2: '修理待ち', 3: '修理済', 4: '完了' },
+  'chair-repair':     { 0: '依頼中', 1: '発注済', 2: '修理待ち', 3: '修理済', 4: '完了' },
   'club-replacement': { 0: '依頼中', 1: '発注済', 2: '配達中', 3: '納品済', 4: '完了' }
 };
 
@@ -29,12 +30,13 @@ var STATUS_CLASSES_BY_TYPE = {
   parts:              { 0: 'status-requesting', 1: 'status-ordered', 2: 'status-delivering', 3: 'status-delivered', 4: 'status-completed' },
   repair:             { 0: 'status-requesting', 1: 'status-ordered', 2: 'status-waiting-repair', 3: 'status-repaired', 4: 'status-completed' },
   'seat-replacement': { 0: 'status-requesting', 1: 'status-ordered', 2: 'status-waiting-repair', 3: 'status-repaired', 4: 'status-completed' },
+  'chair-repair':     { 0: 'status-requesting', 1: 'status-ordered', 2: 'status-waiting-repair', 3: 'status-repaired', 4: 'status-completed' },
   'club-replacement': { 0: 'status-requesting', 1: 'status-ordered', 2: 'status-delivering', 3: 'status-delivered', 4: 'status-completed' }
 };
 
 // 修理ライク種別（修理と同じステータスフロー / UI を持つ）の判定
 function isRepairLikeType(type) {
-  return type === 'repair' || type === 'seat-replacement';
+  return type === 'repair' || type === 'seat-replacement' || type === 'chair-repair';
 }
 
 // 備品ライク種別（備品と同じ明細/ステータスフローを持つ）の判定
@@ -546,6 +548,7 @@ function renderOrders() {
                   : o.type === 'parts' ? '部品'
                   : o.type === 'seat-replacement' ? '交換'
                   : o.type === 'club-replacement' ? '代替ゴルフ'
+                  : o.type === 'chair-repair' ? 'チェア修理'
                   : o.type;
     var statusClass = getStatusClass(o.status, o.type);
     var statusLabel = getStatusLabel(o.status, o.type);
@@ -663,10 +666,19 @@ function renderDetailContent(o) {
     var equipLabel = o.type === 'seat-replacement' ? 'マシン名・品番' : '故障機材';
     var issueLabel = o.type === 'seat-replacement' ? '依頼内容' : '不具合内容';
     var photoLabel = o.type === 'seat-replacement' ? 'マシン写真' : '故障箇所の写真';
+    if (o.type === 'chair-repair') {
+      // チェア修理: 機材はマッサージチェア固定のため、製造番号＋申請者＋不具合内容を表示（モック06）
+      html += '<div class="detail-grid">' +
+        '<div><div class="detail-label">製造番号</div><div class="detail-value">' + escapeHtml(o.serial_no || '') + '</div></div>' +
+        '<div><div class="detail-label">申請者</div><div class="detail-value">' + escapeHtml(o.applicant || '') + '</div></div>' +
+        '<div style="grid-column:1/-1;"><div class="detail-label">不具合内容</div><div class="detail-value" style="white-space:pre-wrap;">' + escapeHtml(o.issue || '') + '</div></div>' +
+      '</div>';
+    } else {
     html += '<div class="detail-grid">' +
       '<div><div class="detail-label">' + equipLabel + '</div><div class="detail-value">' + escapeHtml(o.equipment_name || '') + '</div></div>' +
       '<div><div class="detail-label">' + issueLabel + '</div><div class="detail-value">' + escapeHtml(o.issue || '') + '</div></div>' +
     '</div>';
+    }
     if (o.type === 'repair' && o.comment) {
       html += '<div class="detail-grid" style="margin-top:8px;">' +
         '<div><div class="detail-label">コメント</div><div class="detail-value">' + escapeHtml(o.comment) + '</div></div>' +
