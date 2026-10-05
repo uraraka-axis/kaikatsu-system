@@ -458,6 +458,8 @@
 .btn-modal-primary:hover { background: #2563eb; }
 .btn-modal-success { background: #10b981; color: #fff; }
 .btn-modal-success:hover { background: #059669; }
+.btn-modal-success:disabled { background: #a7f3d0; color: #fff; cursor: not-allowed; }
+.btn-modal-success:disabled:hover { background: #a7f3d0; }
 .btn-modal-pink { background: #ec4899; color: #fff; }
 .btn-modal-pink:hover { background: #db2777; }
 

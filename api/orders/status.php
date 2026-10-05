@@ -190,6 +190,14 @@ switch ($action) {
             if (($input['return_confirmed'] ?? false) !== true) {
                 jsonError('破損クラブと報告書を返送した旨のチェックが必要です');
             }
+            // 報告書が店舗で一度も印刷されていなければ完了不可（同封すべき報告書が存在しないため）
+            $printedRow = getOne(
+                'SELECT report_printed_at FROM order_club_replacement_details WHERE order_id = :oid',
+                [':oid' => $orderId]
+            );
+            if (empty($printedRow['report_printed_at'])) {
+                jsonError('報告書が印刷されていません。「報告書を印刷」から印刷して同封してください');
+            }
             $newStatus = 4;
             break; // 金額の更新は行わない（代替ゴルフは金額なし）
         }

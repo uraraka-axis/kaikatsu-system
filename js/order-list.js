@@ -1180,20 +1180,21 @@ function openStatusModal(orderId, action) {
       '<button class="btn-modal btn-modal-success" onclick="doComplete(\'' + orderId + '\')">完了にする</button>';
 
   } else if (action === 'club-complete') {
-    // 代替ゴルフ: 店舗の完了報告（返送日 + 返送チェック必須。報告書未印刷なら警告を出す）
+    // 代替ゴルフ: 店舗の完了報告（返送日 + 返送チェック必須。報告書未印刷の間は完了不可=サーバ側でも検証）
     title.textContent = '完了報告（代替クラブの返送）';
     var todayStr2 = (new Date()).toISOString().slice(0, 10);
-    var printedWarn = order.report_printed_at ? '' :
+    var clubPrinted = !!order.report_printed_at;
+    var printedWarn = clubPrinted ? '' :
       '<div style="display:flex;gap:8px;align-items:flex-start;background:#fff7ed;border:1px solid #fdba74;border-radius:8px;padding:10px 12px;font-size:13px;color:#9a3412;margin-top:12px;">' +
         '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>' +
-        '<div>この申請の報告書はまだ印刷されていません。返送前に「報告書を印刷」から印刷して同封してください。</div>' +
+        '<div>この申請の報告書はまだ印刷されていないため、完了報告できません。「報告書を印刷」から印刷して同封してください（印刷後、この画面を開き直すと完了できます）。</div>' +
       '</div>';
     body.innerHTML =
       '<div style="font-size:13px;color:#475569;margin-bottom:14px;">' + escapeHtml(order.id) + '　' + escapeHtml(order.content_label || '') + '</div>' +
       '<div class="modal-row"><span class="modal-label">返送日 <span class="required">*</span></span><input class="modal-input" id="modalReturnedDate" type="date" value="' + todayStr2 + '"></div>' +
       '<div class="modal-row" style="flex-direction:column;align-items:stretch;">' +
         '<label style="display:flex;align-items:flex-start;gap:10px;font-size:14px;color:#1e293b;line-height:1.6;padding:12px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;cursor:pointer;">' +
-          '<input type="checkbox" id="modalReturnConfirm" style="width:18px;height:18px;margin-top:3px;flex-shrink:0;" onchange="document.getElementById(\'clubCompleteBtn\').disabled = !this.checked">' +
+          '<input type="checkbox" id="modalReturnConfirm" style="width:18px;height:18px;margin-top:3px;flex-shrink:0;" onchange="document.getElementById(\'clubCompleteBtn\').disabled = ' + (clubPrinted ? '!this.checked' : 'true') + '">' +
           '<span>破損したクラブ（ヘッドとシャフトセット）と、印刷した「ゴルフクラブ破損状況報告書 兼 代替クラブ発送依頼書」を同封して返送しました</span>' +
         '</label>' +
       '</div>' +
@@ -1201,7 +1202,7 @@ function openStatusModal(orderId, action) {
       '<div class="modal-row" style="margin-top:12px;"><span class="modal-label">メモ</span><textarea class="modal-textarea" id="modalMemo" placeholder="任意入力"></textarea></div>';
     footer.innerHTML =
       '<button class="btn-modal btn-modal-cancel" onclick="closeModal()">キャンセル</button>' +
-      '<button class="btn-modal btn-modal-success" id="clubCompleteBtn" disabled style="opacity:.9" onclick="doClubComplete(\'' + orderId + '\')">完了にする</button>';
+      '<button class="btn-modal btn-modal-success" id="clubCompleteBtn" disabled' + (clubPrinted ? '' : ' title="報告書を印刷すると完了できるようになります"') + ' onclick="doClubComplete(\'' + orderId + '\')">完了にする</button>';
   }
 
   modal.classList.add('open');
