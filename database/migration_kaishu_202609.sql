@@ -76,7 +76,9 @@ CREATE TABLE IF NOT EXISTS order_club_replacement_details (
   CONSTRAINT fk_club_replacement_details_order
     FOREIGN KEY (order_id) REFERENCES orders (id)
     ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='代替ゴルフクラブ発送依頼詳細';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='代替ゴルフクラブ発送依頼詳細';
+-- ※ COLLATE明示は必須: さくら本番/テストDBはDB既定が utf8mb4_0900_ai_ci のため、
+--    省略すると orders.id(utf8mb4_general_ci) とのFKで ERROR 3780 になる（2026-10-06テスト環境で実測）
 
 -- ------------------------------------------------------------
 -- 7) マッサージチェア修理依頼 詳細テーブル
@@ -96,4 +98,4 @@ CREATE TABLE IF NOT EXISTS order_chair_repair_details (
   CONSTRAINT fk_chair_repair_details_order
     FOREIGN KEY (order_id) REFERENCES orders (id)
     ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='マッサージチェア修理依頼詳細';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='マッサージチェア修理依頼詳細';
