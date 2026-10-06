@@ -100,7 +100,9 @@ if (in_array($type, ['repair', 'parts', 'seat-replacement'], true)) {
         $spreadsheet->disconnectWorksheets();
         unset($spreadsheet);
         $docLabel  = $type === 'repair' ? '修理依頼書' : ($type === 'parts' ? '部品発注依頼書' : 'シート発注依頼書');
-        $sheetName = sprintf('%s_%s_%s.xlsx', $docLabel, date('Ymd'), $shopName);
+        // zipエントリ名にパス区切りが混入しないよう店舗名から除去（zip slip対策）
+        $safeShop  = str_replace(['/', '\\'], '', $shopName);
+        $sheetName = sprintf('%s_%s_%s.xlsx', $docLabel, date('Ymd'), $safeShop);
     } catch (Throwable $e) {
         if ($sheetTmp !== null && is_file($sheetTmp)) {
             @unlink($sheetTmp);

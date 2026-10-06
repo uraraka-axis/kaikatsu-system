@@ -786,7 +786,7 @@ function renderPhotos(photos, label) {
     var thumbUrl = p.url + (p.url.indexOf('?') >= 0 ? '&' : '?') + 'size=thumb';
     html += '<div class="photo-thumb">' +
               '<a href="' + p.url + '" target="_blank">' +
-                '<img src="' + thumbUrl + '" alt="' + (p.filename || ('写真' + (i + 1))) + '" loading="lazy" decoding="async">' +
+                '<img src="' + thumbUrl + '" alt="' + escapeHtml(p.filename || ('写真' + (i + 1))) + '" loading="lazy" decoding="async">' +
               '</a></div>';
   });
   html += '</div></div>';
@@ -1584,7 +1584,7 @@ function openEditInfoModal(orderId) {
         memoVal = order.status_history[f.statusIndex].memo || '';
       }
       html += '<div class="modal-row"><span class="modal-label">' + f.label + '</span>' +
-        '<textarea class="modal-textarea" id="editField_' + f.key + '">' + memoVal + '</textarea></div>';
+        '<textarea class="modal-textarea" id="editField_' + f.key + '">' + escapeHtml(memoVal) + '</textarea></div>';
     } else if (f.type === 'items') {
       // 備品明細の単価編集: items テーブルを表示し、各行に単価入力欄。
       // 完了(4)後は「最終金額」、それ以前は「見積金額」を再計算する。

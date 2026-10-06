@@ -14,6 +14,7 @@ require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/functions.php';
 require_once __DIR__ . '/../vendor/autoload.php';
 
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Shared\Date as XlsDate;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -124,17 +125,22 @@ function buildRequestSheetSpreadsheet(array $orders): Spreadsheet
         $d = $details[$o['id']] ?? [];
 
         $sheet->setCellValue('F2', $today); // 依頼日 = ダウンロード当日（書式はテンプレのまま）
+        // 差し込みは必ず文字列型で（setCellValue だと「=」始まりの入力値が数式扱いになる＝数式インジェクション）
         if ($type === 'parts') {
             // 部品: 対象マシン=対象機材 / 発生症状=発注理由 / 部品内容・個数=部品名・数量
-            $sheet->setCellValue('A8', $d['target_equipment'] ?? '');
-            $sheet->setCellValue('A12', 'FiT24 ' . $o['shop_name']);
-            $sheet->setCellValue('A16', $d['reason'] ?? '');
-            $sheet->setCellValue('A20', $d['parts_name'] ?? '');
-            $sheet->setCellValue('E20', isset($d['quantity']) ? (int)$d['quantity'] : '');
+            $sheet->setCellValueExplicit('A8', $d['target_equipment'] ?? '', DataType::TYPE_STRING);
+            $sheet->setCellValueExplicit('A12', 'FiT24 ' . $o['shop_name'], DataType::TYPE_STRING);
+            $sheet->setCellValueExplicit('A16', $d['reason'] ?? '', DataType::TYPE_STRING);
+            $sheet->setCellValueExplicit('A20', $d['parts_name'] ?? '', DataType::TYPE_STRING);
+            if (isset($d['quantity'])) {
+                $sheet->setCellValue('E20', (int)$d['quantity']);
+            } else {
+                $sheet->setCellValueExplicit('E20', '', DataType::TYPE_STRING);
+            }
         } else {
-            $sheet->setCellValue('A8', $d['equipment_name'] ?? '');
-            $sheet->setCellValue('A12', 'FiT24 ' . $o['shop_name']);
-            $sheet->setCellValue('A16', $d['issue'] ?? '');
+            $sheet->setCellValueExplicit('A8', $d['equipment_name'] ?? '', DataType::TYPE_STRING);
+            $sheet->setCellValueExplicit('A12', 'FiT24 ' . $o['shop_name'], DataType::TYPE_STRING);
+            $sheet->setCellValueExplicit('A16', $d['issue'] ?? '', DataType::TYPE_STRING);
         }
         foreach ($clearCells as $cc) {
             $sheet->setCellValue($cc, '');

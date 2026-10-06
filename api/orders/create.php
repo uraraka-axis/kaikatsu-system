@@ -190,7 +190,11 @@ try {
 } catch (Exception $e) {
     rollback();
     error_log('Order create error: ' . $e->getMessage());
-    jsonError('発注の登録に失敗しました: ' . $e->getMessage(), 500);
+    // ユーザー向け文言（入力検証エラー）のみそのまま返す。PDO例外等はスキーマ情報が漏れるため汎用文言に落とす
+    if ($e instanceof InvalidArgumentException) {
+        jsonError('発注の登録に失敗しました: ' . $e->getMessage(), 400);
+    }
+    jsonError('発注の登録に失敗しました', 500);
 }
 
 // ========================================
@@ -653,6 +657,9 @@ function uploadPhotos(string $orderId): void
         $ext = strtolower($ext);
         if (!in_array($ext, ALLOWED_EXTENSIONS, true)) continue;
 
+        // MIMEはブラウザ申告値のため、実体が画像であることも検証する
+        if (@getimagesize($files['tmp_name'][$i]) === false) continue;
+
         $filename = sprintf('%s_%d.%s', $orderId, $i + 1, $ext);
         $filePath = $uploadDir . '/' . $filename;
         $relativePath = 'uploads/orders/' . $orderId . '/' . $filename;
@@ -689,7 +696,9 @@ function isValidSerialPhotoUpload(): bool
     if (($f['size'] ?? 0) <= 0 || $f['size'] > MAX_FILE_SIZE) return false;
     if (!in_array($f['type'] ?? '', ALLOWED_MIME_TYPES, true)) return false;
     $ext = strtolower(pathinfo($f['name'], PATHINFO_EXTENSION));
-    return in_array($ext, ALLOWED_EXTENSIONS, true);
+    if (!in_array($ext, ALLOWED_EXTENSIONS, true)) return false;
+    // MIMEはブラウザ申告値のため、実体が画像であることも検証する
+    return @getimagesize($f['tmp_name']) !== false;
 }
 
 /**
