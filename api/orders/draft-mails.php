@@ -10,7 +10,8 @@
  *   - suppliers:       備品（type=equipment）を仕入先単位に集計
  *   - chair_suppliers: チェア備品（type=chair-equipment）を仕入先単位に集計（発注書PDFのDL用に orders[] 付き）
  *   - club:            代替ゴルフ（type=club-replacement）を全店舗まとめて1通（宛先=仕入先マスタのランシステム）
- *   - repairs:         修理（type=repair）・チェア修理（type=chair-repair）1発注=1通（宛先は手入力。
+ *   - repairs:         修理（type=repair）・チェア修理（type=chair-repair）1発注=1通
+ *                      （修理の宛先は手入力＝メーカー複数・チェア修理は仕入先マスタ「日本メディック」補完。
  *                      同一店舗の修理はフロント側で1通にまとめ可）。添付写真一覧（photos）つき
  *   - parts:           部品（type=parts）1発注=1通（宛先は手入力）。添付写真一覧つき
  *   - seats:           シート交換（type=seat-replacement）1発注=1通（宛先=仕入先マスタ「ポップサイクル」補完）。添付写真一覧つき
@@ -396,7 +397,15 @@ foreach (query($rsql, $params) as $r) {
     ];
 }
 
-// --- チェア修理(status=0) の下書き（修理と同様 1発注=1通。機材は「マッサージチェア」固定） ---
+// --- チェア修理(status=0) の下書き（修理と同様 1発注=1通。機材は「マッサージチェア」固定。
+//     宛先はチェア備品と同じ日本メディックを仕入先マスタから補完・なければ手入力） ---
+$chairRepairSupplier = ['name' => '', 'email' => '', 'contact' => ''];
+foreach ($supplierMaster as $name => $m) {
+    if (mb_strpos($name, '日本メディック') !== false) {
+        $chairRepairSupplier = ['name' => $name, 'email' => $m['email'] ?? '', 'contact' => $m['contact'] ?? ''];
+        break;
+    }
+}
 $crsql = "SELECT o.id AS order_id, o.shop_code, o.date AS order_date, s.name AS shop_name,
                  cr.serial_no, cr.issue
           FROM orders o
@@ -421,6 +430,9 @@ foreach (query($crsql, $params) as $r) {
         'equipment_name' => 'マッサージチェア'
                             . (($r['serial_no'] ?? '') !== '' ? '（製造番号: ' . $r['serial_no'] . '）' : ''),
         'issue'          => $r['issue'],
+        'supplier'       => $chairRepairSupplier['name'],
+        'email'          => $chairRepairSupplier['email'],
+        'contact'        => $chairRepairSupplier['contact'],
     ];
 }
 

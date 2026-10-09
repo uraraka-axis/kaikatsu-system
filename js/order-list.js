@@ -2146,10 +2146,10 @@ function buildDraftEntries() {
     }
   });
 
-  // チェア修理（1発注1通・依頼書ひな形なし）
+  // チェア修理（1発注1通・宛先=仕入先マスタの日本メディック補完）
   (draftMailsState.repairs || []).forEach(function(r) {
     if (r.order_type !== 'chair-repair') return;
-    entries.push({ kind: 'repair', label: 'チェア修理：' + (r.shop_name || ''), to: '', order_ids: [r.order_id], data: r });
+    entries.push({ kind: 'repair', label: 'チェア修理：' + (r.shop_name || ''), to: r.email || '', order_ids: [r.order_id], data: r });
   });
 
   // 部品（1発注1通・宛先は手入力＝メーカー宛）
@@ -2241,11 +2241,16 @@ function buildEquipmentBody(sup) {
   return withSignature(L.join('\n'));
 }
 
-// 修理（1発注1通・宛先は手入力）
+// 修理（1発注1通・宛先は手入力。チェア修理は日本メディック宛で補完）
 function buildRepairBody(r) {
   var L = [];
-  L.push('〇〇〇〇');
-  L.push('〇〇様');
+  if (r.order_type === 'chair-repair' && r.supplier) {
+    L.push(r.supplier);
+    L.push((r.contact ? r.contact : 'ご担当者') + ' 様');
+  } else {
+    L.push('〇〇〇〇');
+    L.push('〇〇様');
+  }
   L.push('');
   L.push('いつもお世話になっております。');
   L.push('株式会社快活フロンティアの〇〇です。');

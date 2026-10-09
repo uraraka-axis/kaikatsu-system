@@ -5,8 +5,9 @@
  *
  * メール下書きの添付ファイル用。テンプレートは快活様支給ひな形
  * templates/部品発注・修理依頼書_原本_20261001.xlsx（修理依頼書／部品発注依頼書／シート発注依頼書の3シート）。
- * 対象種別のシートだけを残し、1発注=1シートで差し込む（複数件は「修理依頼書(2)」…）。
- * チェア修理(chair-repair)は修理依頼書シートを宛名なしで流用（依頼先未確定のため）。
+ * 対象種別のシートだけを残し、1発注=1シートで差し込む（複数件時のシート名は発注番号。
+ * ただし通常は呼び出し側で1発注=1ファイルに分割する＝2026-10-09方針）。
+ * 宛名: 修理=空欄（依頼先メーカーが複数のため送付時に記入）／チェア修理=修理依頼書シートを流用し日本メディック宛。
  * 修理・チェア修理はシリアルナンバー写真セクションを追加して差し込む。
  *
  * 利用箇所: api/orders/request-sheet.php（単体DL）/ api/orders/draft-mail-zip.php（一式zip）
@@ -24,21 +25,25 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 /**
- * 写真1枚を指定セルの枠（2列×8行 ≒ 184×136px）に収まるサイズで配置する。
+ * 写真1枚を指定セルの枠（2列×8行 ≒ 184×136px）に収まるサイズ・中央寄せで配置する。
  * 行高はひな形既定（Arial 10ptの自動行高≒17px×8行=136px）のため、高さ125px上限で枠内に収める。
  */
 function placeRequestSheetPhoto(Worksheet $sheet, string $cell, string $path): void
 {
+    $frameW = 184; // 2列分の概算px
+    $frameH = 136; // 8行分の概算px
+
     $drawing = new Drawing();
     $drawing->setPath($path);
     $drawing->setCoordinates($cell);
-    $drawing->setOffsetX(4);
-    $drawing->setOffsetY(4);
     $drawing->setResizeProportional(true);
     $drawing->setHeight(125);
     if ($drawing->getWidth() > 180) {
         $drawing->setWidth(180); // 横長写真は幅基準に（比率は保持される）
     }
+    // 枠内で中央寄せ（縦長写真が左に張り付かないように）
+    $drawing->setOffsetX(max(2, (int)(($frameW - $drawing->getWidth()) / 2)));
+    $drawing->setOffsetY(max(2, (int)(($frameH - $drawing->getHeight()) / 2)));
     $drawing->setWorksheet($sheet);
 }
 
@@ -138,7 +143,7 @@ function buildRequestSheetSpreadsheet(array $orders): Spreadsheet
     }
     $spreadsheet = IOFactory::load($templatePath);
 
-    // 種別ごとのシート名・差し込み座標（支給ひな形のレイアウト。チェア修理は修理依頼書を宛名なしで流用）
+    // 種別ごとのシート名・差し込み座標（支給ひな形のレイアウト。チェア修理は修理依頼書を日本メディック宛で流用）
     if ($type === 'repair' || $type === 'chair-repair') {
         $sheetName  = '修理依頼書';
         $photoCells = ['A20', 'C20', 'E20'];  // 不具合箇所写真 3枠（各 2列×8行）
@@ -149,8 +154,8 @@ function buildRequestSheetSpreadsheet(array $orders): Spreadsheet
         $clearCells = [];                     // A20/E20 は部品名・個数を差し込むためクリア不要
     } else {
         $sheetName  = 'シート発注依頼書';
-        $photoCells = ['A24', 'C24', 'E24'];
-        $clearCells = ['A20', 'E20'];         // 部品内容・個数の例文はクリア（シート交換はデータに該当項目なし）
+        $photoCells = ['A20', 'C20', 'E20'];  // 部品内容・個数セクション削除で4行繰り上がり（元はA24/C24/E24）
+        $clearCells = [];
     }
 
     // 対象種別以外のシートを削除
@@ -170,10 +175,14 @@ function buildRequestSheetSpreadsheet(array $orders): Spreadsheet
         $baseSheet->setCellValueExplicit('A3', trim($atena2), DataType::TYPE_STRING);
         $baseSheet->duplicateStyle($baseSheet->getStyle('A2'), 'A3');
     }
-    if ($type === 'chair-repair') {
-        // チェア修理は依頼先未確定のため宛名なしで生成（送付時に手書き・手入力する想定）
+    if ($type === 'repair') {
+        // 修理の依頼先はライフ・フィットネス以外のメーカーもあるため宛名なしで生成（送付時に記入する想定・2026-10-09 快活様回答）
         $baseSheet->setCellValueExplicit('A2', '', DataType::TYPE_STRING);
         $baseSheet->setCellValueExplicit('A3', '', DataType::TYPE_STRING);
+    } elseif ($type === 'chair-repair') {
+        // チェア修理の依頼先はチェア備品と同じ日本メディックのみ（2026-10-09 快活様回答。表記は仕入先マスタと同じ）
+        $baseSheet->setCellValueExplicit('A2', '株式会社日本メディック', DataType::TYPE_STRING);
+        $baseSheet->setCellValueExplicit('A3', 'ご担当者様', DataType::TYPE_STRING);
     }
     // タイトル(20pt)・見出し(14pt)が既定行高15.75ptで上下見切れる → 行高を確保
     $baseSheet->getRowDimension(4)->setRowHeight(30);
@@ -195,18 +204,24 @@ function buildRequestSheetSpreadsheet(array $orders): Spreadsheet
         $baseSheet->getRowDimension($wr)->setRowHeight(17);
     }
 
+    // シート交換: 「部品内容・個数」セクション（行19-22）は依頼データに該当項目がないため削除して詰める
+    if ($type === 'seat-replacement') {
+        $baseSheet->removeRow(19, 4);
+    }
+
     // 修理・チェア修理: 不具合箇所写真の直下にシリアルナンバー写真セクションを追加（申請時の必須項目のため依頼書にも載せる）
     $serialPhotoCell = null;
     if ($type === 'repair' || $type === 'chair-repair') {
         $baseSheet->insertNewRowBefore(28, 9); // 見出し28＋写真枠29-36。依頼文(旧29)は38へ
-        $baseSheet->duplicateStyle($baseSheet->getStyle('A19'), 'A28:F28');
-        $baseSheet->mergeCells('A28:F28');
-        $baseSheet->setCellValueExplicit('A28', 'シリアルナンバー写真', DataType::TYPE_STRING);
-        for ($r = 20; $r <= 27; $r++) { // 不具合箇所写真の3枠(A20:F27)と同じ罫線になるよう全列のスタイルをセル単位で複製
-            foreach (['A', 'B', 'C', 'D', 'E', 'F'] as $col) {
+        // 見出し・写真枠とも、不具合箇所写真セクション(19-27行)と同じ罫線になるよう列ごとにスタイルを複製
+        // （右端の罫線はF列セル側に定義されているため、A19のスタイルを全列に流用すると右の線が消える）
+        foreach (['A', 'B', 'C', 'D', 'E', 'F'] as $col) {
+            for ($r = 19; $r <= 27; $r++) {
                 $baseSheet->duplicateStyle($baseSheet->getStyle($col . $r), $col . ($r + 9));
             }
         }
+        $baseSheet->mergeCells('A28:F28');
+        $baseSheet->setCellValueExplicit('A28', 'シリアルナンバー写真', DataType::TYPE_STRING);
         $baseSheet->mergeCells('A29:B36');
         $baseSheet->mergeCells('C29:D36');
         $baseSheet->mergeCells('E29:F36');
@@ -221,8 +236,13 @@ function buildRequestSheetSpreadsheet(array $orders): Spreadsheet
             $sheet = $baseSheet;
         } else {
             $sheet = clone $baseSheet;
-            $sheet->setTitle($sheetName . '(' . ($i + 1) . ')');
+            $sheet->setTitle($o['id']); // addSheet前に一意なシート名が必要
             $spreadsheet->addSheet($sheet);
+        }
+        if (count($orders) > 1) {
+            // 複数件のときはシート名=発注番号（「修理依頼書(2)」では中身が分からないため）
+            // ※通常は draft-mail-zip 側で1発注=1ファイルに分割するため、このパスは複数idsの直接指定時のみ
+            $sheet->setTitle($o['id']);
         }
 
         $d = $details[$o['id']] ?? [];
