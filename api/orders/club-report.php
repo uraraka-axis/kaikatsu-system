@@ -11,6 +11,7 @@
  *     （完了報告ダイアログの「報告書未印刷」警告の判定に使用）
  *   - ファイル名: 代替クラブ発送依頼書_{店舗コード}_{店舗名}_{yyyymmdd}.pdf
  *   - dl=1 でダウンロード（既定はブラウザ内表示→印刷）
+ *   - PDF組み立ては includes/pdf_sheets.php（一式zip と共通）
  *
  * 権限: admin/system は全店舗、shop は自店のみ、zone/area は管轄店舗のみ
  */
@@ -18,10 +19,7 @@
 require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/functions.php';
-require_once __DIR__ . '/../../vendor/autoload.php';
-
-use Dompdf\Dompdf;
-use Dompdf\Options;
+require_once __DIR__ . '/../../includes/pdf_sheets.php';
 
 requireMethod('GET');
 requireLogin();
@@ -31,16 +29,7 @@ if ($orderId === '' || !preg_match('/^[A-Z]{3}-[A-Za-z0-9]+-\d{8}-\d{4}$/', $ord
     jsonError('発注番号が不正です');
 }
 
-$order = getOne(
-    'SELECT o.id, o.type, o.shop_code, o.date, o.cancelled_at,
-            s.name AS shop_name, s.phone, s.postal_code, s.address,
-            d.club, d.shaft, d.damage
-       FROM orders o
-       JOIN shops s ON s.code = o.shop_code
-       JOIN order_club_replacement_details d ON d.order_id = o.id
-      WHERE o.id = :id',
-    [':id' => $orderId]
-);
+$order = fetchClubOrderRow($orderId);
 if ($order === null) {
     jsonError('発注が見つかりません', 404);
 }
@@ -74,105 +63,7 @@ if (!$allowed) {
     jsonError('権限がありません', 403);
 }
 
-// --- HTML生成（モック09のレイアウト） ---
-$fontPath = str_replace('\\', '/', realpath(__DIR__ . '/../../assets/fonts/ipaexg.ttf'));
-
-$postal  = $order['postal_code'] ?? '';
-$address = $order['address'] ?? '';
-$phone   = $order['phone'] ?? '';
-
-$cancelNote = $order['cancelled_at'] !== null
-    ? '<div style="color:#b91c1c; font-weight:bold; margin:0 0 8px;">※ この依頼は取消されています</div>'
-    : '';
-
-$html = <<<HTML
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-<meta charset="UTF-8">
-<style>
-@font-face { font-family: 'ipaexg'; src: url('file://{$fontPath}') format('truetype'); font-weight: normal; font-style: normal; }
-@font-face { font-family: 'ipaexg'; src: url('file://{$fontPath}') format('truetype'); font-weight: bold; font-style: normal; }
-@page { size: A4 portrait; margin: 18mm 16mm; }
-body { font-family: 'ipaexg', sans-serif; color: #111; font-size: 10.5pt; }
-h1 { font-size: 15pt; font-weight: bold; line-height: 1.5; margin: 0 0 16px; }
-table.fields { border-collapse: separate; border-spacing: 0 0; width: 100%; margin-bottom: 4px; }
-.lbl { font-size: 7.5pt; color: #555; padding: 6px 4px 2px 1px; }
-.box { border: 1px solid #444; padding: 5px 7px; font-size: 10pt; background: #fff; }
-.multi { white-space: pre-wrap; line-height: 1.7; min-height: 60pt; }
-.foot { margin-top: 10px; font-size: 8pt; color: #333; line-height: 1.7; }
-</style>
-</head>
-<body>
-<h1>ゴルフクラブ破損状況報告書<br>兼<br>代替クラブ発送依頼書</h1>
-{$cancelNote}
-<table class="fields">
-  <tr>
-    <td style="width:22%"><div class="lbl">店舗番号</div><div class="box">%%SHOP_CODE%%</div></td>
-    <td style="width:3%"></td>
-    <td style="width:30%"><div class="lbl">店舗名</div><div class="box">%%SHOP_NAME%%</div></td>
-    <td style="width:3%"></td>
-    <td style="width:24%"><div class="lbl">電話番号</div><div class="box">%%PHONE%%</div></td>
-    <td style="width:3%"></td>
-    <td style="width:15%"><div class="lbl">日付</div><div class="box">%%DATE%%</div></td>
-  </tr>
-</table>
-<table class="fields">
-  <tr>
-    <td style="width:22%"><div class="lbl">郵便番号</div><div class="box">%%POSTAL%%</div></td>
-    <td style="width:3%"></td>
-    <td style="width:75%"><div class="lbl">住所</div><div class="box">%%ADDRESS%%</div></td>
-  </tr>
-</table>
-<table class="fields">
-  <tr>
-    <td style="width:30%"><div class="lbl">破損クラブ</div><div class="box">%%CLUB%%</div></td>
-    <td style="width:3%"></td>
-    <td style="width:22%"><div class="lbl">シャフト</div><div class="box">%%SHAFT%%</div></td>
-    <td style="width:45%"></td>
-  </tr>
-</table>
-<table class="fields">
-  <tr>
-    <td style="width:75%"><div class="lbl">破損状況</div><div class="box multi">%%DAMAGE%%</div></td>
-    <td style="width:25%"></td>
-  </tr>
-</table>
-<div class="foot">
-※ どこが、どのように破損したかわかるように記載をお願い致します。<br>
-例：ヘッドにヒビが入っている、シャフトが曲がっている、グリップが擦れていてすべる、等
-</div>
-</body>
-</html>
-HTML;
-
-// 空欄は &nbsp; にしてボックスの高さを保つ（電話なし店舗など）
-$cell = static fn(?string $v): string => ($v === null || trim($v) === '') ? '&nbsp;' : h($v);
-
-$html = str_replace(
-    ['%%SHOP_CODE%%', '%%SHOP_NAME%%', '%%PHONE%%', '%%DATE%%', '%%POSTAL%%', '%%ADDRESS%%', '%%CLUB%%', '%%SHAFT%%', '%%DAMAGE%%'],
-    [$cell($order['shop_code']), $cell($order['shop_name']), $cell($phone), $cell($order['date']), $cell($postal), $cell($address),
-     $cell($order['club']), $cell($order['shaft']), $cell($order['damage'])],
-    $html
-);
-
-// --- dompdf でPDF化 ---
-$fontCacheDir = __DIR__ . '/../../uploads/dompdf-fonts';
-if (!is_dir($fontCacheDir)) {
-    mkdir($fontCacheDir, 0775, true);
-}
-
-$options = new Options();
-$options->set('isRemoteEnabled', false);
-$options->set('isFontSubsettingEnabled', true);
-$options->setFontDir($fontCacheDir);
-$options->setFontCache($fontCacheDir);
-$options->setChroot(realpath(__DIR__ . '/../../'));
-
-$dompdf = new Dompdf($options);
-$dompdf->loadHtml($html, 'UTF-8');
-$dompdf->setPaper('A4', 'portrait');
-$dompdf->render();
+$pdf = renderA4PortraitPdf(buildClubReportHtml($order));
 
 // 初回出力を記録（完了報告の「報告書未印刷」警告の判定に使用）。
 // 報告書は店舗が破損クラブに同封して返送するものなので、
@@ -187,12 +78,7 @@ if ($user['role'] === 'shop' && $user['shop_code'] === $order['shop_code']) {
 }
 
 $orderDate = new DateTimeImmutable($order['date']);
-$filename = sprintf(
-    '代替クラブ発送依頼書_%s_%s_%s.pdf',
-    $order['shop_code'],
-    $order['shop_name'],
-    $orderDate->format('Ymd')
-);
+$filename = clubReportFilename($order);
 $asciiFallback = sprintf('club_report_%s_%s.pdf', $order['shop_code'], $orderDate->format('Ymd'));
 $disposition = (($_GET['dl'] ?? '') === '1') ? 'attachment' : 'inline';
 
@@ -204,4 +90,4 @@ header(sprintf(
     rawurlencode($filename)
 ));
 header('Cache-Control: private, no-store');
-echo $dompdf->output();
+echo $pdf;

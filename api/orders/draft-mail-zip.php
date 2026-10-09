@@ -11,10 +11,12 @@
  *       部品         : 部品発注依頼書_{Ymd}_{店舗名}.xlsx ＋ 写真全件
  *       シート交換   : シート発注依頼書_{Ymd}_{店舗名}.xlsx ＋ 写真全件
  *       チェア修理   : マッサージチェア修理依頼書_{Ymd}_{店舗名}.xlsx（宛名なし）＋ 写真全件
+ *     依頼書は1発注=1ファイル。修理まとめ（複数ids）はファイル名末尾に発注番号を付けて1枚ずつ生成
+ *     （複数シート方式は別シートの見逃しが起きやすいため廃止 2026-10-09）
  *     写真のファイル名は「発注番号_写真種別_連番.拡張子」で自動付与（photo.php?dl=1 と同一規則）
  *   - URL末尾のファイル名セグメントは PATH_INFO（サーバでは無視・ブラウザの保存名用）
  *
- * ファイル名: 添付一式_{Ymd}_{店舗名}.zip
+ * ファイル名: 添付一式_{種別}_{Ymd}_{店舗名}.zip（種別=修理/チェア修理/部品/シート交換）
  */
 
 require_once __DIR__ . '/../../includes/auth.php';
@@ -88,17 +90,10 @@ foreach ($photoRows as $p) {
     $photoEntries[] = [$abs, $zipName];
 }
 
-// --- 依頼書Excelを一時ファイルに生成 ---
-$sheetTmp  = null;
-$sheetName = null;
+// --- 依頼書Excelを一時ファイルに生成（1発注=1ファイル。まとめ時の別シート見逃し防止） ---
+$sheetEntries = []; // [ [tmp_path, zip_name], ... ]
 if (in_array($type, ['repair', 'chair-repair', 'parts', 'seat-replacement'], true)) {
     try {
-        $spreadsheet = buildRequestSheetSpreadsheet($orders);
-        $sheetTmp = tempnam(sys_get_temp_dir(), 'kreq');
-        $writer = new Xlsx($spreadsheet);
-        $writer->save($sheetTmp);
-        $spreadsheet->disconnectWorksheets();
-        unset($spreadsheet);
         $docLabel  = [
             'repair'           => '修理依頼書',
             'chair-repair'     => 'マッサージチェア修理依頼書',
@@ -107,17 +102,29 @@ if (in_array($type, ['repair', 'chair-repair', 'parts', 'seat-replacement'], tru
         ][$type];
         // zipエントリ名にパス区切りが混入しないよう店舗名から除去（zip slip対策）
         $safeShop  = str_replace(['/', '\\'], '', $shopName);
-        $sheetName = sprintf('%s_%s_%s.xlsx', $docLabel, date('Ymd'), $safeShop);
+        foreach ($orders as $o) {
+            $spreadsheet = buildRequestSheetSpreadsheet([$o]);
+            $tmp = tempnam(sys_get_temp_dir(), 'kreq');
+            $writer = new Xlsx($spreadsheet);
+            $writer->save($tmp);
+            $spreadsheet->disconnectWorksheets();
+            unset($spreadsheet);
+            // 複数件（修理まとめ）は発注番号を付けて写真ファイルと対応づける
+            $name = count($orders) > 1
+                ? sprintf('%s_%s_%s_%s.xlsx', $docLabel, date('Ymd'), $safeShop, $o['id'])
+                : sprintf('%s_%s_%s.xlsx', $docLabel, date('Ymd'), $safeShop);
+            $sheetEntries[] = [$tmp, $name];
+        }
     } catch (Throwable $e) {
-        if ($sheetTmp !== null && is_file($sheetTmp)) {
-            @unlink($sheetTmp);
+        foreach ($sheetEntries as [$tmp, $_n]) {
+            @unlink($tmp);
         }
         error_log('draft-mail-zip request sheet error: ' . $e->getMessage());
         jsonError('依頼書の生成に失敗しました', 500);
     }
 }
 
-if (empty($photoEntries) && $sheetTmp === null) {
+if (empty($photoEntries) && empty($sheetEntries)) {
     jsonError('添付対象のファイルがありません', 404);
 }
 
@@ -125,19 +132,27 @@ if (empty($photoEntries) && $sheetTmp === null) {
 $zipTmp = tempnam(sys_get_temp_dir(), 'kzip');
 $zip = new ZipArchive();
 if ($zip->open($zipTmp, ZipArchive::OVERWRITE) !== true) {
-    if ($sheetTmp !== null) @unlink($sheetTmp);
+    foreach ($sheetEntries as [$tmp, $_n]) {
+        @unlink($tmp);
+    }
     @unlink($zipTmp);
     jsonError('zipの作成に失敗しました', 500);
 }
-if ($sheetTmp !== null && $sheetName !== null) {
-    $zip->addFile($sheetTmp, $sheetName);
+foreach ($sheetEntries as [$tmp, $name]) {
+    $zip->addFile($tmp, $name);
 }
 foreach ($photoEntries as [$abs, $zipName]) {
     $zip->addFile($abs, $zipName);
 }
 $zip->close();
 
-$filename = sprintf('添付一式_%s_%s.zip', date('Ymd'), $shopName);
+$typeLabel = [
+    'repair'           => '修理',
+    'chair-repair'     => 'チェア修理',
+    'parts'            => '部品',
+    'seat-replacement' => 'シート交換',
+][$type];
+$filename = sprintf('添付一式_%s_%s_%s.zip', $typeLabel, date('Ymd'), $shopName);
 $asciiFallback = sprintf('attachments_%s_%s.zip', $orders[0]['shop_code'], date('Ymd'));
 
 header('Content-Type: application/zip');
@@ -152,7 +167,7 @@ header('Cache-Control: private, no-store');
 readfile($zipTmp);
 
 @unlink($zipTmp);
-if ($sheetTmp !== null) {
-    @unlink($sheetTmp);
+foreach ($sheetEntries as [$tmp, $_n]) {
+    @unlink($tmp);
 }
 exit;

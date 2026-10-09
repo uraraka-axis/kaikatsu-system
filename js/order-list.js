@@ -2467,6 +2467,22 @@ function renderDraftMails() {
           '</div>';
       });
       cardsHtml +=   '</div>';
+      // 複数枚あるときは一式zipも用意（まとめて1通に添付する運用のため）
+      if (attachOrders.length >= 2) {
+        var pzNow = new Date();
+        var pzYmd = pzNow.getFullYear() + ('0' + (pzNow.getMonth() + 1)).slice(-2) + ('0' + pzNow.getDate()).slice(-2);
+        var pzShops = [];
+        attachOrders.forEach(function(od) {
+          if (od.shop_name && pzShops.indexOf(od.shop_name) === -1) pzShops.push(od.shop_name);
+        });
+        var pzShopPart = pzShops.length === 1 ? pzShops[0] : pzShops.length + '店舗';
+        var pzFname = '添付一式_' + (e.kind === 'club' ? '代替ゴルフ' : 'チェア備品') + '_' + pzYmd + '_' + pzShopPart + '.zip';
+        var pzUrl = 'api/orders/pdf-sheet-zip.php/' + encodeURIComponent(pzFname) + '?ids=' +
+          encodeURIComponent(attachOrders.map(function(od) { return od.order_id; }).join(','));
+        cardsHtml += '<div class="attach-all">' +
+          '<a class="btn-action btn-primary" style="padding:8px 16px;font-size:13px;text-decoration:none;" href="' + pzUrl + '">添付ファイルを一式ダウンロード（zip）</a>' +
+          '</div>';
+      }
       cardsHtml += '</div>';
     }
 
@@ -2484,21 +2500,36 @@ function renderDraftMails() {
       var itemsHtml = '';
       var attachCount = 0;
 
-      // 依頼書Excel（修理=修理依頼書 / チェア修理=マッサージチェア修理依頼書（宛名なし） / シート交換=シート発注依頼書。1発注=1シート）
+      // 依頼書Excel（修理=修理依頼書 / チェア修理=マッサージチェア修理依頼書（宛名なし） / シート交換=シート発注依頼書）
+      // 1発注=1ファイル。修理まとめは発注ごとに分割（複数シート方式は別シートの見逃しが起きやすいため）
       var sheetLabel = e.kind === 'seat' ? 'シート発注依頼書'
                      : e.kind === 'parts' ? '部品発注依頼書'
                      : isChairRepair ? 'マッサージチェア修理依頼書'
                      : '修理依頼書';
-      var sheetFname = sheetLabel + '_' + atdYmd + '_' + atShopName + '.xlsx';
-      var sheetUrl = 'api/orders/request-sheet.php/' + encodeURIComponent(sheetFname) + '?ids=' + idsParam;
-      itemsHtml += '<div class="attach-group">依頼書</div>';
-      itemsHtml += '<div class="attach-item">' +
-        '<span class="attach-icon xlsx">XLS</span>' +
-        '<span class="attach-name">' + escapeHtml(sheetFname) + '</span>' +
-        '<span class="attach-meta">' + e.order_ids.length + '件分</span>' +
-        '<a class="attach-dl" href="' + sheetUrl + '">' + dlIcon + 'DL</a>' +
-        '</div>';
-      attachCount++;
+      itemsHtml += '<div class="attach-group">依頼書' + (e.kind === 'repair-merged' ? '（発注ごとに1枚）' : '') + '</div>';
+      if (e.kind === 'repair-merged') {
+        atItems.forEach(function(it) {
+          var mFname = sheetLabel + '_' + atdYmd + '_' + atShopName + '_' + it.order_id + '.xlsx';
+          var mUrl = 'api/orders/request-sheet.php/' + encodeURIComponent(mFname) + '?ids=' + encodeURIComponent(it.order_id);
+          itemsHtml += '<div class="attach-item">' +
+            '<span class="attach-icon xlsx">XLS</span>' +
+            '<span class="attach-name">' + escapeHtml(mFname) + '</span>' +
+            '<span class="attach-meta">' + escapeHtml(it.order_id) + '</span>' +
+            '<a class="attach-dl" href="' + mUrl + '">' + dlIcon + 'DL</a>' +
+            '</div>';
+          attachCount++;
+        });
+      } else {
+        var sheetFname = sheetLabel + '_' + atdYmd + '_' + atShopName + '.xlsx';
+        var sheetUrl = 'api/orders/request-sheet.php/' + encodeURIComponent(sheetFname) + '?ids=' + idsParam;
+        itemsHtml += '<div class="attach-item">' +
+          '<span class="attach-icon xlsx">XLS</span>' +
+          '<span class="attach-name">' + escapeHtml(sheetFname) + '</span>' +
+          '<span class="attach-meta">1件分</span>' +
+          '<a class="attach-dl" href="' + sheetUrl + '">' + dlIcon + 'DL</a>' +
+          '</div>';
+        attachCount++;
+      }
 
       // 写真（発注番号・写真種別によるファイル名の自動付与）
       atItems.forEach(function(it) {
@@ -2517,7 +2548,11 @@ function renderDraftMails() {
       });
 
       if (attachCount > 0) {
-        var zipFname = '添付一式_' + atdYmd + '_' + atShopName + '.zip';
+        var zipTypeLabel = e.kind === 'seat' ? 'シート交換'
+                         : e.kind === 'parts' ? '部品'
+                         : isChairRepair ? 'チェア修理'
+                         : '修理';
+        var zipFname = '添付一式_' + zipTypeLabel + '_' + atdYmd + '_' + atShopName + '.zip';
         var zipUrl = 'api/orders/draft-mail-zip.php/' + encodeURIComponent(zipFname) + '?ids=' + idsParam;
         cardsHtml += '<div class="attach-section">';
         cardsHtml +=   '<div class="attach-header"><div class="attach-title">添付ファイル<span class="attach-count">' + attachCount + '件</span></div>';
