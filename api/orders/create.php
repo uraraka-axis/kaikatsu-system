@@ -548,11 +548,11 @@ function notifyProductDeptNewOrder(string $orderId, string $type, string $shopCo
     $typeLabel = match ($type) {
         'repair'           => '修理発注',
         'equipment'        => '備品発注',
-        'chair-equipment'  => 'チェア備品発注',
+        'chair-equipment'  => 'マッサージチェア備品発注',
         'parts'            => '部品発注',
         'seat-replacement' => 'シート交換',
         'club-replacement' => '代替ゴルフクラブ発送依頼',
-        'chair-repair'     => 'チェア修理依頼',
+        'chair-repair'     => 'マッサージチェア修理依頼',
         default            => $type,
     };
 

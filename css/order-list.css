@@ -87,6 +87,9 @@
 .order-row.equipment { border-left: 4px solid #3b82f6; }
 .order-row.parts { border-left: 4px solid #22c55e; }
 .order-row.seat-replacement { border-left: 4px solid #a855f7; }
+.order-row.club-replacement { border-left: 4px solid #15803d; }
+.order-row.chair-equipment { border-left: 4px solid #0891b2; }
+.order-row.chair-repair { border-left: 4px solid #c2410c; }
 
 /* ===== Status / Type Badges ===== */
 .status-requesting      { background-color: #fef3c7; color: #92400e; }
@@ -676,13 +679,19 @@
   }
 
   /* 発注一覧テーブルは iPad 縦持ち(810/820px)では右切れするため、
-     横スクロール許可 + min-width で全列見れる状態に */
+     横スクロール許可 + min-width で全列見れる状態に。
+     横持ち(1080px〜)では詳細列まで一画面に収まるよう、左右余白を詰め
+     min-width はロール別（store=10列/admin=11列）に適正化する */
+  .main { padding: 32px 20px; }
   .table-container {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
   }
   .order-table {
-    min-width: 1029px;      /* admin 11 列 + 固定幅で全列見える（種別列96px化で+34px。合計幅一定→詳細列の位置は不変） */
+    min-width: 913px;       /* store 10列の固定幅合計 */
+  }
+  .order-table.with-shop-col {
+    min-width: 1029px;      /* admin 11 列（店舗列116px込み。種別列96px化で+34px） */
   }
   /* iPad時のみ内容列の幅を固定（PCは可変のまま）。2行に収め2行目末尾で…省略 */
   .order-table th.col-content { width: 130px; }

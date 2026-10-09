@@ -19,7 +19,7 @@
   <header class="header" data-title="マッサージチェア修理依頼"></header>
 
   <nav class="nav" data-active="chair-repair-order.html"></nav>
-  <script src="js/common-nav.js?v=20261005"></script>
+  <script src="js/common-nav.js?v=20261009"></script>
 
   <!-- Main Content -->
   <main class="main">
@@ -30,13 +30,13 @@
           <!-- Category (fitness 固定・表示のみ) -->
           <div class="form-group">
             <label class="form-label">カテゴリ（部門）</label>
-            <select class="form-select" disabled><option>フィットネス</option></select>
+            <select class="form-select" disabled style="background-color:#f1f5f9;color:#475569;cursor:not-allowed;"><option>フィットネス</option></select>
           </div>
 
           <!-- Equipment (マッサージチェア固定) -->
           <div class="form-group">
             <label class="form-label">機材</label>
-            <input type="text" class="form-input" value="マッサージチェア" readonly>
+            <input type="text" class="form-input" value="マッサージチェア" readonly style="background-color:#f1f5f9;color:#475569;cursor:not-allowed;">
           </div>
 
           <!-- Applicant -->
@@ -134,7 +134,7 @@
           <!-- Issue Description（症状例はモック05の長文を圧縮して表示） -->
           <div class="form-group">
             <label class="form-label">不具合内容（詳細記述欄）<span class="required">*</span></label>
-            <textarea id="issueDescription" class="form-textarea" style="min-height:120px;" oninput="updateSubmitState()" placeholder="【症状例】リクライニングがしない／モミ玉が外れている・折れている／エアーバックが膨らまない／こすれ音・異音がする／背もたれのシート（革）が破れている／電源が入らない&#10;※電源が入らない場合は、電源コードと本体背面の電源スイッチを先にご確認ください"></textarea>
+            <textarea id="issueDescription" class="form-textarea" style="min-height:120px;" oninput="updateSubmitState()" placeholder="リクライニングがしない／モミ玉が外れている・折れている／エアーバックが膨らまない／こすれ音・異音がする／背もたれのシート（革）が破れている／電源が入らない"></textarea>
           </div>
 
           <!-- Photo Upload: 故障箇所 -->

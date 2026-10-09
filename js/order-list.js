@@ -422,6 +422,8 @@ function formatOrderDate(d) {
 
 function renderTableHeader() {
   var thead = document.getElementById('orderTableHead');
+  // iPad時の min-width をロール別に切り替えるためのマーカー（adminのみ店舗列あり）
+  thead.closest('table').classList.toggle('with-shop-col', viewMode === 'admin');
   if (viewMode === 'admin') {
     // table-layout:fixed のため各列に固定幅を指定（内容列のみ幅未指定で残余を吸収）
     // 発注日=nowrap1行ぶんの幅 / 発注番号=折返し前提で細め / 詳細=余裕を確保
