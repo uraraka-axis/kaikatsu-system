@@ -5,7 +5,8 @@
  *
  * GET /api/orders/request-sheet.php/{ファイル名}.xlsx?ids={発注番号,カンマ区切り}
  *   - メール下書きの添付ファイル用（admin/system のみ）
- *   - 対象: type = repair（修理依頼書）/ parts（部品発注依頼書）/ seat-replacement（シート発注依頼書）
+ *   - 対象: type = repair（修理依頼書）/ chair-repair（マッサージチェア修理依頼書・宛名なし）
+ *           / parts（部品発注依頼書）/ seat-replacement（シート発注依頼書）
  *   - ids は同一店舗・同一種別のみ（修理まとめ=同一店舗を1通にまとめる運用のため）。1発注=1シート
  *   - URL末尾のファイル名セグメントは PATH_INFO（サーバでは無視・ブラウザの保存名用）
  *   - 生成本体は includes/request_sheet.php（一式zip と共通）
@@ -31,7 +32,7 @@ if (!in_array($user['role'], ['admin', 'system'], true)) {
 try {
     $orders = fetchOrdersForAttachment(
         trim((string)($_GET['ids'] ?? ($_GET['id'] ?? ''))),
-        ['repair', 'parts', 'seat-replacement']
+        ['repair', 'chair-repair', 'parts', 'seat-replacement']
     );
     $spreadsheet = buildRequestSheetSpreadsheet($orders);
 } catch (InvalidArgumentException $e) {
@@ -42,7 +43,12 @@ try {
 }
 
 $type      = $orders[0]['type'];
-$docLabel  = $type === 'repair' ? '修理依頼書' : ($type === 'parts' ? '部品発注依頼書' : 'シート発注依頼書');
+$docLabel  = [
+    'repair'           => '修理依頼書',
+    'chair-repair'     => 'マッサージチェア修理依頼書',
+    'parts'            => '部品発注依頼書',
+    'seat-replacement' => 'シート発注依頼書',
+][$type];
 $filename  = sprintf('%s_%s_%s.xlsx', $docLabel, date('Ymd'), $orders[0]['shop_name']);
 $asciiFallback = sprintf('request_sheet_%s_%s.xlsx', $orders[0]['shop_code'], date('Ymd'));
 

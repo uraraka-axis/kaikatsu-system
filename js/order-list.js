@@ -2466,7 +2466,7 @@ function renderDraftMails() {
     }
 
     // 添付ファイル（修理・修理まとめ・チェア修理・部品・シート交換: 依頼書Excel＋写真＋一式zip）
-    // 依頼書はテンプレ差し込み生成（チェア修理はひな形なしのため写真のみ）。ファイル名は自動付与
+    // 依頼書はテンプレ差し込み生成（チェア修理は修理依頼書を宛名なしで流用）。ファイル名は自動付与
     if (e.kind === 'repair' || e.kind === 'repair-merged' || e.kind === 'parts' || e.kind === 'seat') {
       var atdNow = new Date();
       var atdYmd = atdNow.getFullYear() + ('0' + (atdNow.getMonth() + 1)).slice(-2) + ('0' + atdNow.getDate()).slice(-2);
@@ -2479,22 +2479,21 @@ function renderDraftMails() {
       var itemsHtml = '';
       var attachCount = 0;
 
-      // 依頼書Excel（修理=修理依頼書 / シート交換=シート発注依頼書。1発注=1シート）
-      if (!isChairRepair) {
-        var sheetLabel = e.kind === 'seat' ? 'シート発注依頼書'
-                       : e.kind === 'parts' ? '部品発注依頼書'
-                       : '修理依頼書';
-        var sheetFname = sheetLabel + '_' + atdYmd + '_' + atShopName + '.xlsx';
-        var sheetUrl = 'api/orders/request-sheet.php/' + encodeURIComponent(sheetFname) + '?ids=' + idsParam;
-        itemsHtml += '<div class="attach-group">依頼書</div>';
-        itemsHtml += '<div class="attach-item">' +
-          '<span class="attach-icon xlsx">XLS</span>' +
-          '<span class="attach-name">' + escapeHtml(sheetFname) + '</span>' +
-          '<span class="attach-meta">' + e.order_ids.length + '件分</span>' +
-          '<a class="attach-dl" href="' + sheetUrl + '">' + dlIcon + 'DL</a>' +
-          '</div>';
-        attachCount++;
-      }
+      // 依頼書Excel（修理=修理依頼書 / チェア修理=マッサージチェア修理依頼書（宛名なし） / シート交換=シート発注依頼書。1発注=1シート）
+      var sheetLabel = e.kind === 'seat' ? 'シート発注依頼書'
+                     : e.kind === 'parts' ? '部品発注依頼書'
+                     : isChairRepair ? 'マッサージチェア修理依頼書'
+                     : '修理依頼書';
+      var sheetFname = sheetLabel + '_' + atdYmd + '_' + atShopName + '.xlsx';
+      var sheetUrl = 'api/orders/request-sheet.php/' + encodeURIComponent(sheetFname) + '?ids=' + idsParam;
+      itemsHtml += '<div class="attach-group">依頼書</div>';
+      itemsHtml += '<div class="attach-item">' +
+        '<span class="attach-icon xlsx">XLS</span>' +
+        '<span class="attach-name">' + escapeHtml(sheetFname) + '</span>' +
+        '<span class="attach-meta">' + e.order_ids.length + '件分</span>' +
+        '<a class="attach-dl" href="' + sheetUrl + '">' + dlIcon + 'DL</a>' +
+        '</div>';
+      attachCount++;
 
       // 写真（発注番号・写真種別によるファイル名の自動付与）
       atItems.forEach(function(it) {

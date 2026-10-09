@@ -10,7 +10,7 @@
  *       修理         : 修理依頼書_{Ymd}_{店舗名}.xlsx ＋ 写真全件
  *       部品         : 部品発注依頼書_{Ymd}_{店舗名}.xlsx ＋ 写真全件
  *       シート交換   : シート発注依頼書_{Ymd}_{店舗名}.xlsx ＋ 写真全件
- *       チェア修理   : 写真全件のみ（依頼書ひな形なし・メーカー書式未定）
+ *       チェア修理   : マッサージチェア修理依頼書_{Ymd}_{店舗名}.xlsx（宛名なし）＋ 写真全件
  *     写真のファイル名は「発注番号_写真種別_連番.拡張子」で自動付与（photo.php?dl=1 と同一規則）
  *   - URL末尾のファイル名セグメントは PATH_INFO（サーバでは無視・ブラウザの保存名用）
  *
@@ -88,10 +88,10 @@ foreach ($photoRows as $p) {
     $photoEntries[] = [$abs, $zipName];
 }
 
-// --- 依頼書Excel（repair / seat-replacement のみ）を一時ファイルに生成 ---
+// --- 依頼書Excelを一時ファイルに生成 ---
 $sheetTmp  = null;
 $sheetName = null;
-if (in_array($type, ['repair', 'parts', 'seat-replacement'], true)) {
+if (in_array($type, ['repair', 'chair-repair', 'parts', 'seat-replacement'], true)) {
     try {
         $spreadsheet = buildRequestSheetSpreadsheet($orders);
         $sheetTmp = tempnam(sys_get_temp_dir(), 'kreq');
@@ -99,7 +99,12 @@ if (in_array($type, ['repair', 'parts', 'seat-replacement'], true)) {
         $writer->save($sheetTmp);
         $spreadsheet->disconnectWorksheets();
         unset($spreadsheet);
-        $docLabel  = $type === 'repair' ? '修理依頼書' : ($type === 'parts' ? '部品発注依頼書' : 'シート発注依頼書');
+        $docLabel  = [
+            'repair'           => '修理依頼書',
+            'chair-repair'     => 'マッサージチェア修理依頼書',
+            'parts'            => '部品発注依頼書',
+            'seat-replacement' => 'シート発注依頼書',
+        ][$type];
         // zipエントリ名にパス区切りが混入しないよう店舗名から除去（zip slip対策）
         $safeShop  = str_replace(['/', '\\'], '', $shopName);
         $sheetName = sprintf('%s_%s_%s.xlsx', $docLabel, date('Ymd'), $safeShop);
