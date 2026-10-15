@@ -68,6 +68,12 @@ $pdf = renderA4PortraitPdf(buildChairOrderSheetHtml($order));
 $orderDate = new DateTimeImmutable($order['date']);
 $filename = chairOrderSheetFilename($order);
 $asciiFallback = sprintf('chair_order_sheet_%s_%s.pdf', $order['shop_code'], $orderDate->format('Ymd'));
+// 同一店舗・同日の発注が複数あると同名になるため、下書きモーダル側が連番(seq)を付けて区別する
+$seq = (int)($_GET['seq'] ?? 0);
+if ($seq >= 1 && $seq <= 99) {
+    $filename = preg_replace('/\.pdf$/', "_{$seq}.pdf", $filename);
+    $asciiFallback = preg_replace('/\.pdf$/', "_{$seq}.pdf", $asciiFallback);
+}
 $disposition = (($_GET['dl'] ?? '') === '1') ? 'attachment' : 'inline';
 
 header('Content-Type: application/pdf');

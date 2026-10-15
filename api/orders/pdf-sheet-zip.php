@@ -84,7 +84,11 @@ if ($zip->open($zipTmp, ZipArchive::OVERWRITE) !== true) {
 }
 
 try {
-    $usedNames = [];
+    // 先に全エントリ名を確定してから書き込む。
+    // zipエントリ名にパス区切りが混入しないよう除去（zip slip対策）。
+    // 同一店舗・同日の発注が複数あると同名になるため、2件以上ある名前には連番(_1,_2…)を付ける
+    $entries = [];
+    $nameCount = [];
     foreach ($orders as $o) {
         if ($type === 'chair-equipment') {
             $full = fetchChairOrderRow($o['id']);
@@ -95,12 +99,16 @@ try {
             $pdf  = renderA4PortraitPdf(buildClubReportHtml($full));
             $name = clubReportFilename($full);
         }
-        // zipエントリ名にパス区切りが混入しないよう除去（zip slip対策）＋同名重複は発注番号を付加
         $name = str_replace(['/', '\\'], '', $name);
-        if (isset($usedNames[$name])) {
-            $name = str_replace('.pdf', '_' . $o['id'] . '.pdf', $name);
+        $entries[] = [$name, $pdf];
+        $nameCount[$name] = ($nameCount[$name] ?? 0) + 1;
+    }
+    $nameSeq = [];
+    foreach ($entries as [$name, $pdf]) {
+        if ($nameCount[$name] >= 2) {
+            $nameSeq[$name] = ($nameSeq[$name] ?? 0) + 1;
+            $name = preg_replace('/\.pdf$/', '_' . $nameSeq[$name] . '.pdf', $name);
         }
-        $usedNames[$name] = true;
         $zip->addFromString($name, $pdf);
     }
     $zip->close();

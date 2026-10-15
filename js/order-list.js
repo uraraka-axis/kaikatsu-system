@@ -820,10 +820,14 @@ function renderStatusHistory(o) {
 // PDF系リンクのURLを「ファイル名入り」で作る。
 // URL末尾にファイル名セグメントを入れる（PATH_INFO・サーバ側では無視される）ことで、
 // ブラウザのPDFビューアから保存したときのデフォルト名を適切にする（ランダム文字列対策）。
-function pdfUrlWithName(endpoint, o, docLabel) {
+// seq: 同一店舗・同日の発注が複数あるときの連番（1以上で _1 のようにファイル名へ付与＋サーバにも伝える）
+function pdfUrlWithName(endpoint, o, docLabel, seq) {
   var ymd = String(o.date || '').replace(/-/g, '');
-  var fname = docLabel + '_' + o.shop_code + '_' + (o.shop_name || '') + '_' + ymd + '.pdf';
-  return endpoint + '/' + encodeURIComponent(fname) + '?id=' + encodeURIComponent(o.id);
+  var suffix = seq ? '_' + seq : '';
+  var fname = docLabel + '_' + o.shop_code + '_' + (o.shop_name || '') + '_' + ymd + suffix + '.pdf';
+  var url = endpoint + '/' + encodeURIComponent(fname) + '?id=' + encodeURIComponent(o.id);
+  if (seq) url += '&seq=' + seq;
+  return url;
 }
 
 function renderActionButton(o) {
@@ -2218,7 +2222,7 @@ function buildMailBody(entry) {
   return buildEquipmentBody(entry.data); // equipment / chair-equipment 共通
 }
 
-// 備品（仕入先別に集約・店舗名は記載しない）
+// 備品（仕入先別に集約。複数店舗のときは店舗ごとに区切って記載）
 function buildEquipmentBody(sup) {
   var L = [];
   L.push(sup.supplier);
@@ -2230,9 +2234,34 @@ function buildEquipmentBody(sup) {
   L.push('下記の商品を発注いたします。');
   L.push('');
   L.push('【ご注文内容】');
-  (sup.items || []).forEach(function(it) {
-    L.push('・商品名：' + it.product_name);
-    L.push('　個数：' + it.qty + '個');
+  var items = sup.items || [];
+  var multiShop = (sup.shops || []).length >= 2;
+  // 店舗ごとにまとめ、同一店舗で複数発注にまたがる同一商品は個数を合算する
+  var shopGroups = [];
+  var shopIndex = {};
+  items.forEach(function(it) {
+    var sk = it.shop_code || it.shop_name || '';
+    if (!(sk in shopIndex)) {
+      shopIndex[sk] = shopGroups.length;
+      shopGroups.push({ shopName: it.shop_name || '', products: [], productIndex: {} });
+    }
+    var g = shopGroups[shopIndex[sk]];
+    var pk = it.product_code || it.product_name;
+    if (!(pk in g.productIndex)) {
+      g.productIndex[pk] = g.products.length;
+      g.products.push({ name: it.product_name, qty: 0 });
+    }
+    g.products[g.productIndex[pk]].qty += (parseInt(it.qty, 10) || 0);
+  });
+  shopGroups.forEach(function(g, gi) {
+    if (multiShop) {
+      if (gi > 0) L.push('');
+      L.push('■' + g.shopName);
+    }
+    g.products.forEach(function(p) {
+      L.push('・商品名：' + p.name);
+      L.push('　個数：' + p.qty + '個');
+    });
   });
   L.push('');
   L.push('つきましては、お見積書と注文書をご送付いただけますでしょうか。');
@@ -2454,10 +2483,23 @@ function renderDraftMails() {
       cardsHtml +=   '<span class="attach-note">※ DLしてメールに添付してください</span></div>';
       cardsHtml +=   '<div class="attach-list">';
       cardsHtml +=     '<div class="attach-group">' + escapeHtml(groupLabel) + '</div>';
+      // 同一店舗・同日の発注が複数あると同名になるため、2件以上ある組には連番(_1,_2…)を付ける（一式zip側と同じ規則）
+      var dupCount = {};
+      attachOrders.forEach(function(od) {
+        var k = od.shop_code + '_' + od.order_date;
+        dupCount[k] = (dupCount[k] || 0) + 1;
+      });
+      var dupSeq = {};
       attachOrders.forEach(function(od) {
         var ymd = String(od.order_date || '').replace(/-/g, '');
-        var fname = docLabel + '_' + od.shop_code + '_' + (od.shop_name || '') + '_' + ymd + '.pdf';
-        var url = pdfUrlWithName(endpoint, { id: od.order_id, shop_code: od.shop_code, shop_name: od.shop_name, date: od.order_date }, docLabel) + '&dl=1';
+        var k = od.shop_code + '_' + od.order_date;
+        var seq = 0;
+        if (dupCount[k] >= 2) {
+          dupSeq[k] = (dupSeq[k] || 0) + 1;
+          seq = dupSeq[k];
+        }
+        var fname = docLabel + '_' + od.shop_code + '_' + (od.shop_name || '') + '_' + ymd + (seq ? '_' + seq : '') + '.pdf';
+        var url = pdfUrlWithName(endpoint, { id: od.order_id, shop_code: od.shop_code, shop_name: od.shop_name, date: od.order_date }, docLabel, seq) + '&dl=1';
         cardsHtml += '<div class="attach-item">' +
           '<span class="attach-icon pdf">PDF</span>' +
           '<span class="attach-name">' + escapeHtml(fname) + '</span>' +
