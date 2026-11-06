@@ -2638,12 +2638,14 @@ function renderDraftMails() {
     cardsHtml +=     '<span class="copy-feedback" id="copyFeedback-' + i + '">コピーしました</span>';
     cardsHtml +=     '<div class="spacer"></div>';
     cardsHtml +=     '<button type="button" class="btn-action btn-primary" onclick="markSupplierOrdered(' + i + ')">';
+    // 備品・チェア備品: 1発注に複数仕入先の商品が混在しうるが、ステータスは発注単位のため
+    // 「仕入先分のみ」の発注済化はできない。実態どおり「対象の発注（N件）」と表記する
     cardsHtml +=       (e.kind === 'repair' ? 'この修理を発注済にする'
                          : e.kind === 'repair-merged' ? 'この修理（' + e.order_ids.length + '件）を発注済にする'
                          : e.kind === 'parts' ? 'この部品発注を発注済にする'
                          : e.kind === 'seat' ? 'このシート交換を発注済にする'
                          : e.kind === 'club' ? 'この依頼分を発注済にする'
-                         : 'この仕入先分を発注済にする') + '</button>';
+                         : '対象の発注（' + e.order_ids.length + '件）を発注済にする') + '</button>';
     cardsHtml +=   '</div>';
     cardsHtml += '</div>';
   });
@@ -2707,6 +2709,17 @@ function markSupplierOrdered(i) {
   var name = entry.kind === 'repair' ? (entry.data.equipment_name || 'この修理') : entry.label;
   var msg = '【' + name + '】に紐付く ' + entry.order_ids.length + ' 件の発注を「発注済」に変更します。\n' +
             'よろしいですか？';
+  // 備品は1発注に複数仕入先の商品が混在しうる（ステータスは発注単位）。
+  // 他の仕入先カードと発注を共有している場合は、そちらも対象から外れる旨を注意する
+  var hasOverlap = (draftMailsState.entries || []).some(function(e2, j) {
+    if (j === i) return false;
+    return (e2.order_ids || []).some(function(oid) { return entry.order_ids.indexOf(oid) !== -1; });
+  });
+  if (hasOverlap) {
+    msg += '\n\n※ 対象の発注には他の仕入先の商品も含まれています。\n' +
+           '発注済にすると他の仕入先カードの対象からも外れるため、\n' +
+           '各仕入先のメールを先に作成してから実行してください。';
+  }
   if (!confirm(msg)) return;
 
   if (typeof window.showLoading === 'function') window.showLoading('発注済に更新中…');
@@ -2727,10 +2740,16 @@ function markSupplierOrdered(i) {
 
       // このタブを閉じてリストから除外
       (draftMailsState.entries || []).splice(i, 1);
-      if (draftMailsState.activeIndex >= draftMailsState.entries.length) {
-        draftMailsState.activeIndex = Math.max(0, draftMailsState.entries.length - 1);
+      if (draftMailsState.entries.length === 0) {
+        // 全件処理済み。「対象がありません」の空メッセージ（未処理ゼロで開いたとき用）を
+        // 出すのは紛らわしいため、モーダルごと閉じる
+        closeDraftMails();
+      } else {
+        if (draftMailsState.activeIndex >= draftMailsState.entries.length) {
+          draftMailsState.activeIndex = Math.max(0, draftMailsState.entries.length - 1);
+        }
+        renderDraftMails();
       }
-      renderDraftMails();
 
       // 発注一覧側も再読込
       fetchOrders(function() { renderOrders(); });
