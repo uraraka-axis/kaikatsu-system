@@ -1,3 +1,34 @@
+// ===== API 応答の共通処理（全画面共通） =====
+// ・401（セッション切れ）→ ログイン画面へ移動。各画面の個別処理より先に効かせ、
+//   「エラーが発生しました」等のアラートを出さずに遷移させる
+// ・WAF（SiteGuard）が入力内容を遮断すると HTML の 403 が返り、JSON 解析に失敗して
+//   「通信エラー」と表示されてしまうため、理由つきの JSON エラー応答に置き換える
+(function() {
+  if (!window.fetch || window.__apiFetchWrapped) return;
+  window.__apiFetchWrapped = true;
+  var origFetch = window.fetch.bind(window);
+  var WAF_MESSAGE = '入力内容に、セキュリティ上使用できない記述（プログラムのような文字列）が含まれているため送信できませんでした。内容を修正して、再度お試しください。';
+
+  window.fetch = function(input, init) {
+    var url = typeof input === 'string' ? input : ((input && input.url) || '');
+    return origFetch(input, init).then(function(r) {
+      if (!/(^|\/)api\//.test(url)) return r;
+      if (r.status === 401 && !/api\/(login|logout)\.php/.test(url)) {
+        window.location.href = 'login.html';
+        return new Promise(function() {}); // 画面遷移するため後続処理（エラー表示）は行わない
+      }
+      var ct = r.headers.get('Content-Type') || '';
+      if (r.status === 403 && ct.indexOf('application/json') === -1) {
+        return new Response(JSON.stringify({ success: false, error: WAF_MESSAGE, message: WAF_MESSAGE }), {
+          status: 403,
+          headers: { 'Content-Type': 'application/json; charset=utf-8' }
+        });
+      }
+      return r;
+    });
+  };
+})();
+
 // ===== Loading オーバーレイ（全画面共通） =====
 // 遅延表示: showLoading 後 250ms 以内に hideLoading された高速処理では
 // オーバーレイを出さない（白い幕が一瞬光るチラつきを防止）。
@@ -40,9 +71,13 @@
 // iPad 等の大きい写真（5MB超）はサーバ側上限で無言スキップされていたため、
 // 送信前に長辺を maxEdge px まで縮小し JPEG 再エンコードして確実に上限内へ収める。
 // jpeg/png/webp のみ対象（gif はアニメ保持のためそのまま）。失敗時は元ファイルを返す。
+// png/webp は寸法に関係なく JPEG へ変換する（webp はサーバ非対応、png は写真だと
+// 数MBになり複数枚で POST 上限を超え、発注データごと届かなくなるため）。
+// JPEG も長辺 maxEdge 以下だが重いもの（REENCODE_BYTES 超）は再圧縮する。
 window.downscaleImage = function(file, maxEdge, quality) {
   maxEdge = maxEdge || 2000;
   quality = quality || 0.85;
+  var REENCODE_BYTES = 1.5 * 1024 * 1024;
   return new Promise(function(resolve) {
     if (!/^image\/(jpeg|png|webp)$/.test(file.type)) { resolve(file); return; }
     var url = URL.createObjectURL(file);
@@ -50,14 +85,18 @@ window.downscaleImage = function(file, maxEdge, quality) {
     img.onload = function() {
       var w = img.naturalWidth, h = img.naturalHeight;
       var longEdge = Math.max(w, h);
-      if (!longEdge || longEdge <= maxEdge) { URL.revokeObjectURL(url); resolve(file); return; }
-      var scale = maxEdge / longEdge;
+      var needConvert = file.type !== 'image/jpeg' || file.size > REENCODE_BYTES;
+      if (!longEdge || (longEdge <= maxEdge && !needConvert)) { URL.revokeObjectURL(url); resolve(file); return; }
+      var scale = Math.min(1, maxEdge / longEdge);
       var cw = Math.max(1, Math.round(w * scale));
       var ch = Math.max(1, Math.round(h * scale));
       var canvas = document.createElement('canvas');
       canvas.width = cw; canvas.height = ch;
       try {
-        canvas.getContext('2d').drawImage(img, 0, 0, cw, ch);
+        var ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#ffffff'; // 透過 png を JPEG 化したとき黒背景にならないよう白で塗る
+        ctx.fillRect(0, 0, cw, ch);
+        ctx.drawImage(img, 0, 0, cw, ch);
       } catch (e) { URL.revokeObjectURL(url); resolve(file); return; }
       URL.revokeObjectURL(url);
       canvas.toBlob(function(blob) {

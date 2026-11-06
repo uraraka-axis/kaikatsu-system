@@ -1302,7 +1302,7 @@ function doOrder(orderId) {
   apiPost('api/orders/status.php', body)
     .then(function(data) {
       if (!data.success) {
-        alert(data.message || 'エラーが発生しました');
+        alert(data.error || data.message || 'エラーが発生しました');
         return;
       }
       closeModal();
@@ -1329,7 +1329,7 @@ function doToDelivering(orderId) {
   apiPost('api/orders/status.php', payload)
     .then(function(data) {
       if (!data.success) {
-        alert(data.message || 'エラーが発生しました');
+        alert(data.error || data.message || 'エラーが発生しました');
         return;
       }
       closeModal();
@@ -1361,7 +1361,7 @@ function doRepairDone(orderId) {
   })
     .then(function(data) {
       if (!data.success) {
-        alert(data.message || 'エラーが発生しました');
+        alert(data.error || data.message || 'エラーが発生しました');
         return;
       }
       closeModal();
@@ -1391,7 +1391,7 @@ function doDeliveryDone(orderId) {
   })
     .then(function(data) {
       if (!data.success) {
-        alert(data.message || 'エラーが発生しました');
+        alert(data.error || data.message || 'エラーが発生しました');
         return;
       }
       closeModal();
@@ -1426,7 +1426,7 @@ function doClubComplete(orderId) {
   })
     .then(function(data) {
       if (!data.success) {
-        alert(data.message || 'エラーが発生しました');
+        alert(data.error || data.message || 'エラーが発生しました');
         return;
       }
       closeModal();
@@ -1492,7 +1492,7 @@ function doComplete(orderId) {
   apiPost('api/orders/status.php', body)
     .then(function(data) {
       if (!data.success) {
-        alert(data.message || 'エラーが発生しました');
+        alert(data.error || data.message || 'エラーが発生しました');
         return;
       }
       closeModal();
@@ -1756,7 +1756,7 @@ function doSaveEditInfo(orderId) {
   apiPost('api/orders/update-info.php', body)
     .then(function(data) {
       if (!data.success) {
-        alert(data.message || 'エラーが発生しました');
+        alert(data.error || data.message || 'エラーが発生しました');
         return;
       }
       closeModal();
@@ -1958,7 +1958,7 @@ function doBulkStatusChange() {
   })
     .then(function(data) {
       if (!data.success) {
-        alert(data.message || 'エラーが発生しました');
+        alert(data.error || data.message || 'エラーが発生しました');
         return;
       }
       closeModal();

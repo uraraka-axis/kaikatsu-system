@@ -47,6 +47,12 @@ if ($user['role'] !== 'shop') {
     jsonError('店舗ユーザーのみ発注できます', 403);
 }
 
+// 送信サイズが post_max_size を超えると $_POST・$_FILES が空で届く。
+// そのまま進むと「不正な発注種別」と誤って表示されるため、先に理由を返す
+if (empty($_POST) && empty($_FILES) && (int)($_SERVER['CONTENT_LENGTH'] ?? 0) > 0) {
+    jsonError('添付した写真の合計サイズが大きすぎます。写真の枚数を減らすか、サイズの小さい写真で再度お試しください。', 413);
+}
+
 $shopCode = $user['shop_code'];
 $type = $_POST['type'] ?? '';
 $category = $_POST['category'] ?? '';
@@ -84,7 +90,11 @@ if (!$cat) {
 
 // 修理・チェア修理はシリアルナンバー写真が必須（添付漏れ防止。フロントの制御を信用しない）
 if (in_array($type, ['repair', 'chair-repair'], true) && !isValidSerialPhotoUpload()) {
-    jsonError('シリアルナンバーの写真を添付してください');
+    // 添付はあるが形式・サイズで弾かれた場合は、その旨を伝える（webp 等で「添付してください」は紛らわしい）
+    $attached = ($_FILES['serial_photo']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE;
+    jsonError($attached
+        ? 'シリアルナンバーの写真は JPEG・PNG・GIF 形式（5MB以内）で添付してください'
+        : 'シリアルナンバーの写真を添付してください');
 }
 
 try {

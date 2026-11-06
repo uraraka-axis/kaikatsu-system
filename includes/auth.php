@@ -309,7 +309,9 @@ function requireLogin(): void
 {
     if (!isLoggedIn()) {
         // APIリクエストの場合はJSONで返す
-        if (isApiRequest()) {
+        // （発注書PDF・Excel出力など、ブラウザでAPIを直接開いた場合は JSON を見せず
+        //   ログイン画面へリダイレクトする）
+        if (isApiRequest() && !isBrowserNavigation()) {
             http_response_code(401);
             header('Content-Type: application/json; charset=utf-8');
             echo json_encode([
@@ -396,6 +398,18 @@ function requireSystem(): void
         echo '403 Forbidden: システム管理者権限が必要です';
         exit;
     }
+}
+
+/**
+ * ブラウザの画面遷移（リンク・別タブ・location.href）によるリクエストか判定
+ *
+ * @return bool 画面遷移ならtrue（fetch/XHR ならfalse）
+ */
+function isBrowserNavigation(): bool
+{
+    // Sec-Fetch-Mode 非対応の古いブラウザは Accept の text/html で判定（fetch の既定は */*）
+    return ($_SERVER['HTTP_SEC_FETCH_MODE'] ?? '') === 'navigate'
+        || str_contains($_SERVER['HTTP_ACCEPT'] ?? '', 'text/html');
 }
 
 /**
