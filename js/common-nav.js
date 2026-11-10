@@ -279,7 +279,7 @@ window.downscaleImage = function(file, maxEdge, quality) {
         storeNav.push({ href: 'chair-repair-order.html', label: 'チェア修理' });
         storeNav.push({ href: 'chair-equipment-order.html', label: 'チェア備品' });
         // 骨盤底筋チェア修理は専用画面リリースまで Googleフォーム（外部・新しいタブ）
-        storeNav.push({ href: window.PELVIC_CHAIR_FORM_URL, label: '骨盤底筋チェア修理', external: true });
+        storeNav.push({ href: window.PELVIC_CHAIR_FORM_URL, label: '骨盤チェア修理', external: true });
       }
       if (hasGolf) {
         storeNav.push({ href: 'club-replacement.html', label: '代替クラブ' });
