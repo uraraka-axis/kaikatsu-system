@@ -427,12 +427,12 @@
                 ' / 残高: ¥' + budgetInfo.remaining.toLocaleString() +
                 '<br>今回発注予定額 ¥' + totalPrice.toLocaleString() +
                 '（¥' + over.toLocaleString() + ' 超過）</span>';
-              showNotify('warning', 'チェア備品発注を送信しました', bodyHtml);
+              showNotify('warning', 'マッサージチェア備品発注を送信しました', bodyHtml);
             } else {
-              showNotify('success', 'チェア備品発注を送信しました', bodyHtml);
+              showNotify('success', 'マッサージチェア備品発注を送信しました', bodyHtml);
             }
           } else {
-            showNotify('success', 'チェア備品発注を送信しました', bodyHtml);
+            showNotify('success', 'マッサージチェア備品発注を送信しました', bodyHtml);
           }
           cart = {};
           budgetInfo.loaded = false;

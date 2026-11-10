@@ -341,7 +341,7 @@ function submitForm() {
   .then(function(data) {
     if (!data) return;
     if (data.success) {
-      showNotify('success', '修理依頼を送信しました',
+      showNotify('success', 'マッサージチェア修理依頼を送信しました',
         '発注番号: <span class="notify-order-id">' + data.order_id + '</span>');
       resetForm();
     } else {
