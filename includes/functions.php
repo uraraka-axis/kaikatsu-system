@@ -49,6 +49,38 @@ function jsonError(string $message, int $status = 400): void
     ], $status);
 }
 
+/** 金額入力の上限（円）。DB の INT 列に余裕をもって収まる値。画面側 js/common-nav.js の AMOUNT_MAX と同値 */
+const AMOUNT_MAX = 99999999;
+
+/** メール下書きの「発注済にする」で履歴に自動付与されるメモの接頭辞（js/order-list.js markSupplierOrdered と同一。店舗側には非表示） */
+const DRAFT_MAIL_AUTO_MEMO_PREFIX = 'メール下書きから発注';
+
+/**
+ * 金額入力の検証。整数または数字のみの文字列だけを受け付け、範囲外・不正値は 400 で終了する。
+ * （(int) キャストは「123abc」を 123 に、JSON の巨大数は float になり DB で桁あふれするため）
+ *
+ * @param mixed  $raw   入力値
+ * @param string $label 項目名（エラーメッセージ用）
+ * @param int    $min   最小値（0=0円可 / 1=1円以上）
+ */
+function validateAmountInput(mixed $raw, string $label, int $min = 0): int
+{
+    if (is_int($raw)) {
+        $value = $raw;
+    } elseif (is_string($raw) && preg_match('/\A\d{1,10}\z/', $raw)) {
+        $value = (int)$raw;
+    } else {
+        jsonError($label . 'は正しい金額（数字のみ）を入力してください');
+    }
+    if ($value < $min) {
+        jsonError($label . 'は' . $min . '円以上で入力してください');
+    }
+    if ($value > AMOUNT_MAX) {
+        jsonError($label . 'は' . number_format(AMOUNT_MAX) . '円以内で入力してください');
+    }
+    return $value;
+}
+
 /**
  * JSON レスポンスをクライアントに送信したのち、接続を閉じてスクリプトを継続実行する。
  *

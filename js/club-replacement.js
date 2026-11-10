@@ -37,14 +37,30 @@
   }
 
   // ===== Submit State =====
+  // 破損状況は報告書（A4 1枚）に収まるよう 200文字・10行まで（サーバ側でも検証）
+  var DAMAGE_MAX_CHARS = 200;
+  var DAMAGE_MAX_LINES = 10;
+
   window.updateSubmitState = function() {
     var club = document.getElementById('clubSelect').value;
     var shaft = document.getElementById('shaftSelect').value;
     var damage = document.getElementById('damageText').value.trim();
     var btn = document.getElementById('submitBtn');
-    var ok = club !== '' && shaft !== '' && damage !== '';
+
+    var chars = damage.length;
+    var lines = damage === '' ? 0 : damage.split(/\r?\n/).length;
+    var overLines = lines > DAMAGE_MAX_LINES;
+    var counter = document.getElementById('damageCount');
+    if (counter) {
+      counter.textContent = chars + ' / ' + DAMAGE_MAX_CHARS + '文字・' + lines + ' / ' + DAMAGE_MAX_LINES + '行' +
+        (overLines ? '（行数が多すぎます。改行を減らしてください）' : '');
+      counter.style.color = overLines ? '#dc2626' : '#64748b';
+    }
+
+    var ok = club !== '' && shaft !== '' && damage !== '' && !overLines && chars <= DAMAGE_MAX_CHARS;
     btn.disabled = !ok;
-    btn.title = ok ? '' : '破損クラブ・シャフト・破損状況をすべて入力してください';
+    btn.title = ok ? '' : (overLines ? '破損状況は' + DAMAGE_MAX_LINES + '行以内で入力してください'
+                                     : '破損クラブ・シャフト・破損状況をすべて入力してください');
   };
 
   // ===== ビジー制御（repair-order.js と同方式の簡易版） =====

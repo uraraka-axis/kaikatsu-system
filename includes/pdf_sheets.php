@@ -230,7 +230,7 @@ h1 { font-size: 15pt; font-weight: bold; line-height: 1.5; margin: 0 0 16px; }
 table.fields { border-collapse: separate; border-spacing: 0 0; width: 100%; margin-bottom: 4px; }
 .lbl { font-size: 7.5pt; color: #555; padding: 6px 4px 2px 1px; }
 .box { border: 1px solid #444; padding: 5px 7px; font-size: 10pt; background: #fff; }
-.multi { white-space: pre-wrap; line-height: 1.7; min-height: 60pt; }
+.multi { white-space: pre-wrap; line-height: 1.7; min-height: 60pt; word-break: break-all; word-wrap: break-word; }
 .foot { margin-top: 10px; font-size: 8pt; color: #333; line-height: 1.7; }
 </style>
 </head>
@@ -263,12 +263,10 @@ table.fields { border-collapse: separate; border-spacing: 0 0; width: 100%; marg
     <td style="width:45%"></td>
   </tr>
 </table>
-<table class="fields">
-  <tr>
-    <td style="width:75%"><div class="lbl">破損状況</div><div class="box multi">%%DAMAGE%%</div></td>
-    <td style="width:25%"></td>
-  </tr>
-</table>
+<!-- 破損状況は全幅ブロック（表セルだと改行なしの長文で幅が広がり右端が切れるため）。
+     入力は200文字・10行までに制限しており、最大でもA4 1枚に収まる -->
+<div class="lbl">破損状況</div>
+<div class="box multi">%%DAMAGE%%</div>
 <div class="foot">
 ※ どこが、どのように破損したかわかるように記載をお願い致します。<br>
 例：ヘッドにヒビが入っている、シャフトが曲がっている、グリップが擦れていてすべる、等

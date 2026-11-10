@@ -248,6 +248,9 @@ foreach ($clubRows as $row) {
 }
 
 // --- ステータス履歴 ---
+// メール下書きの一括発注済で自動付与されるメモ（商品部の操作経路の記録）は、
+// 店舗側（admin/system 以外）には関係しないため表示しない
+$hideAutoMemo = !in_array($user['role'], ['admin', 'system'], true);
 $statusHistories = [];
 $historySql = "SELECT order_id, status, changed_at, changed_by, memo
               FROM order_status_history
@@ -259,7 +262,7 @@ foreach ($historyRows as $row) {
         'status'     => (int)$row['status'],
         'changed_at' => $row['changed_at'],
         'changed_by' => $row['changed_by'],
-        'memo'       => $row['memo'],
+        'memo'       => ($hideAutoMemo && str_starts_with((string)$row['memo'], DRAFT_MAIL_AUTO_MEMO_PREFIX)) ? '' : $row['memo'],
     ];
 }
 

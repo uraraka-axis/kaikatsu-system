@@ -71,13 +71,10 @@ switch ($action) {
             $orderItems = [];
             foreach ($input['items'] as $item) {
                 $itemId = filter_var($item['id'] ?? null, FILTER_VALIDATE_INT);
-                $price  = filter_var($item['price'] ?? null, FILTER_VALIDATE_INT);
                 if ($itemId === false || $itemId === null || $itemId <= 0) {
                     jsonError('明細IDが不正です');
                 }
-                if ($price === false || $price === null || $price < 0) {
-                    jsonError('単価は0以上の数値を入力してください');
-                }
+                $price = validateAmountInput($item['price'] ?? null, '単価', 0);
                 $orderItems[] = ['id' => $itemId, 'price' => $price];
             }
             // 実際の値はトランザクション内の再計算で上書きする（プレースホルダ）
@@ -88,10 +85,7 @@ switch ($action) {
             if ($estimateAmount === null || $estimateAmount === '') {
                 jsonError('見積金額は必須です');
             }
-            $estimateAmount = filter_var($estimateAmount, FILTER_VALIDATE_INT);
-            if ($estimateAmount === false || $estimateAmount <= 0) {
-                jsonError('見積金額は1以上の数値を入力してください');
-            }
+            $estimateAmount = validateAmountInput($estimateAmount, '見積金額', 1);
             $updateCols[] = 'estimate_amount = :estimate_amount';
             $updateVals[':estimate_amount'] = $estimateAmount;
         }
@@ -223,11 +217,8 @@ switch ($action) {
                 };
                 jsonError($typeLabel . '発注の最終金額は必須です');
             }
-            $finalAmount = filter_var($finalAmount, FILTER_VALIDATE_INT);
             // 0円は許容（業者都合などで結局納品されなかった場合の実績）。マイナスのみ不可。
-            if ($finalAmount === false || $finalAmount < 0) {
-                jsonError('最終金額は0以上の数値を入力してください（マイナス不可）');
-            }
+            $finalAmount = validateAmountInput($finalAmount, '最終金額', 0);
             $updateCols[] = 'final_amount = :final_amount';
             $updateVals[':final_amount'] = $finalAmount;
         } else {
@@ -238,13 +229,10 @@ switch ($action) {
                 $completeItems = [];
                 foreach ($input['items'] as $item) {
                     $itemId = filter_var($item['id'] ?? null, FILTER_VALIDATE_INT);
-                    $price  = filter_var($item['price'] ?? null, FILTER_VALIDATE_INT);
                     if ($itemId === false || $itemId === null || $itemId <= 0) {
                         jsonError('明細IDが不正です');
                     }
-                    if ($price === false || $price === null || $price < 0) {
-                        jsonError('単価は0以上の数値を入力してください');
-                    }
+                    $price = validateAmountInput($item['price'] ?? null, '単価', 0);
                     $completeItems[] = ['id' => $itemId, 'price' => $price];
                 }
                 // 実際の値はトランザクション内の再計算で上書きする（プレースホルダ）
@@ -253,11 +241,8 @@ switch ($action) {
             } else {
                 $finalAmount = $input['final_amount'] ?? null;
                 if ($finalAmount !== null && $finalAmount !== '') {
-                    $finalAmount = filter_var($finalAmount, FILTER_VALIDATE_INT);
                     // 0円は許容（業者都合などで結局納品されなかった場合の実績）。マイナスのみ不可。
-                    if ($finalAmount === false || $finalAmount < 0) {
-                        jsonError('最終金額は0以上の数値を入力してください（マイナス不可）');
-                    }
+                    $finalAmount = validateAmountInput($finalAmount, '最終金額', 0);
                     $updateCols[] = 'final_amount = :final_amount';
                     $updateVals[':final_amount'] = $finalAmount;
                 } else {
@@ -305,6 +290,9 @@ try {
         if ($recalc <= 0) {
             throw new InvalidArgumentException('見積金額（明細合計）は1以上である必要があります');
         }
+        if ($recalc > AMOUNT_MAX) {
+            throw new InvalidArgumentException('見積金額（明細合計）は' . number_format(AMOUNT_MAX) . '円以内になるよう単価を入力してください');
+        }
         $updateVals[':estimate_amount'] = $recalc;
     }
 
@@ -329,6 +317,9 @@ try {
                FROM order_equipment_items WHERE order_id = :oid',
             [':oid' => $orderId]
         );
+        if ((int)$sumRow['total'] > AMOUNT_MAX) {
+            throw new InvalidArgumentException('最終金額（明細合計）は' . number_format(AMOUNT_MAX) . '円以内になるよう単価を入力してください');
+        }
         $updateVals[':final_amount'] = (int)$sumRow['total']; // 0円許容
     }
 
@@ -444,6 +435,9 @@ try {
 } catch (Throwable $e) {
     rollback();
     error_log('Status change error: ' . $e->getMessage());
+    if ($e instanceof InvalidArgumentException) {
+        jsonError($e->getMessage(), 400);
+    }
     jsonError('ステータス変更に失敗しました', 500);
 }
 

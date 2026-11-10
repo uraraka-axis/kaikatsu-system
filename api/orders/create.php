@@ -447,8 +447,13 @@ function createClubReplacementDetail(string $orderId): void
     if (!in_array($shaft, $validShafts, true)) {
         throw new InvalidArgumentException('シャフトの選択値が不正です');
     }
-    if (mb_strlen($damage) > 1000) {
-        throw new InvalidArgumentException('破損状況は1000文字以内で入力してください');
+    // 報告書（A4 1枚）に収まるよう 200文字・10行まで（画面側 js/club-replacement.js と同値）
+    $damage = str_replace(["\r\n", "\r"], "\n", $damage);
+    if (mb_strlen($damage) > 200) {
+        throw new InvalidArgumentException('破損状況は200文字以内で入力してください');
+    }
+    if (substr_count($damage, "\n") + 1 > 10) {
+        throw new InvalidArgumentException('破損状況は10行以内で入力してください');
     }
 
     execute(

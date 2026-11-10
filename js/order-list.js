@@ -1032,7 +1032,7 @@ function openStatusModal(orderId, action) {
           '<td style="padding:6px 10px;border:1px solid #e2e8f0">' + escapeHtml(it.product_name) + '</td>' +
           '<td style="padding:6px 10px;text-align:center;border:1px solid #e2e8f0">' + it.qty + '</td>' +
           '<td style="padding:4px 6px;border:1px solid #e2e8f0">' +
-            '<input type="text" inputmode="numeric" class="edit-item-price" data-item-id="' + it.id + '" value="' + it.price + '" ' +
+            '<input type="text" inputmode="numeric" maxlength="11" class="edit-item-price" data-item-id="' + it.id + '" value="' + it.price + '" ' +
             'style="width:100%;padding:4px 6px;border:1px solid #cbd5e1;border-radius:4px;text-align:right;font-size:13px;font-family:inherit" ' +
             'oninput="recalcEditItemsTotal()"></td>' +
           '<td class="edit-item-subtotal" data-item-id="' + it.id + '" style="padding:6px 10px;text-align:right;border:1px solid #e2e8f0;font-variant-numeric:tabular-nums">¥' + subtotal.toLocaleString() + '</td>' +
@@ -1058,7 +1058,7 @@ function openStatusModal(orderId, action) {
       amountBlock = '';
     } else {
       amountBlock =
-        '<div class="modal-row"><span class="modal-label">見積金額 <span class="required">*</span></span><input class="modal-input" id="modalAmount" type="text" inputmode="numeric" placeholder="金額を入力"></div>';
+        '<div class="modal-row"><span class="modal-label">見積金額 <span class="required">*</span></span><input class="modal-input" id="modalAmount" type="text" inputmode="numeric" maxlength="11" placeholder="金額を入力"></div>';
     }
 
     body.innerHTML =
@@ -1147,7 +1147,7 @@ function openStatusModal(orderId, action) {
           '<td style="padding:6px 10px;border:1px solid #e2e8f0">' + escapeHtml(it.product_name) + '</td>' +
           '<td style="padding:6px 10px;text-align:center;border:1px solid #e2e8f0">' + it.qty + '</td>' +
           '<td style="padding:4px 6px;border:1px solid #e2e8f0">' +
-            '<input type="text" inputmode="numeric" class="complete-item-price" data-item-id="' + it.id + '" value="' + it.price + '" ' +
+            '<input type="text" inputmode="numeric" maxlength="11" class="complete-item-price" data-item-id="' + it.id + '" value="' + it.price + '" ' +
             'style="width:100%;padding:4px 6px;border:1px solid #cbd5e1;border-radius:4px;text-align:right;font-size:13px;font-family:inherit" ' +
             'oninput="recalcCompleteItemsTotal(' + estAmt + ')"></td>' +
           '<td class="complete-item-subtotal" data-item-id="' + it.id + '" style="padding:6px 10px;text-align:right;border:1px solid #e2e8f0;font-variant-numeric:tabular-nums">¥' + sub.toLocaleString() + '</td>' +
@@ -1177,7 +1177,7 @@ function openStatusModal(orderId, action) {
       body.innerHTML =
         '<div class="modal-row"><span class="modal-label">見積額</span><input class="modal-input readonly" value="¥' + estAmt.toLocaleString() + '" readonly></div>' +
         '<hr class="modal-divider">' +
-        '<div class="modal-row"><span class="modal-label">最終金額 <span class="required">*</span></span><input class="modal-input" id="modalFinalAmount" type="text" inputmode="numeric" placeholder="最終金額を入力（納品なしは0）" oninput="updateDiff(' + estAmt + ')"></div>' +
+        '<div class="modal-row"><span class="modal-label">最終金額 <span class="required">*</span></span><input class="modal-input" id="modalFinalAmount" type="text" inputmode="numeric" maxlength="11" placeholder="最終金額を入力（納品なしは0）" oninput="updateDiff(' + estAmt + ')"></div>' +
         '<div class="modal-diff" id="modalDiffRow" style="display:none;"><span class="modal-diff-label">差額</span><span class="modal-diff-value" id="modalDiffValue"></span></div>' +
         '<div class="modal-row"><span class="modal-label">メモ</span><textarea class="modal-textarea" id="modalMemo" placeholder="任意入力"></textarea></div>';
     }
@@ -1227,8 +1227,9 @@ function updateDiff(estimateAmount) {
   var input = document.getElementById('modalFinalAmount');
   var diffRow = document.getElementById('modalDiffRow');
   var diffValue = document.getElementById('modalDiffValue');
-  var val = parseInt(String(input.value).replace(/,/g, ''), 10);
-  if (isNaN(val)) {
+  var val = parseAmountInput(input.value).value;
+  if (val === null) {
+    // 未入力・数字以外・上限超過は差額を出さない（送信時にメッセージ表示）
     diffRow.style.display = 'none';
     return;
   }
@@ -1267,11 +1268,13 @@ function doOrder(orderId) {
     for (var i = 0; i < priceInputs.length; i++) {
       var inp = priceInputs[i];
       var itemId = parseInt(inp.getAttribute('data-item-id'), 10);
-      var price = parseInt(String(inp.value).replace(/,/g, ''), 10);
-      if (isNaN(price) || price < 0) {
-        alert('単価は0以上の数値を入力してください');
+      var pp = parseAmountInput(inp.value);
+      var ppErr = amountErrorMessage('単価', pp, 0);
+      if (ppErr) {
+        alert(ppErr);
         return;
       }
+      var price = pp.value;
       var qty = Number(inp.closest('tr').getAttribute('data-qty')) || 0;
       total += price * qty;
       items.push({ id: itemId, price: price });
@@ -1280,17 +1283,21 @@ function doOrder(orderId) {
       alert('見積金額（明細合計）が1以上になるよう単価を入力してください');
       return;
     }
+    if (total > AMOUNT_MAX) {
+      alert('見積金額（明細合計）は' + AMOUNT_MAX.toLocaleString() + '円以内になるよう単価を入力してください');
+      return;
+    }
     body.items = items;
   } else if (order.type === 'club-replacement') {
     // 代替ゴルフクラブは金額なし（見積入力不要）
   } else {
-    var amountInput = document.getElementById('modalAmount');
-    var amount = parseInt(String(amountInput.value).replace(/,/g, ''), 10);
-    if (isNaN(amount) || amount <= 0) {
-      alert('見積金額を入力してください');
+    var pa = parseAmountInput(document.getElementById('modalAmount').value);
+    var paErr = amountErrorMessage('見積金額', pa, 1);
+    if (paErr) {
+      alert(paErr);
       return;
     }
-    body.estimate_amount = amount;
+    body.estimate_amount = pa.value;
   }
 
   if (isRepairLikeType(order.type)) {
@@ -1460,15 +1467,23 @@ function doComplete(orderId) {
   if (isEquipmentLikeType(order.type)) {
     // 備品: 明細単価を編集して最終金額(=Σ)を確定。未納品の商品は単価0（合計0円も可）。
     var items = [];
-    var bad = false;
+    var badMsg = null;
+    var completeTotal = 0;
     document.querySelectorAll('.complete-item-price').forEach(function(inp) {
+      if (badMsg) return;
       var id = parseInt(inp.getAttribute('data-item-id'), 10);
-      var p = parseInt(String(inp.value).replace(/,/g, ''), 10);
-      if (isNaN(p) || p < 0) { bad = true; return; }
-      items.push({ id: id, price: p });
+      var pc = parseAmountInput(inp.value);
+      badMsg = amountErrorMessage('単価', pc, 0);
+      if (badMsg) return;
+      completeTotal += pc.value * (Number(inp.closest('tr').getAttribute('data-qty')) || 0);
+      items.push({ id: id, price: pc.value });
     });
-    if (bad) {
-      alert('単価は0以上の数値を入力してください');
+    if (badMsg) {
+      alert(badMsg);
+      return;
+    }
+    if (completeTotal > AMOUNT_MAX) {
+      alert('最終金額（明細合計）は' + AMOUNT_MAX.toLocaleString() + '円以内になるよう単価を入力してください');
       return;
     }
     if (items.length > 0) {
@@ -1480,13 +1495,13 @@ function doComplete(orderId) {
     }
   } else {
     // 修理 / 部品 / シート交換: 単一の最終金額（必須・0円許容、マイナス不可）
-    var finalInput = document.getElementById('modalFinalAmount');
-    var finalAmount = parseInt(String(finalInput.value).replace(/,/g, ''), 10);
-    if (isNaN(finalAmount) || finalAmount < 0) {
-      alert('最終金額を入力してください（0以上）');
+    var pf = parseAmountInput(document.getElementById('modalFinalAmount').value);
+    var pfErr = amountErrorMessage('最終金額', pf, 0);
+    if (pfErr) {
+      alert(pf.empty ? '最終金額を入力してください（納品なしは0）' : pfErr);
       return;
     }
-    body.final_amount = finalAmount;
+    body.final_amount = pf.value;
   }
 
   apiPost('api/orders/status.php', body)
@@ -1580,7 +1595,7 @@ function openEditInfoModal(orderId) {
   fields.forEach(function(f) {
     if (f.type === 'number') {
       html += '<div class="modal-row"><span class="modal-label">' + f.label + '</span>' +
-        '<input class="modal-input" id="editField_' + f.key + '" type="text" inputmode="numeric" value="' + (hasAmount(f.value) ? f.value : '') + '"></div>';
+        '<input class="modal-input" id="editField_' + f.key + '" type="text" inputmode="numeric" maxlength="11" value="' + (hasAmount(f.value) ? f.value : '') + '"></div>';
     } else if (f.type === 'date') {
       html += '<div class="modal-row"><span class="modal-label">' + f.label + '</span>' +
         '<input class="modal-input" id="editField_' + f.key + '" type="date" value="' + (f.value || '') + '"></div>';
@@ -1611,7 +1626,7 @@ function openEditInfoModal(orderId) {
           '<td style="padding:6px 10px;border:1px solid #e2e8f0">' + escapeHtml(it.product_name) + '</td>' +
           '<td style="padding:6px 10px;text-align:center;border:1px solid #e2e8f0">' + it.qty + '</td>' +
           '<td style="padding:4px 6px;border:1px solid #e2e8f0">' +
-            '<input type="text" inputmode="numeric" class="edit-item-price" data-item-id="' + it.id + '" value="' + it.price + '" ' +
+            '<input type="text" inputmode="numeric" maxlength="11" class="edit-item-price" data-item-id="' + it.id + '" value="' + it.price + '" ' +
             'style="width:100%;padding:4px 6px;border:1px solid #cbd5e1;border-radius:4px;text-align:right;font-size:13px;font-family:inherit" ' +
             'oninput="recalcEditItemsTotal()"></td>' +
           '<td class="edit-item-subtotal" data-item-id="' + it.id + '" style="padding:6px 10px;text-align:right;border:1px solid #e2e8f0;font-variant-numeric:tabular-nums">¥' + subtotal.toLocaleString() + '</td>' +
@@ -1643,8 +1658,7 @@ window.recalcEditItemsTotal = function() {
     var itemId = input.getAttribute('data-item-id');
     var row    = input.closest('tr');
     var qty    = Number(row.getAttribute('data-qty')) || 0;
-    var price  = parseInt(String(input.value).replace(/,/g, ''), 10);
-    if (isNaN(price) || price < 0) price = 0;
+    var price  = parseAmountInput(input.value).value || 0; // 不正値は0扱い（送信時に検証）
     var subtotal = price * qty;
     total += subtotal;
     var subCell = document.querySelector('.edit-item-subtotal[data-item-id="' + itemId + '"]');
@@ -1661,8 +1675,7 @@ window.recalcCompleteItemsTotal = function(estAmt) {
     var itemId = input.getAttribute('data-item-id');
     var row    = input.closest('tr');
     var qty    = Number(row.getAttribute('data-qty')) || 0;
-    var price  = parseInt(String(input.value).replace(/,/g, ''), 10);
-    if (isNaN(price) || price < 0) price = 0;
+    var price  = parseAmountInput(input.value).value || 0; // 不正値は0扱い（送信時に検証）
     var subtotal = price * qty;
     total += subtotal;
     var subCell = document.querySelector('.complete-item-subtotal[data-item-id="' + itemId + '"]');
@@ -1703,13 +1716,10 @@ function doSaveEditInfo(orderId) {
       for (var i = 0; i < inputs.length; i++) {
         var inp     = inputs[i];
         var itemId  = parseInt(inp.getAttribute('data-item-id'), 10);
-        var rawVal  = String(inp.value).trim();
-        var price   = parseInt(rawVal.replace(/,/g, ''), 10);
-        if (isNaN(price) || price < 0) {
-          validationError = '単価は0以上の数値を入力してください';
-          return;
-        }
-        items.push({ id: itemId, price: price });
+        var pe      = parseAmountInput(inp.value);
+        validationError = amountErrorMessage('単価', pe, 0);
+        if (validationError) return;
+        items.push({ id: itemId, price: pe.value });
       }
       if (items.length > 0) {
         body.items = items;
@@ -1725,18 +1735,11 @@ function doSaveEditInfo(orderId) {
         // 空欄はスキップ（変更しない）
         return;
       }
-      var val = parseInt(rawVal, 10);
       // 最終金額は0円を許容（業者都合などで結局納品されなかった場合）。見積金額は1以上。
-      if (f.key === 'final_amount') {
-        if (isNaN(val) || val < 0) {
-          validationError = f.label + 'は0以上の数値を入力してください（マイナス不可）';
-          return;
-        }
-      } else if (isNaN(val) || val <= 0) {
-        validationError = f.label + 'は1以上の数値を入力してください';
-        return;
-      }
-      body[f.key] = val;
+      var pn = parseAmountInput(rawVal);
+      validationError = amountErrorMessage(f.label, pn, f.key === 'final_amount' ? 0 : 1);
+      if (validationError) return;
+      body[f.key] = pn.value;
     } else if (f.type === 'date') {
       body[f.key] = el.value || '';
     } else if (f.type === 'textarea') {

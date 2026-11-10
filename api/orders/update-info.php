@@ -69,19 +69,11 @@ if (in_array($user['role'], ['admin', 'system'], true)) {
 
 // --- 金額バリデーション（見積金額は1以上／最終金額は0以上＝マイナスのみ不可） ---
 if (isset($input['estimate_amount'])) {
-    $est = filter_var($input['estimate_amount'], FILTER_VALIDATE_INT);
-    if ($est === false || $est <= 0) {
-        jsonError('見積金額は1以上の数値を入力してください');
-    }
-    $input['estimate_amount'] = $est;
+    $input['estimate_amount'] = validateAmountInput($input['estimate_amount'], '見積金額', 1);
 }
 if (isset($input['final_amount'])) {
     // 0円は許容（業者都合などで結局納品されなかった場合の実績）。マイナスのみ不可。
-    $fin = filter_var($input['final_amount'], FILTER_VALIDATE_INT);
-    if ($fin === false || $fin < 0) {
-        jsonError('最終金額は0以上の数値を入力してください（マイナス不可）');
-    }
-    $input['final_amount'] = $fin;
+    $input['final_amount'] = validateAmountInput($input['final_amount'], '最終金額', 0);
 }
 
 // --- 備品明細の単価編集バリデーション ---
@@ -100,13 +92,10 @@ if (isset($input['items']) && is_array($input['items'])) {
     $itemsToUpdate = [];
     foreach ($input['items'] as $item) {
         $itemId = filter_var($item['id'] ?? null, FILTER_VALIDATE_INT);
-        $price  = filter_var($item['price'] ?? null, FILTER_VALIDATE_INT);
         if ($itemId === false || $itemId === null || $itemId <= 0) {
             jsonError('明細IDが不正です');
         }
-        if ($price === false || $price === null || $price < 0) {
-            jsonError('単価は0以上の数値を入力してください');
-        }
+        $price = validateAmountInput($item['price'] ?? null, '単価', 0);
         $itemsToUpdate[] = ['id' => $itemId, 'price' => $price];
     }
 }
@@ -144,6 +133,9 @@ try {
                 [':oid' => $orderId]
             );
             $newSum = (int)$sumRow['total'];
+            if ($newSum > AMOUNT_MAX) {
+                throw new InvalidArgumentException('明細合計は' . number_format(AMOUNT_MAX) . '円以内になるよう単価を入力してください');
+            }
             if ($currentStatus === 4) {
                 // 完了後の編集 = 最終金額（実績）を明細合計で再計算。0円許容。
                 $input['final_amount'] = $newSum;
@@ -279,6 +271,9 @@ try {
 } catch (Throwable $e) {
     rollback();
     error_log('Update info error: ' . $e->getMessage());
+    if ($e instanceof InvalidArgumentException) {
+        jsonError($e->getMessage(), 400);
+    }
     jsonError('更新に失敗しました', 500);
 }
 

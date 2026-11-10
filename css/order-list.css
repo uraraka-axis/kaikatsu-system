@@ -435,7 +435,7 @@
   padding: 4px 0;
   font-size: 13px;
 }
-.modal-diff-label { color: #94a3b8; }
+.modal-diff-label { color: #94a3b8; white-space: nowrap; margin-right: 12px; }
 .modal-diff-value { font-weight: 600; }
 .modal-diff-value.minus { color: #16a34a; }
 .modal-diff-value.plus { color: #dc2626; }

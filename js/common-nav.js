@@ -67,6 +67,30 @@
   };
 })();
 
+// ===== 金額入力の解析（全画面共通） =====
+// parseInt は「123aaa0」を 123 と解釈し、「aaaaa」は未入力と区別できないため、
+// 数字以外が1文字でも含まれていれば不正とする。全角数字・カンマ・空白は許容。
+// 上限は DB の INT 列に余裕をもって収まる 99,999,999 円（サーバ側 AMOUNT_MAX と同値）。
+window.AMOUNT_MAX = 99999999;
+window.AMOUNT_INPUT_MAXLENGTH = 11; // 「99,999,999」＋余白
+window.parseAmountInput = function(raw) {
+  var s = String(raw == null ? '' : raw)
+    .replace(/[０-９]/g, function(c) { return String.fromCharCode(c.charCodeAt(0) - 0xFEE0); })
+    .replace(/[,，\s]/g, '');
+  if (s === '') return { empty: true, value: null, error: null };
+  if (!/^\d+$/.test(s)) return { empty: false, value: null, error: 'invalid' };
+  if (s.length > 9 || Number(s) > window.AMOUNT_MAX) return { empty: false, value: null, error: 'max' };
+  return { empty: false, value: Number(s), error: null };
+};
+// parseAmountInput の結果からエラーメッセージを作る（min: 0=0円可 / 1=1円以上）
+window.amountErrorMessage = function(label, parsed, min) {
+  if (parsed.empty) return label + 'を入力してください';
+  if (parsed.error === 'invalid') return label + 'は正しい金額（数字のみ）を入力してください';
+  if (parsed.error === 'max') return label + 'は' + window.AMOUNT_MAX.toLocaleString() + '円以内で入力してください';
+  if (parsed.value < min) return label + 'は' + min + '円以上で入力してください';
+  return null;
+};
+
 // ===== 画像ダウンスケール（送信前の縮小） =====
 // iPad 等の大きい写真（5MB超）はサーバ側上限で無言スキップされていたため、
 // 送信前に長辺を maxEdge px まで縮小し JPEG 再エンコードして確実に上限内へ収める。

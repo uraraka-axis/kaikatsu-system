@@ -17,7 +17,7 @@
 <body>
   <header class="header" data-title="自店調達申請管理"></header>
   <nav class="nav" data-active="procurement-history.html"></nav>
-  <script src="js/common-nav.js?v=20261106"></script>
+  <script src="js/common-nav.js?v=20261110"></script>
   <main class="main">
     <!-- Procurement Form (store only) -->
     <div class="procurement-section" id="procurementSection" style="display:none">
@@ -32,7 +32,7 @@
         </div>
         <div class="form-group">
           <label class="form-label">金額</label>
-          <input type="number" class="form-input" id="procAmount" placeholder="10000" style="width:150px">
+          <input type="text" inputmode="numeric" maxlength="11" class="form-input" id="procAmount" placeholder="10000" style="width:150px">
         </div>
         <div class="form-group" style="flex:2;min-width:200px">
           <label class="form-label">理由</label>
@@ -58,6 +58,6 @@
   </main>
 
   <script src="js/notify-modal.js?v=20260521"></script>
-  <script src="js/procurement-history.js?v=20260611"></script>
+  <script src="js/procurement-history.js?v=20261110"></script>
 </body>
 </html>

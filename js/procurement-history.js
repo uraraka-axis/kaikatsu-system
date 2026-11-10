@@ -293,12 +293,14 @@ document.addEventListener('DOMContentLoaded', function() {
       showNotify('error', '入力エラー', 'カテゴリを選択してください。');
       return;
     }
-    // カンマ区切り入力にも対応
-    var amount = parseInt(String(amountInput.value).replace(/,/g, ''), 10);
+    // カンマ区切り・全角数字にも対応。数字以外を含む値・上限超過は不可（全画面共通の金額チェック）
+    var parsedAmount = parseAmountInput(amountInput.value);
+    var amountErr = amountErrorMessage('金額', parsedAmount, 1);
+    var amount = parsedAmount.value;
     var reason = reasonInput.value.trim();
 
-    if (!amount || amount <= 0) {
-      showNotify('error', '入力エラー', '金額を正しく入力してください。');
+    if (amountErr) {
+      showNotify('error', '入力エラー', amountErr);
       return;
     }
     if (!reason) {

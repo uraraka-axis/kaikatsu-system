@@ -31,7 +31,7 @@
 <body>
   <header class="header" data-title="代替ゴルフクラブ発送依頼"></header>
   <nav class="nav" data-active="club-replacement.html"></nav>
-  <script src="js/common-nav.js?v=20261106"></script>
+  <script src="js/common-nav.js?v=20261110"></script>
 
   <main class="main">
     <form id="clubForm" onsubmit="return false;">
@@ -97,8 +97,9 @@
         <div class="form-right">
           <div class="form-group">
             <label class="form-label">破損状況<span class="required">*</span></label>
-            <textarea id="damageText" class="form-textarea" style="min-height:180px;" maxlength="1000" placeholder="ヘッドにヒビが入っている、シャフトが曲がっている、グリップが擦れていてすべる、等" oninput="updateSubmitState()"></textarea>
-            <div class="field-note" style="margin-top:6px;">※ どこが、どのように破損したかわかるように記載をお願い致します。</div>
+            <textarea id="damageText" class="form-textarea" style="min-height:180px;" maxlength="200" placeholder="ヘッドにヒビが入っている、シャフトが曲がっている、グリップが擦れていてすべる、等" oninput="updateSubmitState()"></textarea>
+            <div id="damageCount" style="margin-top:4px;font-size:12px;color:#64748b;text-align:right;">0 / 200文字・1 / 10行</div>
+            <div class="field-note" style="margin-top:6px;">※ どこが、どのように破損したかわかるように記載をお願い致します。（200文字・10行まで）</div>
           </div>
         </div>
       </div>
@@ -111,6 +112,6 @@
   </main>
 
   <script src="js/notify-modal.js?v=20260521"></script>
-  <script src="js/club-replacement.js?v=20261002"></script>
+  <script src="js/club-replacement.js?v=20261110"></script>
 </body>
 </html>

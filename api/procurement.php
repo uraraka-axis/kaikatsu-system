@@ -211,10 +211,7 @@ if ($method === 'GET') {
     if ($amount === null || $amount === '') {
         jsonError('金額を入力してください');
     }
-    $amount = (int)$amount;
-    if ($amount <= 0) {
-        jsonError('金額は1円以上で入力してください');
-    }
+    $amount = validateAmountInput($amount, '金額', 1);
     if ($reason === '') {
         jsonError('理由を入力してください');
     }
