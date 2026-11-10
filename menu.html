@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/common.css?v=20260602a">
-  <link rel="stylesheet" href="css/menu.css?v=20260528b">
+  <link rel="stylesheet" href="css/menu.css?v=20261110">
 </head>
 <body>
   <header class="header" data-title="メニュー"></header>
@@ -106,7 +106,7 @@
             </div>
             <div class="menu-card-text">
               <div class="menu-card-title">骨盤底筋チェア修理依頼</div>
-              <div class="menu-card-desc">骨盤底筋チェアの修理依頼をします（Googleフォームが開きます）</div>
+              <div class="menu-card-desc">骨盤底筋チェアの修理依頼をします</div>
             </div>
           </a>
 
@@ -121,6 +121,7 @@
             </div>
           </a>
         </div>
+        <div class="menu-note" id="pelvicChairFormNote">※「骨盤底筋チェア修理依頼」は、Googleフォームが新しいタブで開きます。</div>
       </div>
 
       <!-- 管理メニュー -->
@@ -231,6 +232,8 @@
           if (chairRepairCard) chairRepairCard.style.display = 'none';
           var pelvicCard = document.getElementById('pelvicChairFormCard');
           if (pelvicCard) pelvicCard.style.display = 'none';
+          var pelvicNote = document.getElementById('pelvicChairFormNote');
+          if (pelvicNote) pelvicNote.style.display = 'none';
         }
         // 代替ゴルフクラブ発送依頼はゴルフ取扱店舗のみ
         if (catCodes.indexOf('golf') < 0) {
