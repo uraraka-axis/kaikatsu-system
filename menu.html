@@ -16,7 +16,7 @@
 </head>
 <body>
   <header class="header" data-title="メニュー"></header>
-  <script src="js/common-nav.js?v=20261106"></script>
+  <script src="js/common-nav.js?v=20261110"></script>
 
   <main class="main">
     <div class="menu-container">
@@ -95,6 +95,18 @@
             <div class="menu-card-text">
               <div class="menu-card-title">チェア修理依頼</div>
               <div class="menu-card-desc">マッサージチェアの修理依頼をします</div>
+            </div>
+          </a>
+
+          <!-- 骨盤底筋チェア修理依頼: 専用画面リリースまでの暫定で Googleフォームを新しいタブで開く（URL は common-nav.js の PELVIC_CHAIR_FORM_URL） -->
+          <a href="#" class="menu-card" id="pelvicChairFormCard" target="_blank" rel="noopener">
+            <div class="menu-card-icon">
+              <!-- 外部フォーム (書類 + 外部リンク矢印) -->
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6"></path><line x1="8" y1="13" x2="13" y2="13"></line><line x1="8" y1="17" x2="13" y2="17"></line><polyline points="16 3 21 3 21 8"></polyline><line x1="13" y1="11" x2="21" y2="3"></line></svg>
+            </div>
+            <div class="menu-card-text">
+              <div class="menu-card-title">骨盤底筋チェア修理依頼</div>
+              <div class="menu-card-desc">骨盤底筋チェアの修理依頼をします（Googleフォームが開きます）</div>
             </div>
           </a>
 
@@ -179,6 +191,9 @@
     document.getElementById('adminSection').style.display = 'none';
     document.getElementById('systemMenuCard').style.display = 'none';
 
+    // 骨盤底筋チェア修理依頼カードのリンク先（Googleフォーム。common-nav.js で定義）
+    document.getElementById('pelvicChairFormCard').href = window.PELVIC_CHAIR_FORM_URL;
+
     window.addEventListener('userLoaded', function(e) {
       var user = e.detail;
       if (user.role === 'admin') {
@@ -214,6 +229,8 @@
           if (chairCard) chairCard.style.display = 'none';
           var chairRepairCard = document.getElementById('chairRepairCard');
           if (chairRepairCard) chairRepairCard.style.display = 'none';
+          var pelvicCard = document.getElementById('pelvicChairFormCard');
+          if (pelvicCard) pelvicCard.style.display = 'none';
         }
         // 代替ゴルフクラブ発送依頼はゴルフ取扱店舗のみ
         if (catCodes.indexOf('golf') < 0) {

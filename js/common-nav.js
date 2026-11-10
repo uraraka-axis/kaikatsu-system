@@ -67,6 +67,12 @@
   };
 })();
 
+// ===== 骨盤底筋チェア修理依頼（Googleフォーム） =====
+// 専用画面のリリース（2026-12-15予定）までの暫定運用。快活様より受領したフォームURL（2026-11-03）。
+// メニューカード（menu.html）とグロナビ（フィットネス取扱店舗）から新しいタブで開く。
+// 専用画面リリース時はこの定数と参照箇所を削除する
+window.PELVIC_CHAIR_FORM_URL = 'https://forms.gle/8ygA57BgnuhNUimo9';
+
 // ===== 金額入力の解析（全画面共通） =====
 // parseInt は「123aaa0」を 123 と解釈し、「aaaaa」は未入力と区別できないため、
 // 数字以外が1文字でも含まれていれば不正とする。全角数字・カンマ・空白は許容。
@@ -272,6 +278,8 @@ window.downscaleImage = function(file, maxEdge, quality) {
         // 並びは通常の「修理発注→備品発注」と同じく「チェア修理→チェア備品」
         storeNav.push({ href: 'chair-repair-order.html', label: 'チェア修理' });
         storeNav.push({ href: 'chair-equipment-order.html', label: 'チェア備品' });
+        // 骨盤底筋チェア修理は専用画面リリースまで Googleフォーム（外部・新しいタブ）
+        storeNav.push({ href: window.PELVIC_CHAIR_FORM_URL, label: '骨盤底筋チェア修理', external: true });
       }
       if (hasGolf) {
         storeNav.push({ href: 'club-replacement.html', label: '代替クラブ' });
@@ -314,7 +322,12 @@ window.downscaleImage = function(file, maxEdge, quality) {
         var html = '';
         navItems.forEach(function(item) {
           var isActive = item.href === activePage;
-          if (isActive) {
+          if (item.external) {
+            // 外部リンク（Googleフォーム）は新しいタブで開く
+            html += '<button class="nav-btn nav-btn-external" title="Googleフォームが新しいタブで開きます" ' +
+                    'onclick="window.open(window.PELVIC_CHAIR_FORM_URL, \'_blank\', \'noopener\')">' + item.label +
+                    '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left:3px;vertical-align:-1px"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg></button>';
+          } else if (isActive) {
             // 現在ページのボタン押下時はページ再読込（再表示要望対応）
             html += '<button class="nav-btn active" onclick="location.reload()">' + item.label + '</button>';
           } else {
