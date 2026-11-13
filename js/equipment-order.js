@@ -142,7 +142,7 @@
         var imgHtml;
         if (p.image_path) {
           imgHtml = '<div class="product-img has-image clickable" onclick="openProductLightbox(' + p.id + ')">' +
-            '<img src="api/product-image.php?code=' + encodeURIComponent(p.code) + '&slot=0" alt="" loading="lazy" onerror="this.parentNode.classList.remove(\'has-image\')">' +
+            '<img src="api/product-image.php?code=' + encodeURIComponent(p.code) + '&slot=0&size=thumb" alt="" loading="lazy" onerror="this.parentNode.classList.remove(\'has-image\')">' +
             placeholderSvg +
             '</div>';
         } else if (hasAnyImage) {
