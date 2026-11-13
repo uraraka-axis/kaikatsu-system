@@ -2075,6 +2075,9 @@ function openDraftMails() {
       renderDraftMails();
       var ov = document.getElementById('draftMailsOverlay');
       if (ov) ov.classList.add('open');
+      // 前回スクロールした位置が残らないよう、開くたびに先頭へ戻す
+      var bodyEl = document.getElementById('draftMailsBody');
+      if (bodyEl) bodyEl.scrollTop = 0;
     })
     .catch(function(e) {
       console.error(e);
