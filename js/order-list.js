@@ -2574,7 +2574,7 @@ function renderDraftMails() {
       if (e.kind === 'repair-merged') {
         atItems.forEach(function(it) {
           var mFname = sheetLabel + '_' + atdYmd + '_' + atShopName + '_' + it.order_id + '.xlsx';
-          var mUrl = 'api/orders/request-sheet.php/' + encodeURIComponent(mFname) + '?ids=' + encodeURIComponent(it.order_id);
+          var mUrl = 'api/orders/request-sheet.php/' + encodeURIComponent(mFname) + '?ids=' + encodeURIComponent(it.order_id) + '&with_id=1';
           itemsHtml += '<div class="attach-item">' +
             '<span class="attach-icon xlsx">XLS</span>' +
             '<span class="attach-name">' + escapeHtml(mFname) + '</span>' +

@@ -12,6 +12,7 @@
  *   - 生成本体は includes/request_sheet.php（一式zip と共通）
  *
  * ファイル名: 修理依頼書_{Ymd}_{店舗名}.xlsx / シート発注依頼書_{Ymd}_{店舗名}.xlsx
+ *   with_id=1（修理まとめの発注ごとDL）: 末尾に _{発注番号} を付ける（一式zip内の名前と同じ）
  */
 
 require_once __DIR__ . '/../../includes/auth.php';
@@ -49,7 +50,9 @@ $docLabel  = [
     'parts'            => '部品発注依頼書',
     'seat-replacement' => 'シート発注依頼書',
 ][$type];
-$filename  = sprintf('%s_%s_%s.xlsx', $docLabel, date('Ymd'), $orders[0]['shop_name']);
+$filename  = ($_GET['with_id'] ?? '') === '1' && count($orders) === 1
+    ? sprintf('%s_%s_%s_%s.xlsx', $docLabel, date('Ymd'), $orders[0]['shop_name'], $orders[0]['id'])
+    : sprintf('%s_%s_%s.xlsx', $docLabel, date('Ymd'), $orders[0]['shop_name']);
 $asciiFallback = sprintf('request_sheet_%s_%s.xlsx', $orders[0]['shop_code'], date('Ymd'));
 
 header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
