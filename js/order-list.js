@@ -836,10 +836,10 @@ function renderActionButton(o) {
   // 報告書を印刷: 代替ゴルフのみ（店舗=自店 / admin・どのステータスでも常設）
   // 店舗自身が印刷したときだけサーバ側で report_printed_at が記録されるため、少し待って一覧を再取得する
   if (o.type === 'club-replacement' && (viewMode === 'store' || (viewMode === 'admin' && window.__canOperate))) {
-    // モック06と同配置: 印刷ボタンのみ左寄せ（margin-right:auto）、他のアクションは右寄せのまま
+    // チェア備品の「発注書PDF」と同じく右寄せ（他のアクションの左隣）
     html += '<a class="btn-sm" href="' + pdfUrlWithName('api/orders/club-report.php', o, '代替クラブ発送依頼書') + '" ' +
             'target="_blank" rel="noopener" onclick="onClubReportPrint()" ' +
-            'style="display:inline-flex;align-items:center;gap:4px;text-decoration:none;margin-right:auto;color:#0f766e;border-color:#0f766e;background:#fff">' +
+            'style="display:inline-flex;align-items:center;gap:4px;text-decoration:none;color:#0f766e;border-color:#0f766e;background:#fff">' +
             '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>' +
             '報告書を印刷</a>';
   }
