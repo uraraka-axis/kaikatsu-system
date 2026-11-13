@@ -266,18 +266,45 @@
 
     function handleSerialUpload(e) {
       var files = e.target.files;
-      if (!files || files.length === 0) return;
+      if (files && files.length > 0) addSerialFile(files[0]);
+      e.target.value = '';
+    }
+
+    // タップ選択・ドラッグ＆ドロップ共通（1枚のみ。添付済みのときは×で削除してから）
+    function addSerialFile(file) {
       var allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-      var file = files[0];
-      if (allowed.indexOf(file.type) < 0) { e.target.value = ''; return; }
+      if (!file || allowed.indexOf(file.type) < 0) return;
       downscaleImage(file, 2000, 0.85).then(function(out) {
         if (serialPhoto) URL.revokeObjectURL(serialPhoto.url);
         serialPhoto = { url: URL.createObjectURL(out), file: out };
         renderSerialPhoto();
         updateSubmitState();
       });
-      e.target.value = '';
     }
+
+    // シリアルナンバー写真のドラッグ＆ドロップ対応
+    document.addEventListener('DOMContentLoaded', function() {
+      var area = document.getElementById('serialUploadArea');
+      if (!area) return;
+      ['dragenter', 'dragover'].forEach(function(ev) {
+        area.addEventListener(ev, function(e) {
+          e.preventDefault(); e.stopPropagation();
+          if (serialPhoto) return;
+          area.classList.add('dragover');
+        });
+      });
+      ['dragleave', 'drop'].forEach(function(ev) {
+        area.addEventListener(ev, function(e) {
+          e.preventDefault(); e.stopPropagation();
+          area.classList.remove('dragover');
+        });
+      });
+      area.addEventListener('drop', function(e) {
+        if (serialPhoto) return;
+        var files = e.dataTransfer && e.dataTransfer.files;
+        if (files && files.length > 0) addSerialFile(files[0]);
+      });
+    });
 
     function removeSerialPhoto() {
       if (serialPhoto) URL.revokeObjectURL(serialPhoto.url);
@@ -403,3 +430,8 @@
     if (window.__currentUser) {
       bootRepairOrder(window.__currentUser);
     }
+
+    // 写真枠の外に画像を落としたとき、ブラウザが画像を開いて入力内容が消えるのを防ぐ
+    ['dragover', 'drop'].forEach(function(ev) {
+      window.addEventListener(ev, function(e) { e.preventDefault(); });
+    });

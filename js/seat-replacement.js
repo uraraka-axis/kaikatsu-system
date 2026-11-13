@@ -317,3 +317,8 @@
     if (window.__currentUser) {
       bootSeatReplacement(window.__currentUser);
     }
+
+    // 写真枠の外に画像を落としたとき、ブラウザが画像を開いて入力内容が消えるのを防ぐ
+    ['dragover', 'drop'].forEach(function(ev) {
+      window.addEventListener(ev, function(e) { e.preventDefault(); });
+    });
