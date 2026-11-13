@@ -28,7 +28,7 @@ define('DB_CHARSET', 'utf8mb4');
 // ============================================================
 // サイト設定
 // ============================================================
-define('SITE_NAME', '快活フロンティア 発注管理システム');
+define('SITE_NAME', 'OrderTree');
 define('BASE_PATH', dirname(__DIR__));
 define('BASE_URL', '/kaikatsu-system');
 
@@ -103,7 +103,7 @@ define('SMTP_USER',     '');             // SMTP_AUTH=true のとき必須
 define('SMTP_PASS',     '');             // SMTP_AUTH=true のとき必須
 define('SMTP_SECURE',   '');             // '', 'tls', 'ssl' のいずれか
 define('MAIL_FROM',     'noreply@kaikatsu.local');
-define('MAIL_FROM_NAME','快活システム');
+define('MAIL_FROM_NAME','OrderTree');
 // ローカル開発時に Mailpit 等を起動していない場合、true にすると
 // 送信を試みず logs/mail.log に追記するだけにできる (障害切り分け用)。
 // テストスクリプトから先に define されている場合はそちらを優先する（!defined ガード）。
