@@ -523,6 +523,9 @@
   flex-wrap: wrap;
 }
 .draft-mails-tab {
+  display: inline-flex;
+  align-items: center;
+  max-width: 240px;
   padding: 10px 16px;
   font-size: 13px;
   font-weight: 500;
@@ -533,6 +536,11 @@
   cursor: pointer;
   white-space: nowrap;
   transition: all 0.15s;
+}
+.draft-mails-tab-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .draft-mails-tab:hover { color: #1e293b; }
 .draft-mails-tab.active {
@@ -545,8 +553,9 @@
   padding: 1px 7px;
   background: #e2e8f0;
   border-radius: 10px;
-  font-size: 11px;
+  font-size: 12px;
   color: #64748b;
+  flex-shrink: 0;
 }
 .draft-mails-tab.active .badge-count {
   background: #dbeafe;
