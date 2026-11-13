@@ -128,6 +128,9 @@ try {
     // ETag / Last-Modified で再表示時は 304 を返す（画像を差し替えると値が変わる）
     $mtime = (int)filemtime($outFile);
     $etag = '"' . sha1($outFile . '|' . $mtime . '|' . filesize($outFile)) . '"';
+    // session_start() が付ける Pragma: no-cache / Expires(過去日) があると Chrome が毎回問い合わせるため外す
+    header_remove('Pragma');
+    header_remove('Expires');
     header('Cache-Control: private, max-age=3600');
     header('ETag: ' . $etag);
     header('Last-Modified: ' . gmdate('D, d M Y H:i:s', $mtime) . ' GMT');
