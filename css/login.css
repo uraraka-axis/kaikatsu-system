@@ -26,8 +26,9 @@ body {
   margin-bottom: 36px;
 }
 .login-title {
-  font-size: 20px;
+  font-size: 30px;
   font-weight: 700;
+  letter-spacing: -0.01em;
   color: #1e293b;
   margin-bottom: 6px;
 }
