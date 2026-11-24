@@ -110,6 +110,18 @@
             </div>
           </a>
 
+          <!-- サプリメントサーバー専用備品の発注: 快活様のGoogleフォームを新しいタブで開く（URL は下の script の SUPPLEMENT_FORM_URL） -->
+          <a href="#" class="menu-card" id="supplementFormCard" target="_blank" rel="noopener">
+            <div class="menu-card-icon">
+              <!-- カプセル -->
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.5 20.5a4.95 4.95 0 0 1-7-7l10-10a4.95 4.95 0 0 1 7 7z"></path><line x1="8.5" y1="8.5" x2="15.5" y2="15.5"></line></svg>
+            </div>
+            <div class="menu-card-text">
+              <div class="menu-card-title">【都度発注】サプリメント在庫発注</div>
+              <div class="menu-card-desc">サプリメントサーバーの専用備品を発注します</div>
+            </div>
+          </a>
+
           <a href="club-replacement.html" class="menu-card" id="clubReplacementCard">
             <div class="menu-card-icon">
               <!-- ゴルフクラブ (シャフト + ヘッド + ボール) -->
@@ -121,7 +133,7 @@
             </div>
           </a>
         </div>
-        <div class="menu-note" id="pelvicChairFormNote">※「骨盤底筋チェア修理依頼」は、Googleフォームが新しいタブで開きます。</div>
+        <div class="menu-note" id="pelvicChairFormNote">※「骨盤底筋チェア修理依頼」「【都度発注】サプリメント在庫発注」は、Googleフォームが新しいタブで開きます。</div>
       </div>
 
       <!-- 管理メニュー -->
@@ -195,6 +207,10 @@
     // 骨盤底筋チェア修理依頼カードのリンク先（Googleフォーム。common-nav.js で定義）
     document.getElementById('pelvicChairFormCard').href = window.PELVIC_CHAIR_FORM_URL;
 
+    // サプリメントサーバー専用備品の発注フォーム（快活様より受領 2026-11-12・メニュー表示名も先方指定）
+    var SUPPLEMENT_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSc3mkH_96-CRunmlnY8z586o8GIPImGvWU-VF_Tr_YQF_T_LQ/viewform';
+    document.getElementById('supplementFormCard').href = SUPPLEMENT_FORM_URL;
+
     window.addEventListener('userLoaded', function(e) {
       var user = e.detail;
       if (user.role === 'admin') {
@@ -232,6 +248,8 @@
           if (chairRepairCard) chairRepairCard.style.display = 'none';
           var pelvicCard = document.getElementById('pelvicChairFormCard');
           if (pelvicCard) pelvicCard.style.display = 'none';
+          var supplementCard = document.getElementById('supplementFormCard');
+          if (supplementCard) supplementCard.style.display = 'none';
           var pelvicNote = document.getElementById('pelvicChairFormNote');
           if (pelvicNote) pelvicNote.style.display = 'none';
         }
